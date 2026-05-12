@@ -36,17 +36,24 @@ export async function GET(request) {
     query = query.gte('created_at_shopify', since.toISOString())
   }
 
-  const { data: orders, error } = await query
+  const { data: raw, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  // Попълваме commissionable_revenue и total_savings за стари поръчки (NULL в базата)
+  const orders = raw.map(o => ({
+    ...o,
+    commissionable_revenue: getCommissionable(o),
+    total_savings:          getSavings(o),
+  }))
+
   const commission = parseFloat(request.headers.get('x-commission') || '0')
 
   const totalRevenue          = orders.reduce((s, o) => s + parseFloat(o.total_price || 0), 0)
-  const commissionableRevenue = orders.reduce((s, o) => s + getCommissionable(o), 0)
-  const totalSavings          = orders.reduce((s, o) => s + getSavings(o), 0)
+  const commissionableRevenue = orders.reduce((s, o) => s + o.commissionable_revenue, 0)
+  const totalSavings          = orders.reduce((s, o) => s + o.total_savings, 0)
   const totalCommission       = commissionableRevenue * (commission / 100)
 
   const productMap = {}
