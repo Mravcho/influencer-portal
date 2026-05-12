@@ -4,26 +4,40 @@ import { supabaseAdmin } from '@/lib/supabase'
 function getCommissionable(order) {
   const stored = parseFloat(order.commissionable_revenue)
   if (stored > 0) return stored
-  // Стари поръчки: пълната цена на всички продукти
   return (order.line_items || []).reduce(
     (s, item) => s + parseFloat(item.price || 0) * (item.quantity || 1), 0
   )
 }
 
-function getSavings(order) {
+// Спестяване само от надеждни извори (не апроксимация)
+function getStoredSavings(order) {
   const stored = parseFloat(order.total_savings)
   if (stored > 0) return stored
-  // Ако line_items имат discount_amount (нов формат)
-  const fromItems = (order.line_items || []).reduce(
+  return (order.line_items || []).reduce(
     (s, item) => s + parseFloat(item.discount_amount || 0), 0
   )
-  if (fromItems > 0) return fromItems
-  // Апроксимация за стари поръчки: пълна цена − платена цена − доставка
-  const fullPrice = (order.line_items || []).reduce(
-    (s, item) => s + parseFloat(item.price || 0) * (item.quantity || 1), 0
-  )
-  const shipping = parseFloat(order.shipping_total || 0)
-  return Math.max(0, Math.round((fullPrice - parseFloat(order.total_price || 0) + shipping) * 100) / 100)
+}
+
+// Пълно спестяване — с апроксимация за стари поръчки
+function getSavings(order) {
+  const stored = getStoredSavings(order)
+  if (stored > 0) return stored
+  // Апроксимация: ако платеното < пълна цена → разликата е отстъпката
+  const full = getCommissionable(order)
+  const paid = parseFloat(order.total_price || 0)
+  return Math.max(0, Math.round((full - paid) * 100) / 100)
+}
+
+// Доставка — с апроксимация за стари поръчки
+function getShipping(order) {
+  const stored = parseFloat(order.shipping_total || 0)
+  if (stored > 0) return stored
+  // Апроксимация: доставка = платено − пълна цена + спестено (надеждно)
+  // Работи само ако paid > fullPrice (доставка без отстъпка)
+  const full         = getCommissionable(order)
+  const paid         = parseFloat(order.total_price || 0)
+  const storedSaving = getStoredSavings(order)
+  return Math.max(0, Math.round((paid - full + storedSaving) * 100) / 100)
 }
 
 export async function GET(request) {
@@ -46,12 +60,11 @@ export async function GET(request) {
   const { data: raw, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Попълваме изчислените полета за всяка поръчка (null за стари)
   const orders = raw.map(o => ({
     ...o,
     commissionable_revenue: Math.round(getCommissionable(o) * 100) / 100,
     total_savings:          Math.round(getSavings(o) * 100) / 100,
-    shipping_total:         parseFloat(o.shipping_total || 0),
+    shipping_total:         Math.round(getShipping(o) * 100) / 100,
   }))
 
   const commission = parseFloat(request.headers.get('x-commission') || '0')
