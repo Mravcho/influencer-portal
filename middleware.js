@@ -29,9 +29,10 @@ export async function middleware(request) {
 
     // Прикачаме payload към хедъри за API routes
     const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-user-id',   payload.id   || '')
-    requestHeaders.set('x-user-role', payload.role || '')
-    requestHeaders.set('x-promo-code', payload.promoCode || '')
+    requestHeaders.set('x-user-id',     payload.id         || '')
+    requestHeaders.set('x-user-role',   payload.role       || '')
+    requestHeaders.set('x-promo-code',  payload.promoCode  || '')
+    requestHeaders.set('x-commission',  String(payload.commission ?? ''))
     return NextResponse.next({ request: { headers: requestHeaders } })
   }
 
@@ -49,5 +50,5 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*', '/api/admin/:path*', '/login'],
+  matcher: ['/dashboard/:path*', '/admin/:path*', '/api/admin/:path*', '/api/dashboard/:path*', '/login'],
 }

@@ -90,7 +90,7 @@ export default function AdminPage() {
     router.push('/login')
   }
 
-  const fmtBgn = (n) => `${Number(n || 0).toFixed(2)} лв.`
+  const fmtEur = (n) => `${Number(n || 0).toFixed(2)} €`
   const totOrders = influencers.reduce((s, i) => s + (i.orderCount || 0), 0)
   const totComm   = influencers.reduce((s, i) => s + (i.totalCommission || 0), 0)
 
@@ -129,7 +129,7 @@ export default function AdminPage() {
           {[
             { label: 'Инфлуенсъри', value: influencers.length },
             { label: 'Общо поръчки', value: totOrders },
-            { label: 'Дължими комисионни', value: fmtBgn(totComm) },
+            { label: 'Дължими комисионни', value: fmtEur(totComm) },
           ].map(m => (
             <div key={m.label} className="metric">
               <div className="metric-label">{m.label}</div>
@@ -178,9 +178,9 @@ export default function AdminPage() {
                     </td>
                     <td><code style={{ background: 'var(--bg)', padding: '2px 7px', borderRadius: 5, fontSize: 12 }}>{inf.promo_code}</code></td>
                     <td style={{ fontWeight: 600 }}>{inf.orderCount || 0}</td>
-                    <td>{fmtBgn(inf.totalRevenue)}</td>
+                    <td>{fmtEur(inf.totalRevenue)}</td>
                     <td>{inf.commission}%</td>
-                    <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{fmtBgn(inf.totalCommission)}</td>
+                    <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{fmtEur(inf.totalCommission)}</td>
                     <td>
                       {inf.email ? (
                         <span title={inf.email} style={{ fontSize: 13 }}>

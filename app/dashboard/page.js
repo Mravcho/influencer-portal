@@ -43,7 +43,7 @@ export default function Dashboard() {
     try { return format(new Date(iso), 'd MMM yyyy', { locale: bg }) } catch { return iso }
   }
 
-  const fmtBgn = (n) => `${Number(n).toFixed(2)} лв.`
+  const fmtEur = (n) => `${Number(n).toFixed(2)} €`
 
   if (loading && !data) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -91,9 +91,9 @@ export default function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
           {[
             { label: 'Поръчки', value: stats.totalOrders || 0, sub: `с код ${userInfo.promoCode}` },
-            { label: 'Общ приход', value: fmtBgn(stats.totalRevenue || 0), sub: 'всички поръчки' },
-            { label: 'Комисионна', value: fmtBgn(stats.totalCommission || 0), sub: `${userInfo.commission}% от приходите` },
-            { label: 'Ср. поръчка', value: fmtBgn(stats.avgOrderValue || 0), sub: 'средна стойност' },
+            { label: 'Общ приход', value: fmtEur(stats.totalRevenue || 0), sub: 'всички поръчки' },
+            { label: 'Комисионна', value: fmtEur(stats.totalCommission || 0), sub: `${userInfo.commission}% от приходите` },
+            { label: 'Ср. поръчка', value: fmtEur(stats.avgOrderValue || 0), sub: 'средна стойност' },
           ].map(m => (
             <div key={m.label} className="metric">
               <div className="metric-label">{m.label}</div>
@@ -116,7 +116,7 @@ export default function Dashboard() {
                 <div key={i} style={{ marginBottom: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
                     <span style={{ fontSize: 13 }}>{p.title}</span>
-                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{p.quantity} бр. · {fmtBgn(p.revenue)}</span>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{p.quantity} бр. · {fmtEur(p.revenue)}</span>
                   </div>
                   <div className="progress">
                     <div className="progress-fill" style={{ width: `${(p.quantity / maxQty * 100).toFixed(0)}%` }} />
@@ -133,10 +133,10 @@ export default function Dashboard() {
                 Очаквана комисионна
               </div>
               <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--accent)', lineHeight: 1.1 }}>
-                {fmtBgn(stats.totalCommission || 0)}
+                {fmtEur(stats.totalCommission || 0)}
               </div>
               <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
-                Базирано на {stats.totalOrders || 0} поръчки · {fmtBgn(stats.totalRevenue || 0)} общ приход
+                Базирано на {stats.totalOrders || 0} поръчки · {fmtEur(stats.totalRevenue || 0)} общ приход
               </p>
             </div>
             <div style={{
@@ -187,9 +187,9 @@ export default function Dashboard() {
                       ))}
                     </div>
                   </td>
-                  <td style={{ fontWeight: 600 }}>{fmtBgn(order.total_price)}</td>
+                  <td style={{ fontWeight: 600 }}>{fmtEur(order.total_price)}</td>
                   <td style={{ color: 'var(--accent)', fontWeight: 600 }}>
-                    {fmtBgn(parseFloat(order.total_price) * (userInfo.commission / 100))}
+                    {fmtEur(parseFloat(order.total_price) * (userInfo.commission / 100))}
                   </td>
                   <td>
                     <span className={`badge ${order.fulfillment_status === 'fulfilled' ? 'badge-green' : 'badge-amber'}`}>

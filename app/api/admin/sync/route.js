@@ -50,7 +50,7 @@ export async function POST(request) {
         .limit(1)
         .single()
 
-      const since = latest?.created_at_shopify || null
+      const since = latest?.created_at_shopify || '2026-01-01T00:00:00.000Z'
       const shopifyOrders = await fetchOrdersByPromoCode(influencer.promo_code, since)
 
       if (shopifyOrders.length === 0) {
