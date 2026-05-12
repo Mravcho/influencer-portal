@@ -9,3 +9,7 @@ ALTER TABLE influencers
 ALTER TABLE orders
   ADD COLUMN IF NOT EXISTS commissionable_revenue NUMERIC(10,2),
   ADD COLUMN IF NOT EXISTS total_savings          NUMERIC(10,2);
+
+-- Доставка на поръчка
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS shipping_total NUMERIC(10,2) DEFAULT 0;

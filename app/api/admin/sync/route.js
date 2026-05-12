@@ -76,6 +76,7 @@ export async function POST(request) {
         line_items:             o.line_items,
         commissionable_revenue: o.commissionable_revenue,
         total_savings:          o.total_savings,
+        shipping_total:         o.shipping_total,
         synced_at:              new Date().toISOString(),
       }))
 

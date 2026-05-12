@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
-// Изчислява комисионна основа: ако в базата имаме commissionable_revenue → него;
-// иначе (стари поръчки) → пълната цена на всички line_items
 function getCommissionable(order) {
   const stored = parseFloat(order.commissionable_revenue)
   if (stored > 0) return stored
+  // Стари поръчки: пълната цена на всички продукти
   return (order.line_items || []).reduce(
     (s, item) => s + parseFloat(item.price || 0) * (item.quantity || 1), 0
   )
@@ -14,9 +13,17 @@ function getCommissionable(order) {
 function getSavings(order) {
   const stored = parseFloat(order.total_savings)
   if (stored > 0) return stored
-  return (order.line_items || []).reduce(
+  // Ако line_items имат discount_amount (нов формат)
+  const fromItems = (order.line_items || []).reduce(
     (s, item) => s + parseFloat(item.discount_amount || 0), 0
   )
+  if (fromItems > 0) return fromItems
+  // Апроксимация за стари поръчки: пълна цена − платена цена − доставка
+  const fullPrice = (order.line_items || []).reduce(
+    (s, item) => s + parseFloat(item.price || 0) * (item.quantity || 1), 0
+  )
+  const shipping = parseFloat(order.shipping_total || 0)
+  return Math.max(0, Math.round((fullPrice - parseFloat(order.total_price || 0) + shipping) * 100) / 100)
 }
 
 export async function GET(request) {
@@ -37,16 +44,14 @@ export async function GET(request) {
   }
 
   const { data: raw, error } = await query
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  // Попълваме commissionable_revenue и total_savings за стари поръчки (NULL в базата)
+  // Попълваме изчислените полета за всяка поръчка (null за стари)
   const orders = raw.map(o => ({
     ...o,
-    commissionable_revenue: getCommissionable(o),
-    total_savings:          getSavings(o),
+    commissionable_revenue: Math.round(getCommissionable(o) * 100) / 100,
+    total_savings:          Math.round(getSavings(o) * 100) / 100,
+    shipping_total:         parseFloat(o.shipping_total || 0),
   }))
 
   const commission = parseFloat(request.headers.get('x-commission') || '0')
@@ -59,7 +64,6 @@ export async function GET(request) {
   const productMap = {}
   orders.forEach(order => {
     ;(order.line_items || []).forEach(item => {
-      // Нови поръчки: само discounted продукти; стари поръчки: всички
       if (item.discounted === false) return
       const key = item.title
       if (!productMap[key]) productMap[key] = { title: key, quantity: 0, revenue: 0 }
