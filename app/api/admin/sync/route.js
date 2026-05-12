@@ -16,7 +16,8 @@ export async function POST(request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const singleId = searchParams.get('id')
+  const singleId  = searchParams.get('id')
+  const fullResync = searchParams.get('full') === 'true'
 
   // Вземаме email и email_notifications заедно с останалите полета
   let query = supabaseAdmin
@@ -32,8 +33,12 @@ export async function POST(request) {
 
   for (const influencer of influencers) {
     try {
-      // 1. Вземаме всички вече записани shopify_order_id за този инфлуенсър
-      //    Това ни позволява точно да засечем кои са НОВИ след upsert-а
+      // 1. При пълен ре-синк изтриваме всички стари поръчки за инфлуенсъра
+      if (fullResync) {
+        await supabaseAdmin.from('orders').delete().eq('influencer_id', influencer.id)
+      }
+
+      // 2. Вземаме вече записаните ID-та (за засичане на нови)
       const { data: existing } = await supabaseAdmin
         .from('orders')
         .select('shopify_order_id')
@@ -41,16 +46,18 @@ export async function POST(request) {
 
       const existingIds = new Set((existing || []).map(r => String(r.shopify_order_id)))
 
-      // 2. Инкрементален fetch от Shopify – само след последната поръчка
-      const { data: latest } = await supabaseAdmin
-        .from('orders')
-        .select('created_at_shopify')
-        .eq('influencer_id', influencer.id)
-        .order('created_at_shopify', { ascending: false })
-        .limit(1)
-        .single()
-
-      const since = latest?.created_at_shopify || '2026-01-01T00:00:00.000Z'
+      // 3. Инкрементален fetch от Shopify – от началото при ре-синк, иначе от последната
+      let since = '2026-01-01T00:00:00.000Z'
+      if (!fullResync) {
+        const { data: latest } = await supabaseAdmin
+          .from('orders')
+          .select('created_at_shopify')
+          .eq('influencer_id', influencer.id)
+          .order('created_at_shopify', { ascending: false })
+          .limit(1)
+          .single()
+        since = latest?.created_at_shopify || '2026-01-01T00:00:00.000Z'
+      }
       const shopifyOrders = await fetchOrdersByPromoCode(influencer.promo_code, since)
 
       if (shopifyOrders.length === 0) {

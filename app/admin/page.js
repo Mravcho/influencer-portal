@@ -94,20 +94,23 @@ export default function AdminPage() {
     load()
   }
 
-  const syncOne = async (id) => {
-    setSyncStatus(s => ({ ...s, [id]: 'syncing' }))
-    const res  = await fetch(`/api/admin/sync?id=${id}`, { method: 'POST' })
+  const syncOne = async (id, full = false) => {
+    const key = full ? `full_${id}` : id
+    setSyncStatus(s => ({ ...s, [key]: 'syncing' }))
+    const url = `/api/admin/sync?id=${id}${full ? '&full=true' : ''}`
+    const res  = await fetch(url, { method: 'POST' })
     const data = await res.json()
     const result = data.results?.[0]
-    setSyncStatus(s => ({ ...s, [id]: result?.error ? 'error' : 'done' }))
+    setSyncStatus(s => ({ ...s, [key]: result?.error ? 'error' : 'done' }))
     if (!result?.error) load()
-    setTimeout(() => setSyncStatus(s => ({ ...s, [id]: '' })), 3000)
+    setTimeout(() => setSyncStatus(s => ({ ...s, [key]: '' })), 3000)
   }
 
-  const syncAll = async () => {
-    setSyncStatus({ all: 'syncing' })
-    await fetch('/api/admin/sync', { method: 'POST' })
-    setSyncStatus({ all: 'done' })
+  const syncAll = async (full = false) => {
+    const key = full ? 'fullAll' : 'all'
+    setSyncStatus({ [key]: 'syncing' })
+    await fetch(`/api/admin/sync${full ? '?full=true' : ''}`, { method: 'POST' })
+    setSyncStatus({ [key]: 'done' })
     load()
     setTimeout(() => setSyncStatus({}), 3000)
   }
@@ -143,8 +146,17 @@ export default function AdminPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-sm" onClick={syncAll} disabled={syncStatus.all === 'syncing'}>
-            {syncStatus.all === 'syncing' ? '⟳ Синхронизиране...' : syncStatus.all === 'done' ? '✓ Готово' : '⟳ Sync всички'}
+          <button className="btn btn-sm" onClick={() => syncAll(false)} disabled={syncStatus.all === 'syncing'}>
+            {syncStatus.all === 'syncing' ? '⟳ Синхронизиране...' : syncStatus.all === 'done' ? '✓ Готово' : '⟳ Sync нови'}
+          </button>
+          <button
+            className="btn btn-sm"
+            style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' }}
+            onClick={() => { if (confirm('Ще изтрие ВСИЧКИ поръчки и ще ги вземе отново от Shopify. Продължи?')) syncAll(true) }}
+            disabled={syncStatus.fullAll === 'syncing'}
+            title="Изтрива поръчките от базата и ги вкарва наново с точни данни за отстъпка и доставка"
+          >
+            {syncStatus.fullAll === 'syncing' ? '⟳ Ре-синк...' : syncStatus.fullAll === 'done' ? '✓ Готово' : '↺ Пълен ре-синк'}
           </button>
           <button className="btn btn-sm btn-ghost" onClick={logout}>Изход</button>
         </div>
@@ -259,11 +271,20 @@ export default function AdminPage() {
                         <button className="btn btn-sm" onClick={() => startEdit(inf)} title="Редактиране">✎</button>
                         <button
                           className="btn btn-sm"
-                          onClick={() => syncOne(inf.id)}
+                          onClick={() => syncOne(inf.id, false)}
                           disabled={syncStatus[inf.id] === 'syncing'}
-                          title="Sync от Shopify"
+                          title="Sync само нови поръчки"
                         >
                           {syncStatus[inf.id] === 'syncing' ? '⟳' : syncStatus[inf.id] === 'done' ? '✓' : '⟳'}
+                        </button>
+                        <button
+                          className="btn btn-sm"
+                          style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' }}
+                          onClick={() => { if (confirm(`Пълен ре-синк за ${inf.name}?`)) syncOne(inf.id, true) }}
+                          disabled={syncStatus[`full_${inf.id}`] === 'syncing'}
+                          title="Изтрива и ре-синква с точни данни за отстъпка и доставка"
+                        >
+                          {syncStatus[`full_${inf.id}`] === 'syncing' ? '⟳' : '↺'}
                         </button>
                         <button className="btn btn-sm btn-ghost" onClick={() => toggleActive(inf)} title={inf.active ? 'Деактивирай' : 'Активирай'}>
                           {inf.active ? '⏸' : '▶'}
