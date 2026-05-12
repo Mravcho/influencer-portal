@@ -23,16 +23,9 @@ function getSavings(order) {
   return getStoredSavings(order)
 }
 
-// Доставка — апроксимация само когато няма отстъпка (иначе 0)
+// Доставка — само от реални Shopify данни, без апроксимация
 function getShipping(order) {
-  const stored = parseFloat(order.shipping_total || 0)
-  if (stored > 0) return stored
-  // Апроксимираме само ако нямаме никаква отстъпка за тази поръчка
-  // (когато има и отстъпка, и доставка → не можем да ги разделим без Shopify данни)
-  if (getStoredSavings(order) > 0) return 0
-  const full = getCommissionable(order)
-  const paid = parseFloat(order.total_price || 0)
-  return Math.max(0, Math.round((paid - full) * 100) / 100)
+  return parseFloat(order.shipping_total || 0)
 }
 
 export async function GET(request) {
