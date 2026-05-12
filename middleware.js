@@ -5,12 +5,13 @@ export async function middleware(request) {
   const { pathname } = request.nextUrl
   const token = request.cookies.get(COOKIE_NAME)?.value
 
-  const isAuthPage   = pathname.startsWith('/login')
-  const isDashboard  = pathname.startsWith('/dashboard')
-  const isAdmin      = pathname.startsWith('/admin')
-  const isAdminApi   = pathname.startsWith('/api/admin')
+  const isAuthPage      = pathname.startsWith('/login')
+  const isDashboard     = pathname.startsWith('/dashboard')
+  const isAdmin         = pathname.startsWith('/admin')
+  const isAdminApi      = pathname.startsWith('/api/admin')
+  const isDashboardApi  = pathname.startsWith('/api/dashboard')
 
-  if (isDashboard || isAdmin || isAdminApi) {
+  if (isDashboard || isAdmin || isAdminApi || isDashboardApi) {
     if (!token) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
