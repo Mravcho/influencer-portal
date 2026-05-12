@@ -27,7 +27,6 @@ export default function Dashboard() {
   }, [router])
 
   useEffect(() => {
-    // Извличаме info от cookie чрез /api/auth/me endpoint
     fetch('/api/auth/me').then(r => r.json()).then(d => setUserInfo(d)).catch(() => {})
     load(0)
   }, [load])
@@ -90,10 +89,10 @@ export default function Dashboard() {
         {/* Metrics */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
           {[
-            { label: 'Поръчки', value: stats.totalOrders || 0, sub: `с код ${userInfo.promoCode}` },
-            { label: 'Общ приход', value: fmtEur(stats.totalRevenue || 0), sub: 'всички поръчки' },
-            { label: 'Комисионна', value: fmtEur(stats.totalCommission || 0), sub: `${userInfo.commission}% от приходите` },
-            { label: 'Ср. поръчка', value: fmtEur(stats.avgOrderValue || 0), sub: 'средна стойност' },
+            { label: 'Поръчки',     value: stats.totalOrders || 0,              sub: `с код ${userInfo.promoCode}` },
+            { label: 'Общ приход',  value: fmtEur(stats.totalRevenue || 0),     sub: 'всички поръчки' },
+            { label: 'Комисионна',  value: fmtEur(stats.totalCommission || 0),  sub: `${userInfo.commission}% от пълната цена` },
+            { label: 'Ср. поръчка', value: fmtEur(stats.avgOrderValue || 0),    sub: 'средна стойност' },
           ].map(m => (
             <div key={m.label} className="metric">
               <div className="metric-label">{m.label}</div>
@@ -107,7 +106,7 @@ export default function Dashboard() {
           {/* Top products */}
           <div className="card">
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
-              Топ продукти
+              Топ продукти (с отстъпка)
             </div>
             {topProducts.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Няма данни</p>}
             {topProducts.map((p, i) => {
@@ -136,7 +135,11 @@ export default function Dashboard() {
                 {fmtEur(stats.totalCommission || 0)}
               </div>
               <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
-                Базирано на {stats.totalOrders || 0} поръчки · {fmtEur(stats.totalRevenue || 0)} общ приход
+                Базирано на {stats.totalOrders || 0} поръчки · {fmtEur(stats.commissionableRevenue || 0)} пълна цена с отстъпка
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                Клиентите са спестили общо{' '}
+                <strong style={{ color: 'var(--accent-dk)' }}>{fmtEur(stats.totalSavings || 0)}</strong>
               </p>
             </div>
             <div style={{
@@ -161,13 +164,14 @@ export default function Dashboard() {
                 <th>Дата</th>
                 <th>Продукти</th>
                 <th>Сума</th>
+                <th>Спестено</th>
                 <th>Комисионна</th>
                 <th>Статус</th>
               </tr>
             </thead>
             <tbody>
               {orders.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--muted)', padding: '2rem' }}>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--muted)', padding: '2rem' }}>
                   Няма поръчки за избрания период
                 </td></tr>
               )}
@@ -179,17 +183,26 @@ export default function Dashboard() {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                       {(order.line_items || []).map((item, i) => (
                         <span key={i} style={{
-                          background: 'var(--bg)', border: '1px solid var(--border)',
+                          background: item.discounted ? 'var(--accent-lt)' : 'var(--bg)',
+                          border: `1px solid ${item.discounted ? 'var(--accent)' : 'var(--border)'}`,
                           borderRadius: 20, padding: '2px 8px', fontSize: 11,
                         }}>
                           {item.quantity}× {item.title}
+                          {item.discounted && (
+                            <span style={{ color: 'var(--accent-dk)', marginLeft: 4 }}>
+                              -{fmtEur(item.discount_amount)}
+                            </span>
+                          )}
                         </span>
                       ))}
                     </div>
                   </td>
                   <td style={{ fontWeight: 600 }}>{fmtEur(order.total_price)}</td>
+                  <td style={{ color: 'green', fontWeight: 600 }}>
+                    {fmtEur(order.total_savings || 0)}
+                  </td>
                   <td style={{ color: 'var(--accent)', fontWeight: 600 }}>
-                    {fmtEur(parseFloat(order.total_price) * (userInfo.commission / 100))}
+                    {fmtEur(parseFloat(order.commissionable_revenue || 0) * (userInfo.commission / 100))}
                   </td>
                   <td>
                     <span className={`badge ${order.fulfillment_status === 'fulfilled' ? 'badge-green' : 'badge-amber'}`}>

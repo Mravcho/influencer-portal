@@ -4,7 +4,11 @@ import { useRouter } from 'next/navigation'
 
 const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Facebook', 'Друга']
 
-const emptyForm = { name: '', username: '', password: '', promo_code: '', commission: 10, platform: 'Instagram', email: '', email_notifications: true, notes: '' }
+const emptyForm = {
+  name: '', username: '', password: '', promo_code: '', commission: 10,
+  platform: 'Instagram', email: '', email_notifications: true, notes: '',
+  profile_url: '', avatar_url: '',
+}
 
 export default function AdminPage() {
   const router = useRouter()
@@ -15,6 +19,7 @@ export default function AdminPage() {
   const [msg, setMsg]     = useState({ type: '', text: '' })
   const [syncStatus, setSyncStatus] = useState({})
   const [loading, setLoading] = useState(false)
+  const [avatarLoading, setAvatarLoading] = useState(false)
 
   const load = async () => {
     const res = await fetch('/api/admin/influencers')
@@ -25,6 +30,20 @@ export default function AdminPage() {
   useEffect(() => { load() }, []) // eslint-disable-line
 
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const fetchAvatar = async () => {
+    if (!form.profile_url) return
+    setAvatarLoading(true)
+    const res = await fetch('/api/admin/fetch-avatar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: form.profile_url }),
+    })
+    const data = await res.json()
+    setAvatarLoading(false)
+    if (data.avatarUrl) setField('avatar_url', data.avatarUrl)
+    else setMsg({ type: 'error', text: data.error || 'Не намерих снимка' })
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -53,7 +72,15 @@ export default function AdminPage() {
 
   const startEdit = (inf) => {
     setEditId(inf.id)
-    setForm({ name: inf.name, username: inf.username, password: '', promo_code: inf.promo_code, commission: inf.commission, platform: inf.platform || 'Instagram', email: inf.email || '', email_notifications: inf.email_notifications !== false, notes: inf.notes || '' })
+    setForm({
+      name: inf.name, username: inf.username, password: '',
+      promo_code: inf.promo_code, commission: inf.commission,
+      platform: inf.platform || 'Instagram', email: inf.email || '',
+      email_notifications: inf.email_notifications !== false,
+      notes: inf.notes || '',
+      profile_url: inf.profile_url || '',
+      avatar_url:  inf.avatar_url  || '',
+    })
     setTab('form')
     setMsg({})
   }
@@ -67,7 +94,7 @@ export default function AdminPage() {
     load()
   }
 
-  const syncOne = async (id, name) => {
+  const syncOne = async (id) => {
     setSyncStatus(s => ({ ...s, [id]: 'syncing' }))
     const res  = await fetch(`/api/admin/sync?id=${id}`, { method: 'POST' })
     const data = await res.json()
@@ -123,7 +150,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 1040, margin: '0 auto', padding: '1.5rem' }}>
+      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem' }}>
         {/* Summary metrics */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.5rem' }}>
           {[
@@ -173,8 +200,36 @@ export default function AdminPage() {
                 {influencers.map(inf => (
                   <tr key={inf.id}>
                     <td>
-                      <div style={{ fontWeight: 600 }}>{inf.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{inf.username} · {inf.platform}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {inf.avatar_url ? (
+                          <img
+                            src={inf.avatar_url}
+                            alt={inf.name}
+                            style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: 32, height: 32, borderRadius: '50%',
+                            background: 'var(--accent-lt)', display: 'flex',
+                            alignItems: 'center', justifyContent: 'center',
+                            fontSize: 12, fontWeight: 700, color: 'var(--accent-dk)', flexShrink: 0,
+                          }}>
+                            {inf.name?.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{inf.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                            {inf.username} · {' '}
+                            {inf.profile_url ? (
+                              <a href={inf.profile_url} target="_blank" rel="noopener noreferrer"
+                                style={{ color: 'var(--accent)' }}>
+                                {inf.platform}
+                              </a>
+                            ) : inf.platform}
+                          </div>
+                        </div>
+                      </div>
                     </td>
                     <td><code style={{ background: 'var(--bg)', padding: '2px 7px', borderRadius: 5, fontSize: 12 }}>{inf.promo_code}</code></td>
                     <td style={{ fontWeight: 600 }}>{inf.orderCount || 0}</td>
@@ -204,7 +259,7 @@ export default function AdminPage() {
                         <button className="btn btn-sm" onClick={() => startEdit(inf)} title="Редактиране">✎</button>
                         <button
                           className="btn btn-sm"
-                          onClick={() => syncOne(inf.id, inf.name)}
+                          onClick={() => syncOne(inf.id)}
                           disabled={syncStatus[inf.id] === 'syncing'}
                           title="Sync от Shopify"
                         >
@@ -229,7 +284,7 @@ export default function AdminPage() {
         )}
 
         {tab === 'form' && (
-          <div className="card" style={{ maxWidth: 540 }}>
+          <div className="card" style={{ maxWidth: 560 }}>
             <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: '1rem' }}>
               {editId ? 'Редактиране на инфлуенсър' : 'Нов инфлуенсър'}
             </h2>
@@ -267,6 +322,50 @@ export default function AdminPage() {
                   </select>
                 </div>
               </div>
+
+              {/* Профилен линк + авто-снимка */}
+              <div>
+                <label style={labelStyle}>Линк към профил в социалните мрежи</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    value={form.profile_url}
+                    onChange={e => setField('profile_url', e.target.value)}
+                    placeholder="https://www.instagram.com/maria_style"
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={fetchAvatar}
+                    disabled={avatarLoading || !form.profile_url}
+                    title="Вземи снимка от профила"
+                  >
+                    {avatarLoading ? '⟳' : '📷 Снимка'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Avatar preview / manual URL */}
+              <div>
+                <label style={labelStyle}>URL на снимка (авто или ръчно)</label>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <input
+                    value={form.avatar_url}
+                    onChange={e => setField('avatar_url', e.target.value)}
+                    placeholder="https://..."
+                    style={{ flex: 1 }}
+                  />
+                  {form.avatar_url && (
+                    <img
+                      src={form.avatar_url}
+                      alt="preview"
+                      style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }}
+                      onError={e => { e.target.style.display = 'none' }}
+                    />
+                  )}
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Мейл адрес</label>

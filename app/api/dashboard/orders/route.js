@@ -24,14 +24,24 @@ export async function GET(request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // Агрегирани stats
-  const totalRevenue = orders.reduce((s, o) => s + parseFloat(o.total_price), 0)
-  const commission   = parseFloat(request.headers.get('x-commission') || '0')
-  const totalCommission = totalRevenue * (commission / 100)
+  const commission = parseFloat(request.headers.get('x-commission') || '0')
+
+  // Общ приход (сума на поръчките)
+  const totalRevenue = orders.reduce((s, o) => s + parseFloat(o.total_price || 0), 0)
+
+  // Комисионна само от продуктите с отстъпка, от пълната им цена
+  const commissionableRevenue = orders.reduce(
+    (s, o) => s + parseFloat(o.commissionable_revenue || 0), 0
+  )
+  const totalCommission = commissionableRevenue * (commission / 100)
+
+  // Спестено от клиентите чрез промокода
+  const totalSavings = orders.reduce((s, o) => s + parseFloat(o.total_savings || 0), 0)
 
   const productMap = {}
   orders.forEach(order => {
     ;(order.line_items || []).forEach(item => {
+      if (!item.discounted) return  // само продуктите с отстъпка
       const key = item.title
       if (!productMap[key]) productMap[key] = { title: key, quantity: 0, revenue: 0 }
       productMap[key].quantity += item.quantity
@@ -42,10 +52,12 @@ export async function GET(request) {
   return NextResponse.json({
     orders,
     stats: {
-      totalOrders:    orders.length,
-      totalRevenue:   Math.round(totalRevenue * 100) / 100,
-      totalCommission: Math.round(totalCommission * 100) / 100,
-      avgOrderValue:  orders.length
+      totalOrders:          orders.length,
+      totalRevenue:         Math.round(totalRevenue * 100) / 100,
+      commissionableRevenue: Math.round(commissionableRevenue * 100) / 100,
+      totalCommission:      Math.round(totalCommission * 100) / 100,
+      totalSavings:         Math.round(totalSavings * 100) / 100,
+      avgOrderValue:        orders.length
         ? Math.round((totalRevenue / orders.length) * 100) / 100
         : 0,
     },

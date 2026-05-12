@@ -65,16 +65,18 @@ export async function POST(request) {
 
       // 4. Upsert – записваме всичко (нови + обновени статуси)
       const rows = shopifyOrders.map(o => ({
-        influencer_id:      influencer.id,
-        shopify_order_id:   o.shopify_order_id,
-        order_number:       o.order_number,
-        created_at_shopify: o.created_at_shopify,
-        total_price:        o.total_price,
-        currency:           o.currency,
-        financial_status:   o.financial_status,
-        fulfillment_status: o.fulfillment_status,
-        line_items:         o.line_items,
-        synced_at:          new Date().toISOString(),
+        influencer_id:          influencer.id,
+        shopify_order_id:       o.shopify_order_id,
+        order_number:           o.order_number,
+        created_at_shopify:     o.created_at_shopify,
+        total_price:            o.total_price,
+        currency:               o.currency,
+        financial_status:       o.financial_status,
+        fulfillment_status:     o.fulfillment_status,
+        line_items:             o.line_items,
+        commissionable_revenue: o.commissionable_revenue,
+        total_savings:          o.total_savings,
+        synced_at:              new Date().toISOString(),
       }))
 
       const { error: upsertError } = await supabaseAdmin
