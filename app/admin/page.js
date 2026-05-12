@@ -1,0 +1,314 @@
+'use client'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Facebook', 'Друга']
+
+const emptyForm = { name: '', username: '', password: '', promo_code: '', commission: 10, platform: 'Instagram', email: '', email_notifications: true, notes: '' }
+
+export default function AdminPage() {
+  const router = useRouter()
+  const [influencers, setInfluencers] = useState([])
+  const [tab, setTab]     = useState('list')
+  const [form, setForm]   = useState(emptyForm)
+  const [editId, setEditId] = useState(null)
+  const [msg, setMsg]     = useState({ type: '', text: '' })
+  const [syncStatus, setSyncStatus] = useState({})
+  const [loading, setLoading] = useState(false)
+
+  const load = async () => {
+    const res = await fetch('/api/admin/influencers')
+    if (res.status === 401 || res.status === 403) { router.push('/login'); return }
+    setInfluencers(await res.json())
+  }
+
+  useEffect(() => { load() }, []) // eslint-disable-line
+
+  const setField = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setMsg({})
+
+    const method = editId ? 'PATCH' : 'POST'
+    const body   = editId ? { id: editId, ...form } : form
+
+    const res = await fetch('/api/admin/influencers', {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json()
+    setLoading(false)
+
+    if (!res.ok) { setMsg({ type: 'error', text: data.error }); return }
+
+    setMsg({ type: 'success', text: editId ? 'Инфлуенсърът е обновен.' : `${data.name} е добавен с код ${data.promo_code}.` })
+    setForm(emptyForm)
+    setEditId(null)
+    load()
+    setTimeout(() => setTab('list'), 1200)
+  }
+
+  const startEdit = (inf) => {
+    setEditId(inf.id)
+    setForm({ name: inf.name, username: inf.username, password: '', promo_code: inf.promo_code, commission: inf.commission, platform: inf.platform || 'Instagram', email: inf.email || '', email_notifications: inf.email_notifications !== false, notes: inf.notes || '' })
+    setTab('form')
+    setMsg({})
+  }
+
+  const toggleActive = async (inf) => {
+    await fetch('/api/admin/influencers', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: inf.id, active: !inf.active }),
+    })
+    load()
+  }
+
+  const syncOne = async (id, name) => {
+    setSyncStatus(s => ({ ...s, [id]: 'syncing' }))
+    const res  = await fetch(`/api/admin/sync?id=${id}`, { method: 'POST' })
+    const data = await res.json()
+    const result = data.results?.[0]
+    setSyncStatus(s => ({ ...s, [id]: result?.error ? 'error' : 'done' }))
+    if (!result?.error) load()
+    setTimeout(() => setSyncStatus(s => ({ ...s, [id]: '' })), 3000)
+  }
+
+  const syncAll = async () => {
+    setSyncStatus({ all: 'syncing' })
+    await fetch('/api/admin/sync', { method: 'POST' })
+    setSyncStatus({ all: 'done' })
+    load()
+    setTimeout(() => setSyncStatus({}), 3000)
+  }
+
+  const logout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/login')
+  }
+
+  const fmtBgn = (n) => `${Number(n || 0).toFixed(2)} лв.`
+  const totOrders = influencers.reduce((s, i) => s + (i.orderCount || 0), 0)
+  const totComm   = influencers.reduce((s, i) => s + (i.totalCommission || 0), 0)
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      <header style={{
+        background: 'var(--surface)', borderBottom: '1px solid var(--border)',
+        padding: '0 1.5rem', height: 56,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8, background: 'var(--info-lt)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#185FA5" strokeWidth="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>Admin панел</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Управление на инфлуенсъри</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-sm" onClick={syncAll} disabled={syncStatus.all === 'syncing'}>
+            {syncStatus.all === 'syncing' ? '⟳ Синхронизиране...' : syncStatus.all === 'done' ? '✓ Готово' : '⟳ Sync всички'}
+          </button>
+          <button className="btn btn-sm btn-ghost" onClick={logout}>Изход</button>
+        </div>
+      </header>
+
+      <main style={{ maxWidth: 1040, margin: '0 auto', padding: '1.5rem' }}>
+        {/* Summary metrics */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.5rem' }}>
+          {[
+            { label: 'Инфлуенсъри', value: influencers.length },
+            { label: 'Общо поръчки', value: totOrders },
+            { label: 'Дължими комисионни', value: fmtBgn(totComm) },
+          ].map(m => (
+            <div key={m.label} className="metric">
+              <div className="metric-label">{m.label}</div>
+              <div className="metric-value">{m.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', marginBottom: '1.5rem' }}>
+          {[['list', 'Инфлуенсъри'], ['form', editId ? 'Редактиране' : 'Добави нов']].map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => { setTab(id); if (id === 'form' && !editId) { setForm(emptyForm); setMsg({}) } }}
+              style={{
+                padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                border: 'none', background: 'none', fontFamily: 'inherit',
+                color: tab === id ? 'var(--accent)' : 'var(--muted)',
+                borderBottom: `2px solid ${tab === id ? 'var(--accent)' : 'transparent'}`,
+                marginBottom: -1,
+              }}
+            >{label}</button>
+          ))}
+        </div>
+
+        {tab === 'list' && (
+          <div className="card">
+            <table>
+              <thead><tr>
+                <th>Инфлуенсър</th>
+                <th>Промокод</th>
+                <th>Поръчки</th>
+                <th>Приход</th>
+                <th>Ком. %</th>
+                <th>Дължимо</th>
+                <th>Мейл</th>
+                <th>Статус</th>
+                <th>Действия</th>
+              </tr></thead>
+              <tbody>
+                {influencers.map(inf => (
+                  <tr key={inf.id}>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{inf.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{inf.username} · {inf.platform}</div>
+                    </td>
+                    <td><code style={{ background: 'var(--bg)', padding: '2px 7px', borderRadius: 5, fontSize: 12 }}>{inf.promo_code}</code></td>
+                    <td style={{ fontWeight: 600 }}>{inf.orderCount || 0}</td>
+                    <td>{fmtBgn(inf.totalRevenue)}</td>
+                    <td>{inf.commission}%</td>
+                    <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{fmtBgn(inf.totalCommission)}</td>
+                    <td>
+                      {inf.email ? (
+                        <span title={inf.email} style={{ fontSize: 13 }}>
+                          {inf.email_notifications !== false ? '📧' : '🔕'}
+                          {' '}
+                          <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+                            {inf.email_notifications !== false ? 'вкл.' : 'изкл.'}
+                          </span>
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 11, color: '#ccc' }}>—</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge ${inf.active ? 'badge-green' : 'badge-gray'}`}>
+                        {inf.active ? 'Активен' : 'Неактивен'}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="btn btn-sm" onClick={() => startEdit(inf)} title="Редактиране">✎</button>
+                        <button
+                          className="btn btn-sm"
+                          onClick={() => syncOne(inf.id, inf.name)}
+                          disabled={syncStatus[inf.id] === 'syncing'}
+                          title="Sync от Shopify"
+                        >
+                          {syncStatus[inf.id] === 'syncing' ? '⟳' : syncStatus[inf.id] === 'done' ? '✓' : '⟳'}
+                        </button>
+                        <button className="btn btn-sm btn-ghost" onClick={() => toggleActive(inf)} title={inf.active ? 'Деактивирай' : 'Активирай'}>
+                          {inf.active ? '⏸' : '▶'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {influencers.length === 0 && (
+                  <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--muted)', padding: '2rem' }}>
+                    Няма добавени инфлуенсъри.{' '}
+                    <button className="btn btn-sm" style={{ marginLeft: 8 }} onClick={() => setTab('form')}>Добави първия</button>
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {tab === 'form' && (
+          <div className="card" style={{ maxWidth: 540 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: '1rem' }}>
+              {editId ? 'Редактиране на инфлуенсър' : 'Нов инфлуенсър'}
+            </h2>
+            {msg.text && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Пълно име *</label>
+                  <input value={form.name} onChange={e => setField('name', e.target.value)} placeholder="Мария Иванова" required />
+                </div>
+                <div>
+                  <label style={labelStyle}>Потр. име за вход *</label>
+                  <input value={form.username} onChange={e => setField('username', e.target.value)} placeholder="maria_style" required />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>{editId ? 'Нова парола (остави празно за без промяна)' : 'Парола *'}</label>
+                  <input type="password" value={form.password} onChange={e => setField('password', e.target.value)} placeholder="••••••••" required={!editId} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Промокод Shopify *</label>
+                  <input value={form.promo_code} onChange={e => setField('promo_code', e.target.value.toUpperCase())} placeholder="MARIA15" required style={{ textTransform: 'uppercase' }} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Комисионна (%)</label>
+                  <input type="number" min="0" max="100" step="0.5" value={form.commission} onChange={e => setField('commission', e.target.value)} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Платформа</label>
+                  <select value={form.platform} onChange={e => setField('platform', e.target.value)}>
+                    {PLATFORMS.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Мейл адрес</label>
+                  <input type="email" value={form.email} onChange={e => setField('email', e.target.value)} placeholder="maria@example.com" />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 2 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                    <input
+                      type="checkbox"
+                      checked={form.email_notifications}
+                      onChange={e => setField('email_notifications', e.target.checked)}
+                      style={{ width: 'auto', cursor: 'pointer' }}
+                    />
+                    Мейл при нова поръчка
+                  </label>
+                  {!form.email && form.email_notifications && (
+                    <p style={{ fontSize: 11, color: 'var(--warn-dk)', marginTop: 4 }}>
+                      ⚠ Добави мейл адрес за да работи нотификацията
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Бележки (само за admin)</label>
+                <input value={form.notes} onChange={e => setField('notes', e.target.value)} placeholder="Договор №, контакт..." />
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button type="submit" className="btn btn-primary" disabled={loading}>
+                  {loading ? 'Запазване...' : editId ? 'Обнови' : '+ Добави'}
+                </button>
+                {editId && (
+                  <button type="button" className="btn" onClick={() => { setEditId(null); setForm(emptyForm); setMsg({}); setTab('list') }}>
+                    Отказ
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
+
+const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 5 }
