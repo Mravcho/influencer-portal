@@ -18,14 +18,9 @@ function getStoredSavings(order) {
   )
 }
 
-// Пълно спестяване — с апроксимация за стари поръчки
+// Спестяване само от промокода — БЕЗ апроксимация, за да не смесваме с други отстъпки
 function getSavings(order) {
-  const stored = getStoredSavings(order)
-  if (stored > 0) return stored
-  // Апроксимация: ако платеното < пълна цена → разликата е отстъпката
-  const full = getCommissionable(order)
-  const paid = parseFloat(order.total_price || 0)
-  return Math.max(0, Math.round((full - paid) * 100) / 100)
+  return getStoredSavings(order)
 }
 
 // Доставка — с апроксимация за стари поръчки
