@@ -356,11 +356,31 @@ tbody tr:hover td { background: var(--bg); }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
+  max-width: 160px;
 }
 .product-chip.discounted {
   background: var(--accent-lt); border-color: var(--accent);
 }
 @media (max-width: 560px) {
   .product-chip > span:last-child { max-width: 140px; }
+}
+
+/* Orders table — продуктовата колона да не разширява таблицата */
+.table-cards { overflow-x: auto; }
+.table-cards table { table-layout: auto; }
+.table-cards td[data-label="Продукти"] {
+  max-width: 280px;
+  min-width: 200px;
+}
+.table-cards td[data-label="Продукти"] > div {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+}
+@media (max-width: 768px) {
+  .table-cards td[data-label="Продукти"] {
+    max-width: 100%;
+    min-width: 0;
+  }
 }
