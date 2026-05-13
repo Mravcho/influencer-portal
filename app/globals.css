@@ -1,4 +1,7 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; min-width: 0; }
+
+html, body { max-width: 100%; overflow-x: hidden; }
+img, svg, video { max-width: 100%; height: auto; }
 
 :root {
   --bg:        #f8f7f4;
@@ -182,7 +185,9 @@ tbody tr:hover td { background: var(--bg); }
 .table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  max-width: 100%;
 }
+.table-wrap table { width: 100%; }
 @media (max-width: 560px) {
   table { font-size: 12px; }
   th, td { padding: 6px 8px !important; }
@@ -195,6 +200,11 @@ tbody tr:hover td { background: var(--bg); }
   .metric-value { font-size: 20px; }
 }
 
+/* Chip-овете да не са твърде големи на мобилен */
+@media (max-width: 560px) {
+  .chip { font-size: 11px; padding: 5px 10px; }
+}
+
 /* Filter row — wrap на тесен екран */
 .filter-row {
   display: flex;
@@ -203,15 +213,21 @@ tbody tr:hover td { background: var(--bg); }
   flex-wrap: wrap;
 }
 .filter-row input[type="date"] {
-  width: auto;
   flex: 1 1 130px;
   min-width: 0;
+  max-width: 100%;
+}
+@media (max-width: 560px) {
+  .filter-row input[type="date"] {
+    flex: 1 1 calc(50% - 24px);
+    font-size: 12px !important;
+  }
 }
 
 /* Hero card — smaller font на mobile */
 @media (max-width: 560px) {
-  .hero-amount { font-size: 32px !important; }
-  .hero-sub    { font-size: 12px !important; }
+  .hero-amount { font-size: 30px !important; }
+  .hero-sub    { font-size: 11px !important; line-height: 1.4; }
 }
 
 /* Chip wrap helper */
@@ -265,7 +281,17 @@ tbody tr:hover td { background: var(--bg); }
   background: var(--bg); border: 1px solid var(--border);
   border-radius: 20px; padding: 3px 10px 3px 3px;
   font-size: 11px; max-width: 100%;
+  min-width: 0;
+}
+.product-chip > span:last-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
 }
 .product-chip.discounted {
   background: var(--accent-lt); border-color: var(--accent);
+}
+@media (max-width: 560px) {
+  .product-chip > span:last-child { max-width: 140px; }
 }
