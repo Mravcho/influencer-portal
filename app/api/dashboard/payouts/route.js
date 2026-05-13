@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { sendPayoutRequestEmail } from '@/lib/email'
 
-const MIN_PAYOUT = 100 // евро
-const VOIDED = new Set(['voided', 'refunded'])
+const MIN_PAYOUT  = 100 // евро
+const VOIDED      = new Set(['voided', 'refunded'])
+const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'pavel@realfood.bg'
+const PORTAL_URL  = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
 function commissionableOf(o) {
   const stored = parseFloat(o.commissionable_revenue)
@@ -98,5 +101,27 @@ export async function POST(request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Уведомяваме admin за нова заявка
+  try {
+    const { data: inf } = await supabaseAdmin
+      .from('influencers')
+      .select('name, promo_code')
+      .eq('id', influencerId)
+      .single()
+    if (inf) {
+      await sendPayoutRequestEmail({
+        to:             ADMIN_EMAIL,
+        adminPortalUrl: PORTAL_URL,
+        influencerName: inf.name,
+        promoCode:      inf.promo_code,
+        amount:         amt,
+        notes:          notes,
+      })
+    }
+  } catch (emailErr) {
+    console.error('Admin payout email failed:', emailErr.message)
+  }
+
   return NextResponse.json(data, { status: 201 })
 }

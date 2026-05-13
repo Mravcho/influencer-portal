@@ -24,6 +24,7 @@ export default function AdminPage() {
   const [avatarLoading, setAvatarLoading] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
+  const [pendingPayouts, setPendingPayouts]   = useState(0)
 
   const load = async () => {
     const res = await fetch('/api/admin/influencers')
@@ -32,6 +33,19 @@ export default function AdminPage() {
   }
 
   useEffect(() => { load() }, []) // eslint-disable-line
+
+  // Pending payouts count за badge на бутона
+  useEffect(() => {
+    const fetchPending = () => {
+      fetch('/api/admin/payouts?count=pending')
+        .then(r => r.json())
+        .then(d => setPendingPayouts(d.count || 0))
+        .catch(() => {})
+    }
+    fetchPending()
+    const interval = setInterval(fetchPending, 30_000) // refresh на всеки 30 сек
+    return () => clearInterval(interval)
+  }, [])
 
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -199,7 +213,33 @@ export default function AdminPage() {
           >
             {syncStatus.fullAll === 'syncing' ? '⟳ Ре-синк...' : syncStatus.fullAll === 'done' ? '✓ Готово' : '↺ Пълен ре-синк'}
           </button>
-          <button className="btn btn-sm" onClick={() => router.push('/admin/payouts')} title="Заявки за изплащане">💰 Изплащане</button>
+          <button
+            className="btn btn-sm"
+            onClick={() => router.push('/admin/payouts')}
+            title="Заявки за изплащане"
+            style={{ position: 'relative' }}
+          >
+            💰 Изплащане
+            {pendingPayouts > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: -6, right: -6,
+                background: '#dc2626',
+                color: '#fff',
+                fontSize: 10,
+                fontWeight: 700,
+                minWidth: 18,
+                height: 18,
+                borderRadius: 9,
+                padding: '0 5px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid var(--surface)',
+                lineHeight: 1,
+              }}>{pendingPayouts}</span>
+            )}
+          </button>
           <button className="btn btn-sm" onClick={() => router.push('/admin/sessions')} title="История на влизанията">👤 Сесии</button>
           <button className="btn btn-sm" onClick={() => router.push('/admin/settings')} title="Брандинг настройки">⚙ Настройки</button>
           <button className="btn btn-sm btn-ghost" onClick={logout}>Изход</button>

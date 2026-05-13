@@ -1,10 +1,21 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
-// GET /api/admin/payouts — всички заявки + влъжен influencer
+// GET /api/admin/payouts                  → всички заявки + влъжен influencer
+// GET /api/admin/payouts?count=pending    → само брой pending (за badge)
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status')
+  const countOnly = searchParams.get('count')
+
+  if (countOnly) {
+    const { count, error } = await supabaseAdmin
+      .from('payout_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', countOnly)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ count: count || 0 })
+  }
 
   let query = supabaseAdmin
     .from('payout_requests')
