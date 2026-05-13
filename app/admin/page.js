@@ -342,7 +342,7 @@ export default function AdminPage() {
             </h2>
             {msg.text && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div className=\"grid-2\">
+              <div className="grid-2">
                 <div>
                   <label style={labelStyle}>Пълно име *</label>
                   <input value={form.name} onChange={e => setField('name', e.target.value)} placeholder="Мария Иванова" required />
@@ -352,7 +352,7 @@ export default function AdminPage() {
                   <input value={form.username} onChange={e => setField('username', e.target.value)} placeholder="maria_style" required />
                 </div>
               </div>
-              <div className=\"grid-2\">
+              <div className="grid-2">
                 <div>
                   <label style={labelStyle}>{editId ? 'Нова парола (остави празно за без промяна)' : 'Парола *'}</label>
                   <input type="password" value={form.password} onChange={e => setField('password', e.target.value)} placeholder="••••••••" required={!editId} />
@@ -362,7 +362,7 @@ export default function AdminPage() {
                   <input value={form.promo_code} onChange={e => setField('promo_code', e.target.value.toUpperCase())} placeholder="MARIA15" required style={{ textTransform: 'uppercase' }} />
                 </div>
               </div>
-              <div className=\"grid-2\">
+              <div className="grid-2">
                 <div>
                   <label style={labelStyle}>Комисионна (%)</label>
                   <input type="number" min="0" max="100" step="0.5" value={form.commission} onChange={e => setField('commission', e.target.value)} />
@@ -488,7 +488,7 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              <div className=\"grid-2\">
+              <div className="grid-2">
                 <div>
                   <label style={labelStyle}>Мейл адрес</label>
                   <input type="email" value={form.email} onChange={e => setField('email', e.target.value)} placeholder="maria@example.com" />
