@@ -11,7 +11,7 @@ export async function GET(request) {
   // Стъпка 1: вземаме сесиите (без join — избягваме quirk с !inner + order + limit)
   let query = supabaseAdmin
     .from('login_sessions')
-    .select('id, login_at, last_seen_at, logout_at, duration_seconds, ip_address, user_agent, country, city, influencer_id')
+    .select('id, login_at, last_seen_at, logout_at, duration_seconds, ip_address, user_agent, country, city, influencer_id, success, failure_reason, attempted_username')
     .order('login_at', { ascending: false })
     .limit(limit)
 

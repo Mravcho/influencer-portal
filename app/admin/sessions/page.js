@@ -34,11 +34,21 @@ function browser(ua) {
   return ''
 }
 
+function failureLabel(reason) {
+  switch (reason) {
+    case 'wrong_password': return 'Грешна парола'
+    case 'no_such_user':   return 'Няма такъв user'
+    case 'inactive':       return 'Деактивиран'
+    default:               return 'Неуспех'
+  }
+}
+
 export default function SessionsPage() {
   const router = useRouter()
   const [sessions, setSessions] = useState([])
   const [influencers, setInfluencers] = useState([])
   const [filter, setFilter] = useState('')
+  const [showOnly, setShowOnly] = useState('all') // all | success | failed
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -56,6 +66,13 @@ export default function SessionsPage() {
       .then(d => { setSessions(d.sessions || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [filter])
+
+  const filtered = sessions.filter(s => {
+    if (showOnly === 'success') return s.success !== false
+    if (showOnly === 'failed')  return s.success === false
+    return true
+  })
+  const failedCount = sessions.filter(s => s.success === false).length
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -80,16 +97,31 @@ export default function SessionsPage() {
       </header>
 
       <main className="main-container">
+        {/* Филтър успешни / неуспешни */}
+        <div className="chip-row" style={{ marginBottom: 14 }}>
+          {[
+            { key: 'all',     label: `Всички (${sessions.length})` },
+            { key: 'success', label: `✓ Успешни (${sessions.length - failedCount})` },
+            { key: 'failed',  label: `✗ Неуспешни (${failedCount})` },
+          ].map(opt => (
+            <button
+              key={opt.key}
+              className={`chip ${showOnly === opt.key ? 'active' : ''}`}
+              onClick={() => setShowOnly(opt.key)}
+            >{opt.label}</button>
+          ))}
+        </div>
+
         {loading && <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '2rem' }}>Зареждане...</p>}
 
-        {!loading && sessions.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div className="card" style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>
-            Няма записани сесии
+            {sessions.length === 0 ? 'Няма записани сесии' : 'Няма резултати за този филтър'}
           </div>
         )}
 
-        {!loading && sessions.length > 0 && (
-          <div className="card table-wrap">
+        {!loading && filtered.length > 0 && (
+          <div className="card table-cards">
             <table style={{ minWidth: 800 }}>
               <thead>
                 <tr>
@@ -102,29 +134,36 @@ export default function SessionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {sessions.map(s => {
+                {filtered.map(s => {
                   const inf = s.influencers
+                  const failed = s.success === false
                   return (
-                    <tr key={s.id}>
-                      <td>
+                    <tr key={s.id} style={failed ? { background: '#fff5f5' } : {}}>
+                      <td data-label="Инфлуенсър">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           {inf?.avatar_url ? (
                             <img src={inf.avatar_url} alt={inf.name} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
                           ) : (
                             <div style={{
                               width: 28, height: 28, borderRadius: '50%',
-                              background: 'var(--accent-lt)', display: 'flex',
+                              background: failed ? '#fecaca' : 'var(--accent-lt)',
+                              display: 'flex',
                               alignItems: 'center', justifyContent: 'center',
-                              fontSize: 10, fontWeight: 700, color: 'var(--accent-dk)',
-                            }}>{inf?.name?.slice(0, 2).toUpperCase()}</div>
+                              fontSize: 10, fontWeight: 700,
+                              color: failed ? '#991b1b' : 'var(--accent-dk)',
+                            }}>{(inf?.name || s.attempted_username || '?').slice(0, 2).toUpperCase()}</div>
                           )}
                           <div>
-                            <div style={{ fontWeight: 500 }}>{inf?.name || 'Неизвестен'}</div>
-                            <div style={{ fontSize: 10, color: 'var(--muted)' }}>{inf?.username}</div>
+                            <div style={{ fontWeight: 500 }}>
+                              {inf?.name || <span style={{ color: '#991b1b' }}>«{s.attempted_username}»</span>}
+                            </div>
+                            <div style={{ fontSize: 10, color: 'var(--muted)' }}>
+                              {inf?.username || (failed && 'неизвестно име')}
+                            </div>
                           </div>
                         </div>
                       </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
+                      <td data-label="Влизане" style={{ whiteSpace: 'nowrap' }}>
                         <div>{format(new Date(s.login_at), 'd MMM yyyy', { locale: bg })}</div>
                         <div style={{ fontSize: 11, color: 'var(--muted)' }}>
                           {format(new Date(s.login_at), 'HH:mm', { locale: bg })}
@@ -132,10 +171,10 @@ export default function SessionsPage() {
                           {formatDistanceToNow(new Date(s.login_at), { addSuffix: true, locale: bg })}
                         </div>
                       </td>
-                      <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
-                        {fmtDuration(s.duration_seconds)}
+                      <td data-label="Продълж." style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        {failed ? '—' : fmtDuration(s.duration_seconds)}
                       </td>
-                      <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>
+                      <td data-label="Локация" style={{ whiteSpace: 'nowrap', fontSize: 12 }}>
                         {s.city || s.country ? (
                           <div>
                             <div>{[s.city, s.country].filter(Boolean).join(', ')}</div>
@@ -145,12 +184,16 @@ export default function SessionsPage() {
                           <div style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--muted)' }}>{s.ip_address || '—'}</div>
                         )}
                       </td>
-                      <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>
+                      <td data-label="Устройство" style={{ whiteSpace: 'nowrap', fontSize: 12 }}>
                         <div>{shortDevice(s.user_agent)}</div>
                         <div style={{ fontSize: 10, color: 'var(--muted)' }}>{browser(s.user_agent)}</div>
                       </td>
-                      <td>
-                        {s.is_active ? (
+                      <td data-label="Статус">
+                        {failed ? (
+                          <span className="badge" style={{ background: '#fee2e2', color: '#991b1b' }}>
+                            ❌ {failureLabel(s.failure_reason)}
+                          </span>
+                        ) : s.is_active ? (
                           <span className="badge badge-green">🟢 Активен</span>
                         ) : s.logout_at ? (
                           <span className="badge badge-gray">Излязъл</span>

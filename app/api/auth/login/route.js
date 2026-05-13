@@ -11,7 +11,6 @@ function extractClientInfo(request) {
   return {
     ip_address: ip,
     user_agent: request.headers.get('user-agent') || null,
-    // Vercel автоматично добавя geo headers на Edge
     country:    request.headers.get('x-vercel-ip-country') || null,
     city:       request.headers.get('x-vercel-ip-city')
                   ? decodeURIComponent(request.headers.get('x-vercel-ip-city'))
@@ -19,14 +18,32 @@ function extractClientInfo(request) {
   }
 }
 
+// Записва опит за вход (успешен или не)
+async function logAttempt({ influencerId, attemptedUsername, success, failureReason, clientInfo }) {
+  const { data, error } = await supabaseAdmin
+    .from('login_sessions')
+    .insert({
+      influencer_id:      influencerId,
+      attempted_username: attemptedUsername,
+      success,
+      failure_reason:     failureReason,
+      ...clientInfo,
+    })
+    .select('id')
+    .single()
+  if (error) console.error('Login attempt log error:', error.message)
+  return data?.id || null
+}
+
 export async function POST(request) {
   const { username, password } = await request.json()
+  const clientInfo = extractClientInfo(request)
 
   if (!username || !password) {
     return NextResponse.json({ error: 'Липсват данни' }, { status: 400 })
   }
 
-  // Admin (без session tracking за admin)
+  // Admin (без session tracking)
   if (
     username === process.env.ADMIN_USERNAME &&
     password === process.env.ADMIN_PASSWORD
@@ -40,32 +57,58 @@ export async function POST(request) {
     return response
   }
 
-  // Инфлуенсър
-  const { data: influencer, error } = await supabaseAdmin
+  // Инфлуенсър — търсим в базата
+  const { data: influencer } = await supabaseAdmin
     .from('influencers')
     .select('id, name, username, password_hash, promo_code, commission, platform, active')
     .eq('username', username.toLowerCase())
     .single()
 
-  if (error || !influencer) {
+  // Неуспех: няма такъв username
+  if (!influencer) {
+    await logAttempt({
+      influencerId: null,
+      attemptedUsername: username,
+      success: false,
+      failureReason: 'no_such_user',
+      clientInfo,
+    })
     return NextResponse.json({ error: 'Грешно потребителско име или парола' }, { status: 401 })
   }
+
+  // Неуспех: акаунтът е деактивиран
   if (!influencer.active) {
+    await logAttempt({
+      influencerId: influencer.id,
+      attemptedUsername: username,
+      success: false,
+      failureReason: 'inactive',
+      clientInfo,
+    })
     return NextResponse.json({ error: 'Акаунтът е деактивиран' }, { status: 403 })
   }
 
+  // Неуспех: грешна парола
   const valid = await bcrypt.compare(password, influencer.password_hash)
   if (!valid) {
+    await logAttempt({
+      influencerId: influencer.id,
+      attemptedUsername: username,
+      success: false,
+      failureReason: 'wrong_password',
+      clientInfo,
+    })
     return NextResponse.json({ error: 'Грешно потребителско име или парола' }, { status: 401 })
   }
 
-  // Създаваме session row за tracking
-  const clientInfo = extractClientInfo(request)
-  const { data: session } = await supabaseAdmin
-    .from('login_sessions')
-    .insert({ influencer_id: influencer.id, ...clientInfo })
-    .select('id')
-    .single()
+  // Успех — записваме нова сесия
+  const sessionId = await logAttempt({
+    influencerId: influencer.id,
+    attemptedUsername: username,
+    success: true,
+    failureReason: null,
+    clientInfo,
+  })
 
   const token = await signToken({
     id:         influencer.id,
@@ -74,7 +117,7 @@ export async function POST(request) {
     name:       influencer.name,
     promoCode:  influencer.promo_code,
     commission: influencer.commission,
-    sessionId:  session?.id || null,
+    sessionId,
   })
 
   const response = NextResponse.json({
