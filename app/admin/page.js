@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import StatsCharts from './components/StatsCharts'
+import MonthlyLeaderboard from './components/MonthlyLeaderboard'
 
 const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Facebook', 'Друга']
 
@@ -206,6 +207,9 @@ export default function AdminPage() {
 
         {/* Charts */}
         <StatsCharts />
+
+        {/* Monthly leaderboard */}
+        <MonthlyLeaderboard />
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', marginBottom: '1.5rem' }}>
