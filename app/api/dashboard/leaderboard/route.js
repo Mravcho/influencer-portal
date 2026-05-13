@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const VOIDED_STATUSES = new Set(['voided', 'refunded'])
 
 // Връща анонимизирана класация — само първо име + initial на фамилия + брой поръчки
