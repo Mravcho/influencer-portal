@@ -224,7 +224,7 @@ export default function AdminInfluencerView() {
         </div>
 
         {/* Orders table */}
-        <div className="card table-wrap">
+        <div className="card table-cards">
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
             Поръчки (анонимизирани — без лични данни)
           </div>
@@ -257,9 +257,9 @@ export default function AdminInfluencerView() {
 
                 return (
                   <tr key={order.id}>
-                    <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--muted)' }}>{order.shopify_order_id}</td>
-                    <td style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmtDate(order.created_at_shopify)}</td>
-                    <td>
+                    <td data-label="№" style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--muted)' }}>{order.shopify_order_id}</td>
+                    <td data-label="Дата" style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmtDate(order.created_at_shopify)}</td>
+                    <td data-label="Продукти">
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                         {(order.line_items || []).map((item, i) => (
                           <span key={i} className={`product-chip ${item.discounted ? 'discounted' : ''}`}>
@@ -275,18 +275,18 @@ export default function AdminInfluencerView() {
                         ))}
                       </div>
                     </td>
-                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(paid)}</td>
-                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(fullPrice)}</td>
-                    <td style={{ color: '#16a34a', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    <td data-label="Обща сума" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(paid)}</td>
+                    <td data-label="Продукти с код" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(fullPrice)}</td>
+                    <td data-label="Отстъпка" style={{ color: '#16a34a', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {savings > 0 ? `−${fmtEur(savings)}` : '—'}
                     </td>
-                    <td style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                    <td data-label="Доставка" style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>
                       {shipping > 0 ? fmtEur(shipping) : '—'}
                     </td>
-                    <td style={{ color: 'var(--accent)', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    <td data-label="Комисионна" style={{ color: 'var(--accent)', fontWeight: 700, whiteSpace: 'nowrap' }}>
                       {fmtEur(comm)}
                     </td>
-                    <td>
+                    <td data-label="Статус">
                       <OrderStatusBadge order={order} />
                     </td>
                   </tr>

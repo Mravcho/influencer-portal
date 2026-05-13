@@ -193,6 +193,52 @@ tbody tr:hover td { background: var(--bg); }
   th, td { padding: 6px 8px !important; }
 }
 
+/* Orders table — card layout на мобилен (за да няма horizontal scroll) */
+@media (max-width: 768px) {
+  .table-cards { overflow-x: visible; }
+  .table-cards table { min-width: 0 !important; display: block; }
+  .table-cards thead { display: none; }
+  .table-cards tbody { display: block; }
+  .table-cards tr {
+    display: block;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .table-cards tr:hover td { background: transparent; }
+  .table-cards td {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 4px 0 !important;
+    border-bottom: 1px dashed var(--border);
+    gap: 12px;
+  }
+  .table-cards td:last-child { border-bottom: none; }
+  .table-cards td::before {
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    flex-shrink: 0;
+    align-self: center;
+  }
+  .table-cards td:not([data-label])::before { content: ''; }
+  .table-cards td > * { text-align: right; }
+  .table-cards td .product-chip { text-align: left; }
+  .table-cards td[data-label="Продукти"] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .table-cards td[data-label="Продукти"]::before {
+    margin-bottom: 4px;
+  }
+}
+
 /* Card padding по-малко на мобилен */
 @media (max-width: 560px) {
   .card { padding: 1rem; }
