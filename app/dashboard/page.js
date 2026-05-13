@@ -251,11 +251,11 @@ export default function Dashboard() {
                 <th>№</th>
                 <th>Дата</th>
                 <th>Продукти</th>
-                <th title="Пълна цена преди отстъпката">Преди отстъпка</th>
-                <th title="Спестено от клиента чрез промокода">Отстъпка</th>
-                <th title="Сума платена от клиента след отстъпката">Платена</th>
+                <th title="Сума, която клиентът е платил след отстъпката">Обща сума</th>
+                <th title="Пълна цена на продуктите с приложен промокод">Продукти с код</th>
+                <th title="Колко клиентът е спестил чрез промокода">Отстъпка за клиента</th>
                 <th title="Доставка (не влиза в комисионната)">Доставка</th>
-                <th title={`${userInfo.commission}% от пълната цена`}>Комисионна</th>
+                <th title={`${userInfo.commission}% от пълната цена на продуктите с код`}>Комисионна</th>
                 <th>Статус</th>
               </tr>
             </thead>
@@ -292,11 +292,11 @@ export default function Dashboard() {
                         ))}
                       </div>
                     </td>
+                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(paid)}</td>
                     <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(fullPrice)}</td>
                     <td style={{ color: '#16a34a', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {savings > 0 ? `−${fmtEur(savings)}` : '—'}
                     </td>
-                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(paid)}</td>
                     <td style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>
                       {shipping > 0 ? fmtEur(shipping) : '—'}
                     </td>

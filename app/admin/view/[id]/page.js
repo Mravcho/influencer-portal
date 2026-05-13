@@ -236,9 +236,9 @@ export default function AdminInfluencerView() {
                 <th>№</th>
                 <th>Дата</th>
                 <th>Продукти</th>
-                <th>Преди отстъпка</th>
-                <th>Отстъпка</th>
-                <th>Платена</th>
+                <th title="Сума, която клиентът е платил след отстъпката">Обща сума</th>
+                <th title="Пълна цена на продуктите с приложен промокод">Продукти с код</th>
+                <th title="Колко клиентът е спестил чрез промокода">Отстъпка за клиента</th>
                 <th>Доставка</th>
                 <th>Комисионна</th>
                 <th>Статус</th>
@@ -277,11 +277,11 @@ export default function AdminInfluencerView() {
                         ))}
                       </div>
                     </td>
+                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(paid)}</td>
                     <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(fullPrice)}</td>
                     <td style={{ color: '#16a34a', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {savings > 0 ? `−${fmtEur(savings)}` : '—'}
                     </td>
-                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(paid)}</td>
                     <td style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>
                       {shipping > 0 ? fmtEur(shipping) : '—'}
                     </td>
