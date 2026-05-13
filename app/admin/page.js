@@ -7,7 +7,7 @@ const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Facebook', 'Друга']
 const emptyForm = {
   name: '', username: '', password: '', promo_code: '', commission: 10,
   platform: 'Instagram', email: '', email_notifications: true, notes: '',
-  profile_url: '', avatar_url: '',
+  profile_url: '', avatar_url: '', banner_url: '',
 }
 
 export default function AdminPage() {
@@ -20,6 +20,8 @@ export default function AdminPage() {
   const [syncStatus, setSyncStatus] = useState({})
   const [loading, setLoading] = useState(false)
   const [avatarLoading, setAvatarLoading] = useState(false)
+  const [bannerUploading, setBannerUploading] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
 
   const load = async () => {
     const res = await fetch('/api/admin/influencers')
@@ -30,6 +32,28 @@ export default function AdminPage() {
   useEffect(() => { load() }, []) // eslint-disable-line
 
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const uploadImage = async (file, kind) => {
+    const setter = kind === 'banner' ? setBannerUploading : setAvatarUploading
+    setter(true)
+    setMsg({})
+
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('kind', kind === 'banner' ? 'banners' : 'avatars')
+
+    const res = await fetch('/api/admin/settings/upload', { method: 'POST', body: fd })
+    const data = await res.json()
+    setter(false)
+
+    if (!res.ok) {
+      setMsg({ type: 'error', text: data.error || 'Грешка при качване' })
+      return
+    }
+
+    if (kind === 'banner') setField('banner_url', data.url)
+    else setField('avatar_url', data.url)
+  }
 
   const fetchAvatar = async () => {
     if (!form.profile_url) return
@@ -80,6 +104,7 @@ export default function AdminPage() {
       notes: inf.notes || '',
       profile_url: inf.profile_url || '',
       avatar_url:  inf.avatar_url  || '',
+      banner_url:  inf.banner_url  || '',
     })
     setTab('form')
     setMsg({})
@@ -368,25 +393,95 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Avatar preview / manual URL */}
+              {/* Avatar — авто URL или upload от компютъра */}
               <div>
-                <label style={labelStyle}>URL на снимка (авто или ръчно)</label>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <input
-                    value={form.avatar_url}
-                    onChange={e => setField('avatar_url', e.target.value)}
-                    placeholder="https://..."
-                    style={{ flex: 1 }}
-                  />
-                  {form.avatar_url && (
+                <label style={labelStyle}>Профилна снимка</label>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 6 }}>
+                  {form.avatar_url ? (
                     <img
                       src={form.avatar_url}
-                      alt="preview"
-                      style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }}
+                      alt="avatar"
+                      style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }}
                       onError={e => { e.target.style.display = 'none' }}
                     />
+                  ) : (
+                    <div style={{
+                      width: 48, height: 48, borderRadius: '50%',
+                      background: 'var(--accent-lt)', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      fontSize: 14, fontWeight: 700, color: 'var(--accent-dk)',
+                    }}>{form.name?.slice(0, 2).toUpperCase() || '??'}</div>
+                  )}
+                  <div style={{ flex: 1, display: 'flex', gap: 6 }}>
+                    <label className="btn btn-sm" style={{ cursor: 'pointer' }}>
+                      {avatarUploading ? '⟳' : '📤 От компютъра'}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={e => e.target.files?.[0] && uploadImage(e.target.files[0], 'avatar')}
+                        disabled={avatarUploading}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                    {form.avatar_url && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-ghost"
+                        style={{ color: 'var(--danger)' }}
+                        onClick={() => setField('avatar_url', '')}
+                      >Премахни</button>
+                    )}
+                  </div>
+                </div>
+                <input
+                  value={form.avatar_url}
+                  onChange={e => setField('avatar_url', e.target.value)}
+                  placeholder="Или поставете URL директно..."
+                  style={{ fontSize: 12 }}
+                />
+              </div>
+
+              {/* Banner — голяма снимка на топа на dashboard-а */}
+              <div>
+                <label style={labelStyle}>Голяма снимка за dashboard-а (banner)</label>
+                <div style={{
+                  width: '100%', height: 100, borderRadius: 10,
+                  background: 'var(--bg)', border: '1px solid var(--border)',
+                  backgroundImage: form.banner_url ? `url(${form.banner_url})` : 'none',
+                  backgroundSize: 'cover', backgroundPosition: 'center',
+                  marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {!form.banner_url && <span style={{ fontSize: 11, color: 'var(--muted)' }}>Няма снимка</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                  <label className="btn btn-sm" style={{ cursor: 'pointer' }}>
+                    {bannerUploading ? '⟳ Качване...' : '📤 Качи снимка'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={e => e.target.files?.[0] && uploadImage(e.target.files[0], 'banner')}
+                      disabled={bannerUploading}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  {form.banner_url && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      style={{ color: 'var(--danger)' }}
+                      onClick={() => setField('banner_url', '')}
+                    >Премахни</button>
                   )}
                 </div>
+                <input
+                  value={form.banner_url}
+                  onChange={e => setField('banner_url', e.target.value)}
+                  placeholder="Или поставете URL директно..."
+                  style={{ fontSize: 12 }}
+                />
+                <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                  Препоръчителни размери: 1600×500 px. Макс 5 MB.
+                </p>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

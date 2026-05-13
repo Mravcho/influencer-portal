@@ -57,6 +57,13 @@ export async function GET(request) {
     commission = parseFloat(inf?.commission || 0)
   }
 
+  // Тегли banner_url на текущия инфлуенсър за hero на dashboard-а
+  const { data: profile } = await supabaseAdmin
+    .from('influencers')
+    .select('banner_url')
+    .eq('id', influencerId)
+    .single()
+
   let query = supabaseAdmin
     .from('orders')
     .select('*')
@@ -113,6 +120,7 @@ export async function GET(request) {
   return NextResponse.json({
     orders,
     commission,
+    bannerUrl: profile?.banner_url || null,
     stats: {
       totalOrders:           activeOrdersCount,
       voidedCount:           orders.length - activeOrdersCount,

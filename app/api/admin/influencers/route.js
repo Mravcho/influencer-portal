@@ -6,7 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 export async function GET() {
   const { data: influencers, error } = await supabaseAdmin
     .from('influencers')
-    .select('id, name, username, promo_code, commission, platform, active, created_at, profile_url, avatar_url, email, email_notifications, notes')
+    .select('id, name, username, promo_code, commission, platform, active, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -49,7 +49,7 @@ export async function GET() {
 // POST /api/admin/influencers → създаване
 export async function POST(request) {
   const body = await request.json()
-  const { name, username, password, promo_code, commission, platform, notes, profile_url, avatar_url } = body
+  const { name, username, password, promo_code, commission, platform, notes, profile_url, avatar_url, banner_url } = body
 
   if (!name || !username || !password || !promo_code) {
     return NextResponse.json({ error: 'Липсват задължителни полета' }, { status: 400 })
@@ -59,7 +59,7 @@ export async function POST(request) {
 
   const { data, error } = await supabaseAdmin
     .from('influencers')
-    .insert({ name, username: username.toLowerCase(), password_hash, promo_code: promo_code.toUpperCase(), commission: commission || 10, platform, notes, profile_url: profile_url || null, avatar_url: avatar_url || null })
+    .insert({ name, username: username.toLowerCase(), password_hash, promo_code: promo_code.toUpperCase(), commission: commission || 10, platform, notes, profile_url: profile_url || null, avatar_url: avatar_url || null, banner_url: banner_url || null })
     .select('id, name, username, promo_code, commission, platform')
     .single()
 

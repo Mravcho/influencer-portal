@@ -1,0 +1,1 @@
+ALTER TABLE influencers ADD COLUMN IF NOT EXISTS banner_url TEXT;

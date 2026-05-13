@@ -89,7 +89,8 @@ export default function AdminInfluencerView() {
     </div>
   )
 
-  const { orders = [], stats = {}, topProducts = [], commission = influencer?.commission || 0 } = data || {}
+  const { orders = [], stats = {}, topProducts = [], commission = influencer?.commission || 0, bannerUrl = null } = data || {}
+  const heroBanner = bannerUrl || influencer?.banner_url || null
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -132,24 +133,26 @@ export default function AdminInfluencerView() {
       </header>
 
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem' }}>
-        {/* Hero gradient */}
+        {/* Hero — banner или gradient */}
         <div style={{
-          background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-dk) 100%)',
-          borderRadius: 16, padding: '1.5rem', marginBottom: '1.5rem',
+          borderRadius: 16, marginBottom: '1.5rem',
           color: '#fff', position: 'relative', overflow: 'hidden',
+          minHeight: heroBanner ? 260 : 'auto',
+          background: heroBanner
+            ? `linear-gradient(180deg, rgba(0,0,0,.15) 30%, rgba(0,0,0,.7) 100%), url(${heroBanner}) center/cover`
+            : 'linear-gradient(135deg, var(--accent) 0%, var(--accent-dk) 100%)',
         }}>
-          <div style={{
-            position: 'absolute', top: -40, right: -40, width: 200, height: 200,
-            borderRadius: '50%', background: 'rgba(255,255,255,.1)',
-          }} />
-          <div style={{ position: 'relative' }}>
+          {!heroBanner && (
+            <div style={{ position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,.1)' }} />
+          )}
+          <div style={{ position: 'relative', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: heroBanner ? 260 : 'auto' }}>
             <div style={{ fontSize: 12, opacity: .85, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px' }}>
               Очаквана комисионна
             </div>
-            <div style={{ fontSize: 42, fontWeight: 700, margin: '4px 0' }}>
+            <div style={{ fontSize: 42, fontWeight: 700, margin: '4px 0', textShadow: heroBanner ? '0 2px 8px rgba(0,0,0,.4)' : 'none' }}>
               {fmtEur(stats.totalCommission || 0)}
             </div>
-            <div style={{ fontSize: 13, opacity: .9 }}>
+            <div style={{ fontSize: 13, opacity: .9, textShadow: heroBanner ? '0 1px 4px rgba(0,0,0,.4)' : 'none' }}>
               {stats.totalOrders || 0} поръчки · {commission}% комисионна · клиентите спестиха <strong>{fmtEur(stats.totalSavings || 0)}</strong>
             </div>
           </div>
