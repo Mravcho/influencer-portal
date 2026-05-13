@@ -9,8 +9,7 @@ function getCommissionable(order) {
   )
 }
 
-// Спестяване само от надеждни извори (не апроксимация)
-function getStoredSavings(order) {
+function getSavings(order) {
   const stored = parseFloat(order.total_savings)
   if (stored > 0) return stored
   return (order.line_items || []).reduce(
@@ -18,20 +17,29 @@ function getStoredSavings(order) {
   )
 }
 
-// Спестяване само от промокода — БЕЗ апроксимация, за да не смесваме с други отстъпки
-function getSavings(order) {
-  return getStoredSavings(order)
-}
-
-// Доставка — само от реални Shopify данни, без апроксимация
 function getShipping(order) {
   return parseFloat(order.shipping_total || 0)
 }
 
 export async function GET(request) {
-  const influencerId = request.headers.get('x-user-id')
+  const userRole = request.headers.get('x-user-role')
   const { searchParams } = new URL(request.url)
-  const days = parseInt(searchParams.get('days') || '0')
+  const days   = parseInt(searchParams.get('days') || '0')
+  const viewId = searchParams.get('viewId') // за admin преглед на инфлуенсър
+
+  // Admin може да разглежда поръчките на всеки инфлуенсър чрез ?viewId=
+  let influencerId = request.headers.get('x-user-id')
+  let commission   = parseFloat(request.headers.get('x-commission') || '0')
+
+  if (userRole === 'admin' && viewId) {
+    influencerId = viewId
+    const { data: inf } = await supabaseAdmin
+      .from('influencers')
+      .select('commission')
+      .eq('id', viewId)
+      .single()
+    commission = parseFloat(inf?.commission || 0)
+  }
 
   let query = supabaseAdmin
     .from('orders')
@@ -55,8 +63,6 @@ export async function GET(request) {
     shipping_total:         Math.round(getShipping(o) * 100) / 100,
   }))
 
-  const commission = parseFloat(request.headers.get('x-commission') || '0')
-
   const totalRevenue          = orders.reduce((s, o) => s + parseFloat(o.total_price || 0), 0)
   const commissionableRevenue = orders.reduce((s, o) => s + o.commissionable_revenue, 0)
   const totalSavings          = orders.reduce((s, o) => s + o.total_savings, 0)
@@ -75,6 +81,7 @@ export async function GET(request) {
 
   return NextResponse.json({
     orders,
+    commission,
     stats: {
       totalOrders:           orders.length,
       totalRevenue:          Math.round(totalRevenue * 100) / 100,

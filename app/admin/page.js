@@ -268,6 +268,7 @@ export default function AdminPage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="btn btn-sm" onClick={() => router.push(`/admin/view/${inf.id}`)} title="Виж изгледа на инфлуенсъра">👁</button>
                         <button className="btn btn-sm" onClick={() => startEdit(inf)} title="Редактиране">✎</button>
                         <button
                           className="btn btn-sm"
