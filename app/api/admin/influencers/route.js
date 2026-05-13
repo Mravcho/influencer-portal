@@ -13,17 +13,28 @@ export async function GET() {
 
   // Добавяме order stats за всеки
   const enriched = await Promise.all(influencers.map(async (inf) => {
-    const { data: stats } = await supabaseAdmin
+    const { data: orders } = await supabaseAdmin
       .from('orders')
-      .select('total_price')
+      .select('total_price, commissionable_revenue, line_items')
       .eq('influencer_id', inf.id)
 
-    const totalRevenue = (stats || []).reduce((s, o) => s + parseFloat(o.total_price), 0)
+    const totalRevenue = (orders || []).reduce((s, o) => s + parseFloat(o.total_price || 0), 0)
+
+    // Комисионната се изчислява от пълната цена на продуктите с отстъпка
+    const totalCommissionable = (orders || []).reduce((s, o) => {
+      const stored = parseFloat(o.commissionable_revenue)
+      if (stored > 0) return s + stored
+      // Fallback за стари поръчки без stored commissionable_revenue
+      return s + (o.line_items || []).reduce(
+        (si, item) => si + parseFloat(item.price || 0) * (item.quantity || 1), 0
+      )
+    }, 0)
+
     return {
       ...inf,
-      orderCount:   (stats || []).length,
-      totalRevenue: Math.round(totalRevenue * 100) / 100,
-      totalCommission: Math.round(totalRevenue * inf.commission / 100 * 100) / 100,
+      orderCount:      (orders || []).length,
+      totalRevenue:    Math.round(totalRevenue * 100) / 100,
+      totalCommission: Math.round(totalCommissionable * inf.commission / 100 * 100) / 100,
     }
   }))
 
