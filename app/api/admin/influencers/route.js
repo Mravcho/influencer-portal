@@ -7,6 +7,10 @@ import { sendWelcomeEmail } from '@/lib/email'
 
 const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
+// Първоначалният sync за нов инфлуенсър може да отнеме >10 сек ако има много поръчки
+// (тегли продуктови снимки + insert-ва в базата). Vercel Pro поддържа до 60.
+export const maxDuration = 60
+
 // GET /api/admin/influencers → списък с всички + stats
 export async function GET() {
   const { data: influencers, error } = await supabaseAdmin
@@ -92,16 +96,23 @@ export async function POST(request) {
     return NextResponse.json({ error: msg }, { status: 409 })
   }
 
-  // Първоначален sync на поръчки от началото на годината — fire-and-forget
-  syncInfluencer({
+  // Първоначален sync на поръчки от началото на годината.
+  // Изчакваме го за да сме сигурни, че поръчките са в базата при response-а
+  // (иначе serverless-ът може да приключи преди sync-а да завърши).
+  // Welcome имейлът е отделен и НЕ зависи от резултата на sync-а — за него:
+  //   - email_notifications = false, за да не получи още един имейл при намерени поръчки
+  const syncResult = await syncInfluencer({
     id:                  data.id,
     name:                data.name,
     promo_code:          data.promo_code,
     commission:          data.commission,
-    email:               data.email,
-    email_notifications: email_notifications !== false,
+    email:               null, // изключваме order notification email при initial sync
+    email_notifications: false,
   }, { sinceOverride: '2026-01-01T00:00:00.000Z' })
-    .catch(err => console.error('Initial sync failed:', err))
+    .catch(err => {
+      console.error('Initial sync failed:', err)
+      return { error: err.message }
+    })
 
   // Welcome email с линк за задаване на парола (валиден 7 дни)
   if (data.email) {
@@ -123,7 +134,7 @@ export async function POST(request) {
     }
   }
 
-  return NextResponse.json(data, { status: 201 })
+  return NextResponse.json({ ...data, initialSync: syncResult }, { status: 201 })
 }
 
 // PATCH /api/admin/influencers → обновяване
