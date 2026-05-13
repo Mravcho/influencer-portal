@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabase'
 
 // Извлича потребителското име от URL на социална мрежа
 function extractUsername(url) {
@@ -31,6 +32,36 @@ async function fetchViaUnavatar(platform, username) {
   if (!res.ok) return null
   const data = await res.json()
   return data?.url || null
+}
+
+// Сваля снимка и я качва в Supabase Storage (за да избегнем hotlink блокировки)
+async function mirrorToSupabase(externalUrl, username) {
+  const res = await fetch(externalUrl, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+  })
+  if (!res.ok) throw new Error(`Не успях да сваля снимката (${res.status})`)
+
+  const contentType = res.headers.get('content-type') || 'image/jpeg'
+  if (!contentType.startsWith('image/')) {
+    throw new Error('Resource не е снимка')
+  }
+  const ext = contentType.split('/')[1]?.split(';')[0] || 'jpg'
+  const buffer = Buffer.from(await res.arrayBuffer())
+  const path = `avatars/${(username || 'avatar').toLowerCase().replace(/[^a-z0-9_-]/g, '')}-${Date.now()}.${ext}`
+
+  const { error } = await supabaseAdmin
+    .storage
+    .from('branding')
+    .upload(path, buffer, { contentType, upsert: false })
+
+  if (error) throw new Error(error.message)
+
+  const { data: { publicUrl } } = supabaseAdmin
+    .storage
+    .from('branding')
+    .getPublicUrl(path)
+
+  return publicUrl
 }
 
 // Пробва og:image scraping (работи добре за YouTube)
@@ -73,7 +104,16 @@ export async function POST(request) {
     }
 
     if (avatarUrl) {
-      return NextResponse.json({ avatarUrl })
+      // Качваме в нашия Supabase Storage, за да избегнем hotlink 403
+      // от Instagram / Facebook CDN
+      try {
+        const mirrored = await mirrorToSupabase(avatarUrl, username)
+        return NextResponse.json({ avatarUrl: mirrored })
+      } catch (mirrorErr) {
+        // Ако mirror-ът се счупи, връщаме оригинала като fallback
+        console.error('Avatar mirror error:', mirrorErr.message)
+        return NextResponse.json({ avatarUrl })
+      }
     }
 
     return NextResponse.json({ error: 'Не намерих снимка. Добави URL ръчно.' }, { status: 404 })
