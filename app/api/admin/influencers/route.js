@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { syncInfluencer } from '@/lib/sync'
+import { sendWelcomeEmail } from '@/lib/email'
+
+const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
 // GET /api/admin/influencers → списък с всички + stats
 export async function GET() {
@@ -56,11 +60,13 @@ export async function POST(request) {
     email, email_notifications,
   } = body
 
-  if (!name || !username || !password || !promo_code) {
+  if (!name || !username || !promo_code) {
     return NextResponse.json({ error: 'Липсват задължителни полета' }, { status: 400 })
   }
 
-  const password_hash = await bcrypt.hash(password, 10)
+  // Ако не е подадена парола — генерираме случайна (инфлуенсърът ще си зададе своя през reset линка)
+  const initialPassword = password || crypto.randomBytes(16).toString('hex')
+  const password_hash = await bcrypt.hash(initialPassword, 10)
 
   const { data, error } = await supabaseAdmin
     .from('influencers')
@@ -87,7 +93,6 @@ export async function POST(request) {
   }
 
   // Първоначален sync на поръчки от началото на годината — fire-and-forget
-  // (Vercel ще го изпълни до края на serverless invocation-а)
   syncInfluencer({
     id:                  data.id,
     name:                data.name,
@@ -97,6 +102,26 @@ export async function POST(request) {
     email_notifications: email_notifications !== false,
   }, { sinceOverride: '2026-01-01T00:00:00.000Z' })
     .catch(err => console.error('Initial sync failed:', err))
+
+  // Welcome email с линк за задаване на парола (валиден 7 дни)
+  if (data.email) {
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: tokenRow } = await supabaseAdmin
+      .from('password_reset_tokens')
+      .insert({ influencer_id: data.id, expires_at: expiresAt })
+      .select('token')
+      .single()
+
+    if (tokenRow?.token) {
+      const resetUrl = `${PORTAL_URL}/reset-password?token=${tokenRow.token}`
+      sendWelcomeEmail({
+        to:        data.email,
+        name:      data.name,
+        promoCode: data.promo_code,
+        resetUrl,
+      }).catch(err => console.error('Welcome email failed:', err.message))
+    }
+  }
 
   return NextResponse.json(data, { status: 201 })
 }

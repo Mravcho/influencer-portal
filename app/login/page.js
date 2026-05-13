@@ -9,6 +9,9 @@ export default function LoginPage() {
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
   const [branding, setBranding] = useState({ logo_url: null, login_bg_url: null })
+  const [forgotMode, setForgotMode]   = useState(false)
+  const [forgotIdent, setForgotIdent] = useState('')
+  const [forgotSent, setForgotSent]   = useState(false)
 
   useEffect(() => {
     fetch('/api/public/branding')
@@ -16,6 +19,18 @@ export default function LoginPage() {
       .then(d => setBranding(d))
       .catch(() => {})
   }, [])
+
+  const submitForgot = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    await fetch('/api/auth/request-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: forgotIdent }),
+    })
+    setLoading(false)
+    setForgotSent(true)
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -93,42 +108,92 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {error && <div className="alert alert-error" style={{ marginBottom: 0 }}>{error}</div>}
+          {!forgotMode && (
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {error && <div className="alert alert-error" style={{ marginBottom: 0 }}>{error}</div>}
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>
-                Потребителско име
-              </label>
-              <input
-                type="text" value={username} placeholder="напр. maria_style"
-                onChange={e => setUsername(e.target.value)} required autoFocus
-              />
-            </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>
+                  Потребителско име
+                </label>
+                <input
+                  type="text" value={username} placeholder="напр. maria_style"
+                  onChange={e => setUsername(e.target.value)} required autoFocus
+                />
+              </div>
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>
-                Парола
-              </label>
-              <input
-                type="password" value={password} placeholder="••••••••"
-                onChange={e => setPassword(e.target.value)} required
-              />
-            </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>
+                  Парола
+                </label>
+                <input
+                  type="password" value={password} placeholder="••••••••"
+                  onChange={e => setPassword(e.target.value)} required
+                />
+              </div>
 
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: 8 }}
-              disabled={loading}
-            >
-              {loading ? 'Влизане...' : 'Вход'}
-            </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: 8 }}
+                disabled={loading}
+              >
+                {loading ? 'Влизане...' : 'Вход'}
+              </button>
 
-            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
-              Нямате достъп? Свържете се с администратора.
-            </p>
-          </form>
+              <button
+                type="button"
+                onClick={() => { setForgotMode(true); setForgotSent(false); setForgotIdent(username) }}
+                style={{
+                  background: 'none', border: 'none', color: 'var(--accent)',
+                  fontSize: 12, cursor: 'pointer', padding: 4, fontFamily: 'inherit',
+                  textDecoration: 'underline',
+                }}
+              >
+                Забравена парола?
+              </button>
+            </form>
+          )}
+
+          {forgotMode && (
+            <form onSubmit={submitForgot} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {forgotSent ? (
+                <>
+                  <div className="alert alert-success" style={{ marginBottom: 0 }}>
+                    Ако този акаунт съществува, изпратихме линк за смяна на парола на регистрирания имейл адрес. Провери и спам папката.
+                  </div>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => { setForgotMode(false); setForgotSent(false) }}
+                    style={{ width: '100%', justifyContent: 'center', padding: '10px' }}
+                  >← Назад към вход</button>
+                </>
+              ) : (
+                <>
+                  <h2 style={{ fontSize: 16, fontWeight: 600 }}>Забравена парола</h2>
+                  <p style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    Въведи потребителско име или имейл — ще получиш линк за смяна.
+                  </p>
+                  <input
+                    type="text" value={forgotIdent}
+                    onChange={e => setForgotIdent(e.target.value)}
+                    placeholder="username или email" required autoFocus
+                  />
+                  <button
+                    type="submit" className="btn btn-primary"
+                    style={{ width: '100%', justifyContent: 'center', padding: '12px' }}
+                    disabled={loading}
+                  >{loading ? 'Изпращане...' : 'Изпрати линк'}</button>
+                  <button
+                    type="button" className="btn btn-ghost"
+                    onClick={() => setForgotMode(false)}
+                    style={{ width: '100%', justifyContent: 'center' }}
+                  >Отказ</button>
+                </>
+              )}
+            </form>
+          )}
         </div>
       </div>
     </div>

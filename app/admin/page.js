@@ -378,8 +378,14 @@ export default function AdminPage() {
               </div>
               <div className="grid-2">
                 <div>
-                  <label style={labelStyle}>{editId ? 'Нова парола (остави празно за без промяна)' : 'Парола *'}</label>
-                  <input type="password" value={form.password} onChange={e => setField('password', e.target.value)} placeholder="••••••••" required={!editId} />
+                  <label style={labelStyle}>
+                    {editId ? 'Нова парола (остави празно за без промяна)' : 'Парола (опц. — иначе инфлуенсърът ще си зададе)'}
+                  </label>
+                  <input
+                    type="password" value={form.password}
+                    onChange={e => setField('password', e.target.value)}
+                    placeholder={editId ? '••••••••' : 'Остави празно за линк по мейл'}
+                  />
                 </div>
                 <div>
                   <label style={labelStyle}>Промокод Shopify *</label>
