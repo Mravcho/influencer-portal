@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // GET /api/admin/sessions?influencer_id=uuid → последните 100 сесии за инфлуенсър
 // GET /api/admin/sessions                    → последните 100 сесии общо
+// DELETE /api/admin/sessions?cleanup=orphans → чисти сесии със изтрит инфлуенсър
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const influencerId = searchParams.get('influencer_id')
@@ -53,4 +57,41 @@ export async function GET(request) {
 function isActiveNow(lastSeenAt, now) {
   if (!lastSeenAt) return false
   return (now - new Date(lastSeenAt)) < 2 * 60 * 1000
+}
+
+// DELETE /api/admin/sessions?cleanup=orphans → изтрива сесии чийто influencer_id
+// вече не съществува в influencers таблицата
+export async function DELETE(request) {
+  const { searchParams } = new URL(request.url)
+  if (searchParams.get('cleanup') !== 'orphans') {
+    return NextResponse.json({ error: 'Невалиден параметър' }, { status: 400 })
+  }
+
+  // Намираме всички уникални influencer_id от сесиите
+  const { data: sessions } = await supabaseAdmin
+    .from('login_sessions')
+    .select('influencer_id')
+    .not('influencer_id', 'is', null)
+
+  const sessionIds = [...new Set((sessions || []).map(s => s.influencer_id))]
+  if (sessionIds.length === 0) return NextResponse.json({ deleted: 0 })
+
+  // Кои от тях наистина съществуват в influencers
+  const { data: existing } = await supabaseAdmin
+    .from('influencers')
+    .select('id')
+    .in('id', sessionIds)
+
+  const existingSet = new Set((existing || []).map(i => i.id))
+  const orphanIds = sessionIds.filter(id => !existingSet.has(id))
+
+  if (orphanIds.length === 0) return NextResponse.json({ deleted: 0, orphans: [] })
+
+  const { error, count } = await supabaseAdmin
+    .from('login_sessions')
+    .delete({ count: 'exact' })
+    .in('influencer_id', orphanIds)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ deleted: count || 0, orphans: orphanIds })
 }
