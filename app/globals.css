@@ -195,8 +195,8 @@ tbody tr:hover td { background: var(--bg); }
 
 /* Orders table — card layout на мобилен (за да няма horizontal scroll) */
 @media (max-width: 768px) {
-  .table-cards { overflow-x: visible; }
-  .table-cards table { min-width: 0 !important; display: block; }
+  .table-cards { overflow-x: visible; padding: 1rem; }
+  .table-cards table { min-width: 0 !important; display: block; width: 100%; }
   .table-cards thead { display: none; }
   .table-cards tbody { display: block; }
   .table-cards tr {
@@ -204,17 +204,20 @@ tbody tr:hover td { background: var(--bg); }
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 10px 12px;
+    padding: 12px;
     margin-bottom: 10px;
+    overflow: hidden;
   }
   .table-cards tr:hover td { background: transparent; }
   .table-cards td {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    padding: 4px 0 !important;
+    align-items: center;
+    padding: 5px 0 !important;
     border-bottom: 1px dashed var(--border);
     gap: 12px;
+    min-width: 0;
+    width: 100%;
   }
   .table-cards td:last-child { border-bottom: none; }
   .table-cards td::before {
@@ -228,14 +231,34 @@ tbody tr:hover td { background: var(--bg); }
     align-self: center;
   }
   .table-cards td:not([data-label])::before { content: ''; }
-  .table-cards td > * { text-align: right; }
-  .table-cards td .product-chip { text-align: left; }
+
+  /* Value side (после ::before) — взима останалото място, подравнено вдясно */
+  .table-cards td > *:not(.product-chip) {
+    margin-left: auto;
+    min-width: 0;
+    text-align: right;
+    max-width: 100%;
+  }
+
+  /* Продуктите — пълна ширина, отдолу */
   .table-cards td[data-label="Продукти"] {
     flex-direction: column;
     align-items: stretch;
   }
   .table-cards td[data-label="Продукти"]::before {
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+  }
+  .table-cards td[data-label="Продукти"] > div {
+    margin-left: 0;
+    text-align: left;
+  }
+
+  /* Статус badge — да не излиза извън карта */
+  .table-cards td[data-label="Статус"] .badge {
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
