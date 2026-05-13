@@ -5,16 +5,21 @@ import { bg } from 'date-fns/locale'
 
 const fmtEur = (n) => `${Number(n || 0).toFixed(2)} €`
 
-// Връща [текущ месец, минал месец]
-function currentAndLastMonth() {
+// Всички месеци от началото на текущата година до сега
+function monthsThisYear() {
   const now = new Date()
-  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const year = now.getFullYear()
+  const currentMonthIdx = now.getMonth()
   const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-  return [
-    { value: fmt(thisMonth), label: `Този месец (${format(thisMonth, 'LLLL', { locale: bg })})` },
-    { value: fmt(lastMonth), label: `Минал месец (${format(lastMonth, 'LLLL', { locale: bg })})` },
-  ]
+  const out = []
+  for (let m = currentMonthIdx; m >= 0; m--) {
+    const d = new Date(year, m, 1)
+    let label = format(d, 'LLLL yyyy', { locale: bg })
+    if (m === currentMonthIdx)     label = `Този месец (${format(d, 'LLLL', { locale: bg })})`
+    else if (m === currentMonthIdx - 1) label = `Минал месец (${format(d, 'LLLL', { locale: bg })})`
+    out.push({ value: fmt(d), label })
+  }
+  return out
 }
 
 const MEDAL = {
@@ -24,7 +29,7 @@ const MEDAL = {
 }
 
 export default function MonthlyLeaderboard() {
-  const months = currentAndLastMonth()
+  const months = monthsThisYear()
   const [month, setMonth] = useState(months[0].value)
   const [data, setData]   = useState(null)
   const [loading, setLoading] = useState(true)

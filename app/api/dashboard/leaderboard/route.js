@@ -6,9 +6,16 @@ const VOIDED_STATUSES = new Set(['voided', 'refunded'])
 // Връща анонимизирана класация — само първо име + initial на фамилия + брой поръчки
 // БЕЗ комисионни, БЕЗ приходи. Това е версията за инфлуенсърите.
 export async function GET(request) {
-  const currentUserId = request.headers.get('x-user-id')
+  const userRole = request.headers.get('x-user-role')
   const { searchParams } = new URL(request.url)
   const monthParam = searchParams.get('month')
+  const viewId     = searchParams.get('viewId') // admin преглежда конкретен инфлуенсър
+
+  // По default — текущият логнат user. Ако admin прави viewId — приемаме него.
+  let currentUserId = request.headers.get('x-user-id')
+  if (userRole === 'admin' && viewId) {
+    currentUserId = viewId
+  }
 
   const now = new Date()
   let year, month

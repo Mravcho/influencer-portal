@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { bg } from 'date-fns/locale'
+import InfluencerLeaderboard from '@/app/dashboard/components/InfluencerLeaderboard'
 
 function ymd(d) { return format(d, 'yyyy-MM-dd') }
 
@@ -157,6 +158,9 @@ export default function AdminInfluencerView() {
             </div>
           </div>
         </div>
+
+        {/* Leaderboard — както го вижда инфлуенсърът */}
+        <InfluencerLeaderboard viewId={id} />
 
         {/* Date filters */}
         <div className="card" style={{ marginBottom: '1rem', padding: '14px' }}>
