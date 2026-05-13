@@ -80,12 +80,10 @@ export default function MonthlyLeaderboard() {
       {ranking.length > 0 && (
         <>
           {/* Топ 3 — карти */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: ranking.length >= 3 ? 'repeat(3, 1fr)' : `repeat(${ranking.length}, 1fr)`,
-            gap: 12,
-            marginBottom: ranking.length > 3 ? 20 : 0,
-          }}>
+          <div
+            className={ranking.length >= 3 ? 'grid-3' : 'grid-2'}
+            style={{ marginBottom: ranking.length > 3 ? 20 : 0 }}
+          >
             {ranking.slice(0, 3).map(r => {
               const medal = MEDAL[r.rank]
               return (

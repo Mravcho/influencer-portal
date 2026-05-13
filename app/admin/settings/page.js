@@ -70,22 +70,17 @@ export default function AdminSettings() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <header style={{
-        background: 'var(--surface)', borderBottom: '1px solid var(--border)',
-        padding: '0 1.5rem', height: 56,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <header className="header-bar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <button className="btn btn-sm btn-ghost" onClick={() => router.push('/admin')}>← Назад</button>
-          <div style={{ width: 1, height: 24, background: 'var(--border)' }} />
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: 13 }}>Настройки</div>
             <div style={{ fontSize: 11, color: 'var(--muted)' }}>Брандинг и визия</div>
           </div>
         </div>
       </header>
 
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: '1.5rem' }}>
+      <main className="main-container" style={{ maxWidth: 720 }}>
         {msg.text && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
 
         {/* Logo */}

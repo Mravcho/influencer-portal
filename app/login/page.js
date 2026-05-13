@@ -35,9 +35,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', background: 'var(--bg)',
-    }}>
+    <div className="login-shell">
       {/* Лява половина — голяма снимка */}
       <div className="login-bg" style={{
         flex: 1.2, position: 'relative', overflow: 'hidden',

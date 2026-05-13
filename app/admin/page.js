@@ -153,26 +153,22 @@ export default function AdminPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <header style={{
-        background: 'var(--surface)', borderBottom: '1px solid var(--border)',
-        padding: '0 1.5rem', height: 56,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <header className="header-bar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <div style={{
             width: 32, height: 32, borderRadius: 8, background: 'var(--info-lt)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#185FA5" strokeWidth="2">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: 13 }}>Admin панел</div>
             <div style={{ fontSize: 11, color: 'var(--muted)' }}>Управление на инфлуенсъри</div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="header-actions">
           <button className="btn btn-sm" onClick={() => syncAll(false)} disabled={syncStatus.all === 'syncing'}>
             {syncStatus.all === 'syncing' ? '⟳ Синхронизиране...' : syncStatus.all === 'done' ? '✓ Готово' : '⟳ Sync нови'}
           </button>
@@ -190,12 +186,12 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem' }}>
+      <main className="main-container">
         {/* Monthly leaderboard — най-отгоре */}
         <MonthlyLeaderboard />
 
         {/* Summary metrics */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.5rem' }}>
+        <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
           {[
             { label: 'Инфлуенсъри', value: influencers.length },
             { label: 'Общо поръчки', value: totOrders },
@@ -229,8 +225,8 @@ export default function AdminPage() {
         </div>
 
         {tab === 'list' && (
-          <div className="card">
-            <table>
+          <div className="card table-wrap">
+            <table style={{ minWidth: 760 }}>
               <thead><tr>
                 <th>Инфлуенсър</th>
                 <th>Промокод</th>
@@ -346,7 +342,7 @@ export default function AdminPage() {
             </h2>
             {msg.text && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className=\"grid-2\">
                 <div>
                   <label style={labelStyle}>Пълно име *</label>
                   <input value={form.name} onChange={e => setField('name', e.target.value)} placeholder="Мария Иванова" required />
@@ -356,7 +352,7 @@ export default function AdminPage() {
                   <input value={form.username} onChange={e => setField('username', e.target.value)} placeholder="maria_style" required />
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className=\"grid-2\">
                 <div>
                   <label style={labelStyle}>{editId ? 'Нова парола (остави празно за без промяна)' : 'Парола *'}</label>
                   <input type="password" value={form.password} onChange={e => setField('password', e.target.value)} placeholder="••••••••" required={!editId} />
@@ -366,7 +362,7 @@ export default function AdminPage() {
                   <input value={form.promo_code} onChange={e => setField('promo_code', e.target.value.toUpperCase())} placeholder="MARIA15" required style={{ textTransform: 'uppercase' }} />
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className=\"grid-2\">
                 <div>
                   <label style={labelStyle}>Комисионна (%)</label>
                   <input type="number" min="0" max="100" step="0.5" value={form.commission} onChange={e => setField('commission', e.target.value)} />
@@ -492,7 +488,7 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className=\"grid-2\">
                 <div>
                   <label style={labelStyle}>Мейл адрес</label>
                   <input type="email" value={form.email} onChange={e => setField('email', e.target.value)} placeholder="maria@example.com" />

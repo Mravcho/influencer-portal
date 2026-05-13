@@ -94,32 +94,28 @@ export default function Dashboard() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {/* Header */}
-      <header style={{
-        background: 'var(--surface)', borderBottom: '1px solid var(--border)',
-        padding: '0 1.5rem', height: 56,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <header className="header-bar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           {branding.logo_url ? (
-            <img src={branding.logo_url} alt="Logo" style={{ height: 32, maxWidth: 120, objectFit: 'contain' }} />
+            <img src={branding.logo_url} alt="Logo" style={{ height: 32, maxWidth: 120, objectFit: 'contain', flexShrink: 0 }} />
           ) : (
             <div style={{
               width: 32, height: 32, borderRadius: 8, background: 'var(--accent-lt)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontWeight: 700, color: 'var(--accent-dk)',
+              fontSize: 13, fontWeight: 700, color: 'var(--accent-dk)', flexShrink: 0,
             }}>
               {userInfo.name?.slice(0, 2).toUpperCase() || '??'}
             </div>
           )}
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>{userInfo.name}</div>
+          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userInfo.name}</div>
             <div style={{ fontSize: 11, color: 'var(--muted)' }}>Промокод: <strong>{userInfo.promoCode}</strong></div>
           </div>
         </div>
         <button className="btn btn-sm btn-ghost" onClick={logout}>Изход</button>
       </header>
 
-      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem' }}>
+      <main className="main-container">
         {/* Hero — banner или gradient */}
         <div style={{
           borderRadius: 16, marginBottom: '1.5rem',
@@ -139,10 +135,10 @@ export default function Dashboard() {
             <div style={{ fontSize: 12, opacity: .85, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px' }}>
               Очаквана комисионна
             </div>
-            <div style={{ fontSize: 42, fontWeight: 700, margin: '4px 0', textShadow: bannerUrl ? '0 2px 8px rgba(0,0,0,.4)' : 'none' }}>
+            <div className="hero-amount" style={{ fontSize: 42, fontWeight: 700, margin: '4px 0', textShadow: bannerUrl ? '0 2px 8px rgba(0,0,0,.4)' : 'none' }}>
               {fmtEur(stats.totalCommission || 0)}
             </div>
-            <div style={{ fontSize: 13, opacity: .9, textShadow: bannerUrl ? '0 1px 4px rgba(0,0,0,.4)' : 'none' }}>
+            <div className="hero-sub" style={{ fontSize: 13, opacity: .9, textShadow: bannerUrl ? '0 1px 4px rgba(0,0,0,.4)' : 'none' }}>
               {stats.totalOrders || 0} поръчки · {userInfo.commission}% комисионна · клиентите спестиха <strong>{fmtEur(stats.totalSavings || 0)}</strong>
             </div>
           </div>
@@ -150,8 +146,8 @@ export default function Dashboard() {
 
         {/* Date filters */}
         <div className="card" style={{ marginBottom: '1rem', padding: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginRight: 8 }}>
+          <div className="filter-row">
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginRight: 4 }}>
               Период:
             </div>
             {shortcuts.map(sc => (
@@ -163,19 +159,18 @@ export default function Dashboard() {
                 {sc.label}
               </button>
             ))}
-            <div style={{ width: 1, height: 24, background: 'var(--border)', margin: '0 4px' }} />
             <input
               type="date"
               value={from}
               onChange={e => setFrom(e.target.value)}
-              style={{ width: 'auto', fontSize: 12, padding: '5px 8px' }}
+              style={{ fontSize: 12, padding: '5px 8px' }}
             />
             <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>
             <input
               type="date"
               value={to}
               onChange={e => setTo(e.target.value)}
-              style={{ width: 'auto', fontSize: 12, padding: '5px 8px' }}
+              style={{ fontSize: 12, padding: '5px 8px' }}
             />
             <button
               className={`chip ${activeShortcut === 'custom' ? 'active' : ''}`}
@@ -191,7 +186,7 @@ export default function Dashboard() {
         <InfluencerLeaderboard />
 
         {/* Metrics */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
+        <div className="grid-4" style={{ marginBottom: '1.5rem' }}>
           {[
             { label: 'Поръчки',     value: stats.totalOrders || 0,             sub: `с код ${userInfo.promoCode}` },
             { label: 'Общ приход',  value: fmtEur(stats.totalRevenue || 0),    sub: 'платено от клиентите' },
@@ -245,7 +240,7 @@ export default function Dashboard() {
         </div>
 
         {/* Orders table */}
-        <div className="card" style={{ overflowX: 'auto' }}>
+        <div className="card table-wrap">
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
             Поръчки (анонимизирани — без лични данни)
           </div>

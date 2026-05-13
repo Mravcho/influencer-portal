@@ -116,7 +116,7 @@ export default function StatsCharts() {
   const totalCommission = daily.reduce((s, d) => s + d.commission, 0)
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: '1.5rem' }}>
+    <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
       {/* Графика 1: Поръчки по дни */}
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>

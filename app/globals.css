@@ -103,7 +103,133 @@ tbody tr:hover td { background: var(--bg); }
 /* Login layout — mobile: скрий снимката, само формата */
 @media (max-width: 768px) {
   .login-bg { display: none; }
-  .login-form-side { flex: 1 !important; }
+  .login-form-side { flex: 1 !important; padding: 1.25rem !important; }
+}
+
+/* ===== Responsive utilities ===== */
+
+/* Responsive grids: 4 cols → 2 cols (tablet) → 1 col (phone) */
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+}
+
+/* Header bar — wrap-ва на тесни екрани */
+.header-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+@media (max-width: 560px) {
+  .header-bar {
+    padding: 10px 1rem;
+  }
+  .header-bar > * {
+    min-width: 0;
+  }
+}
+
+/* Header actions — wrap-ват, не overflow-ват */
+.header-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+@media (max-width: 560px) {
+  .header-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .header-actions .btn { flex: 1; justify-content: center; }
+}
+
+/* Main container — padding по-малко на мобилен */
+.main-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+@media (max-width: 560px) {
+  .main-container { padding: 1rem; }
+}
+
+/* Tables — стандартен overflow + по-малко padding на мобилен */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 560px) {
+  table { font-size: 12px; }
+  th, td { padding: 6px 8px !important; }
+}
+
+/* Card padding по-малко на мобилен */
+@media (max-width: 560px) {
+  .card { padding: 1rem; }
+  .metric { padding: 12px; }
+  .metric-value { font-size: 20px; }
+}
+
+/* Filter row — wrap на тесен екран */
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.filter-row input[type="date"] {
+  width: auto;
+  flex: 1 1 130px;
+  min-width: 0;
+}
+
+/* Hero card — smaller font на mobile */
+@media (max-width: 560px) {
+  .hero-amount { font-size: 32px !important; }
+  .hero-sub    { font-size: 12px !important; }
+}
+
+/* Chip wrap helper */
+.chip-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Login splits */
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  background: var(--bg);
+}
+@media (max-width: 768px) {
+  .login-shell { flex-direction: column; }
 }
 
 /* Date filter chip-ове */
