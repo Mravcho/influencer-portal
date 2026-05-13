@@ -273,7 +273,7 @@ export default function Dashboard() {
 
                 return (
                   <tr key={order.id}>
-                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{order.order_number}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--muted)' }}>{order.shopify_order_id}</td>
                     <td style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmtDate(order.created_at_shopify)}</td>
                     <td>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
