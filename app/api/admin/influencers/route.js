@@ -166,6 +166,12 @@ export async function DELETE(request) {
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Липсва id' }, { status: 400 })
 
+  // Изрично трием child rows първо, за случаите когато FK CASCADE не е активен
+  await supabaseAdmin.from('orders').delete().eq('influencer_id', id)
+  await supabaseAdmin.from('login_sessions').delete().eq('influencer_id', id)
+  await supabaseAdmin.from('password_reset_tokens').delete().eq('influencer_id', id)
+  await supabaseAdmin.from('payout_requests').delete().eq('influencer_id', id)
+
   const { error } = await supabaseAdmin.from('influencers').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

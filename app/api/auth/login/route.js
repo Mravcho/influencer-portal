@@ -78,12 +78,16 @@ export async function POST(request) {
     return response
   }
 
-  // Инфлуенсър — търсим в базата
-  const { data: influencer } = await supabaseAdmin
+  // Инфлуенсър — търсим в базата.
+  // НЕ ползваме .single() — ако някак има дубликат username, single() гърми тихо.
+  // Вместо това вземаме най-скоро създадения с този username.
+  const { data: matches } = await supabaseAdmin
     .from('influencers')
-    .select('id, name, username, password_hash, promo_code, commission, platform, active')
+    .select('id, name, username, password_hash, promo_code, commission, platform, active, created_at')
     .eq('username', username.toLowerCase())
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
+  const influencer = matches && matches.length > 0 ? matches[0] : null
 
   // Неуспех: няма такъв username
   if (!influencer) {
