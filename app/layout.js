@@ -1,7 +1,7 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Influencer Portal',
+  title: 'RealFood Influencer Portal',
   description: 'Проследявай своите поръчки и комисионни',
 }
 

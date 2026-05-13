@@ -89,7 +89,7 @@ export default function LoginPage() {
                 </svg>
               </div>
             )}
-            <h1 style={{ fontSize: 24, fontWeight: 700 }}>Influencer Portal</h1>
+            <h1 style={{ fontSize: 24, fontWeight: 700 }}>RealFood Influencer Portal</h1>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 6 }}>
               Влезте, за да видите вашите поръчки
             </p>
