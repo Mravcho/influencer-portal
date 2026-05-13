@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabase'
+import { syncInfluencer } from '@/lib/sync'
 
 // GET /api/admin/influencers → списък с всички + stats
 export async function GET() {
@@ -49,7 +50,11 @@ export async function GET() {
 // POST /api/admin/influencers → създаване
 export async function POST(request) {
   const body = await request.json()
-  const { name, username, password, promo_code, commission, platform, notes, profile_url, avatar_url, banner_url } = body
+  const {
+    name, username, password, promo_code, commission, platform,
+    notes, profile_url, avatar_url, banner_url,
+    email, email_notifications,
+  } = body
 
   if (!name || !username || !password || !promo_code) {
     return NextResponse.json({ error: 'Липсват задължителни полета' }, { status: 400 })
@@ -59,14 +64,39 @@ export async function POST(request) {
 
   const { data, error } = await supabaseAdmin
     .from('influencers')
-    .insert({ name, username: username.toLowerCase(), password_hash, promo_code: promo_code.toUpperCase(), commission: commission || 10, platform, notes, profile_url: profile_url || null, avatar_url: avatar_url || null, banner_url: banner_url || null })
-    .select('id, name, username, promo_code, commission, platform')
+    .insert({
+      name,
+      username: username.toLowerCase(),
+      password_hash,
+      promo_code: promo_code.toUpperCase(),
+      commission: commission || 10,
+      platform,
+      notes,
+      profile_url:         profile_url   || null,
+      avatar_url:          avatar_url    || null,
+      banner_url:          banner_url    || null,
+      email:               email         || null,
+      email_notifications: email_notifications !== false,
+    })
+    .select('id, name, username, promo_code, commission, platform, email')
     .single()
 
   if (error) {
     const msg = error.code === '23505' ? 'Потребителско име или промокод вече съществува' : error.message
     return NextResponse.json({ error: msg }, { status: 409 })
   }
+
+  // Първоначален sync на поръчки от началото на годината — fire-and-forget
+  // (Vercel ще го изпълни до края на serverless invocation-а)
+  syncInfluencer({
+    id:                  data.id,
+    name:                data.name,
+    promo_code:          data.promo_code,
+    commission:          data.commission,
+    email:               data.email,
+    email_notifications: email_notifications !== false,
+  }, { sinceOverride: '2026-01-01T00:00:00.000Z' })
+    .catch(err => console.error('Initial sync failed:', err))
 
   return NextResponse.json(data, { status: 201 })
 }

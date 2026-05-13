@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { fetchOrdersByPromoCode } from '@/lib/shopify'
-import { sendNewOrderNotification } from '@/lib/email'
+import { syncInfluencer } from '@/lib/sync'
 
 // POST /api/admin/sync          → sync всички инфлуенсъри
 // POST /api/admin/sync?id=uuid  → sync само един
+// POST /api/admin/sync?full=true → пълен ре-синк (изтрива и презарежда)
 export async function POST(request) {
-  // Проверка: или Vercel Cron, или логнат admin
   const authHeader = request.headers.get('authorization')
   const userRole   = request.headers.get('x-user-role')
   const isCron     = authHeader === `Bearer ${process.env.CRON_SECRET}`
@@ -16,10 +15,9 @@ export async function POST(request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const singleId  = searchParams.get('id')
+  const singleId   = searchParams.get('id')
   const fullResync = searchParams.get('full') === 'true'
 
-  // Вземаме email и email_notifications заедно с останалите полета
   let query = supabaseAdmin
     .from('influencers')
     .select('id, name, promo_code, commission, email, email_notifications')
@@ -30,100 +28,9 @@ export async function POST(request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const results = []
-
   for (const influencer of influencers) {
-    try {
-      // 1. При пълен ре-синк изтриваме всички стари поръчки за инфлуенсъра
-      if (fullResync) {
-        await supabaseAdmin.from('orders').delete().eq('influencer_id', influencer.id)
-      }
-
-      // 2. Вземаме вече записаните ID-та (за засичане на нови)
-      const { data: existing } = await supabaseAdmin
-        .from('orders')
-        .select('shopify_order_id')
-        .eq('influencer_id', influencer.id)
-
-      const existingIds = new Set((existing || []).map(r => String(r.shopify_order_id)))
-
-      // 3. Инкрементален fetch от Shopify – от началото при ре-синк, иначе от последната
-      let since = '2026-01-01T00:00:00.000Z'
-      if (!fullResync) {
-        const { data: latest } = await supabaseAdmin
-          .from('orders')
-          .select('created_at_shopify')
-          .eq('influencer_id', influencer.id)
-          .order('created_at_shopify', { ascending: false })
-          .limit(1)
-          .single()
-        since = latest?.created_at_shopify || '2026-01-01T00:00:00.000Z'
-      }
-      const shopifyOrders = await fetchOrdersByPromoCode(influencer.promo_code, since)
-
-      if (shopifyOrders.length === 0) {
-        results.push({ influencer: influencer.name, synced: 0, emailed: false })
-        continue
-      }
-
-      // 3. Засичаме кои са наистина НОВИ (не са в базата)
-      const newOrders = shopifyOrders.filter(
-        o => !existingIds.has(String(o.shopify_order_id))
-      )
-
-      // 4. Upsert – записваме всичко (нови + обновени статуси)
-      const rows = shopifyOrders.map(o => ({
-        influencer_id:          influencer.id,
-        shopify_order_id:       o.shopify_order_id,
-        order_number:           o.order_number,
-        created_at_shopify:     o.created_at_shopify,
-        total_price:            o.total_price,
-        currency:               o.currency,
-        financial_status:       o.financial_status,
-        fulfillment_status:     o.fulfillment_status,
-        line_items:             o.line_items,
-        commissionable_revenue: o.commissionable_revenue,
-        total_savings:          o.total_savings,
-        shipping_total:         o.shipping_total,
-        synced_at:              new Date().toISOString(),
-      }))
-
-      const { error: upsertError } = await supabaseAdmin
-        .from('orders')
-        .upsert(rows, { onConflict: 'shopify_order_id', ignoreDuplicates: false })
-
-      if (upsertError) throw upsertError
-
-      // 5. Изпращаме мейл само ако:
-      //    - има НОВИ поръчки (не само обновени статуси)
-      //    - инфлуенсърът има мейл адрес
-      //    - email_notifications не е изключен
-      let emailed = false
-      if (newOrders.length > 0 && influencer.email && influencer.email_notifications !== false) {
-        try {
-          await sendNewOrderNotification({
-            to:         influencer.email,
-            name:       influencer.name,
-            promoCode:  influencer.promo_code,
-            newOrders:  newOrders.length,
-            commission: influencer.commission,
-          })
-          emailed = true
-        } catch (emailErr) {
-          // Мейл грешката не спира sync-а – логваме само
-          console.error(`Email error for ${influencer.name}:`, emailErr.message)
-        }
-      }
-
-      results.push({
-        influencer: influencer.name,
-        synced:     rows.length,
-        newOrders:  newOrders.length,
-        emailed,
-      })
-    } catch (err) {
-      console.error(`Sync failed for ${influencer.name}:`, err)
-      results.push({ influencer: influencer.name, error: err.message })
-    }
+    const result = await syncInfluencer(influencer, { fullResync })
+    results.push(result)
   }
 
   return NextResponse.json({ ok: true, results, syncedAt: new Date().toISOString() })
