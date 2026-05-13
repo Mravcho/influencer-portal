@@ -25,6 +25,8 @@ export async function GET(request) {
   const userRole = request.headers.get('x-user-role')
   const { searchParams } = new URL(request.url)
   const days   = parseInt(searchParams.get('days') || '0')
+  const from   = searchParams.get('from') // YYYY-MM-DD
+  const to     = searchParams.get('to')   // YYYY-MM-DD
   const viewId = searchParams.get('viewId') // за admin преглед на инфлуенсър
 
   // Admin може да разглежда поръчките на всеки инфлуенсър чрез ?viewId=
@@ -47,7 +49,17 @@ export async function GET(request) {
     .eq('influencer_id', influencerId)
     .order('created_at_shopify', { ascending: false })
 
-  if (days > 0) {
+  // Custom range (from/to) има приоритет над days
+  if (from) {
+    query = query.gte('created_at_shopify', new Date(from).toISOString())
+  }
+  if (to) {
+    // Включваме целия ден на крайната дата
+    const end = new Date(to)
+    end.setHours(23, 59, 59, 999)
+    query = query.lte('created_at_shopify', end.toISOString())
+  }
+  if (!from && !to && days > 0) {
     const since = new Date()
     since.setDate(since.getDate() - days)
     query = query.gte('created_at_shopify', since.toISOString())
@@ -73,7 +85,8 @@ export async function GET(request) {
     ;(order.line_items || []).forEach(item => {
       if (item.discounted === false) return
       const key = item.title
-      if (!productMap[key]) productMap[key] = { title: key, quantity: 0, revenue: 0 }
+      if (!productMap[key]) productMap[key] = { title: key, quantity: 0, revenue: 0, image_url: item.image_url || null }
+      if (!productMap[key].image_url && item.image_url) productMap[key].image_url = item.image_url
       productMap[key].quantity += item.quantity
       productMap[key].revenue  += item.quantity * parseFloat(item.price)
     })

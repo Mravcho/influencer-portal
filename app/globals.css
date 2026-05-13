@@ -99,3 +99,47 @@ tbody tr:hover td { background: var(--bg); }
 .alert-success { background: var(--accent-lt); color: var(--accent-dk); border: 1px solid #9FE1CB; }
 .alert-error   { background: #FCEBEB; color: #A32D2D; border: 1px solid #F7C1C1; }
 .alert-info    { background: var(--info-lt);   color: var(--info-dk);  border: 1px solid #B5D4F4; }
+
+/* Login layout — mobile: скрий снимката, само формата */
+@media (max-width: 768px) {
+  .login-bg { display: none; }
+  .login-form-side { flex: 1 !important; }
+}
+
+/* Date filter chip-ове */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 12px; border-radius: 20px; font-size: 12px;
+  font-weight: 500; cursor: pointer; transition: all .15s;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--muted); font-family: inherit; white-space: nowrap;
+}
+.chip:hover { background: var(--bg); color: var(--text); }
+.chip.active {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+
+/* Product thumbnail в orders таблица */
+.product-thumb {
+  width: 28px; height: 28px; border-radius: 6px;
+  object-fit: cover; border: 1px solid var(--border);
+  flex-shrink: 0; background: var(--bg);
+}
+.product-thumb-placeholder {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--accent-lt); display: inline-flex;
+  align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: var(--accent-dk);
+  flex-shrink: 0;
+}
+
+/* Product chip с снимка */
+.product-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 20px; padding: 3px 10px 3px 3px;
+  font-size: 11px; max-width: 100%;
+}
+.product-chip.discounted {
+  background: var(--accent-lt); border-color: var(--accent);
+}

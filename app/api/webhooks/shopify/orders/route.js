@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendNewOrderNotification } from '@/lib/email'
+import { fetchProductImages } from '@/lib/shopify'
 
 // Verifies Shopify HMAC-SHA256 signature
 async function verifyShopifyWebhook(request) {
@@ -20,7 +21,7 @@ async function verifyShopifyWebhook(request) {
   return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(hmacHeader))
 }
 
-function sanitizeWebhookOrder(order, promoCode) {
+function sanitizeWebhookOrder(order, promoCode, productImages = {}) {
   const shippingTotal = (order.shipping_lines || []).reduce(
     (s, line) => s + parseFloat(line.price || 0), 0
   )
@@ -65,6 +66,7 @@ function sanitizeWebhookOrder(order, promoCode) {
       discount_amount: Math.round(discountAmount * 100) / 100,
       discounted: isDiscounted,
       sku: item.sku,
+      image_url: productImages[item.product_id] || null,
     }
   })
 
@@ -125,10 +127,14 @@ export async function POST(request) {
     return NextResponse.json({ ok: true, skipped: 'no matching influencer' })
   }
 
+  // Тегли снимките на продуктите от тази поръчка (един път, преди loop-а)
+  const productIds = (order.line_items || []).map(li => li.product_id)
+  const productImages = await fetchProductImages(productIds)
+
   const results = []
 
   for (const influencer of influencers) {
-    const sanitized = sanitizeWebhookOrder(order, influencer.promo_code)
+    const sanitized = sanitizeWebhookOrder(order, influencer.promo_code, productImages)
 
     // Проверка дали поръчката вече съществува – ако да, ще е update (без имейл)
     const { data: existing } = await supabaseAdmin
