@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { bg } from 'date-fns/locale'
+import InfluencerLeaderboard from './components/InfluencerLeaderboard'
 
 function ymd(d) {
   return format(d, 'yyyy-MM-dd')
@@ -185,6 +186,9 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        {/* Leaderboard */}
+        <InfluencerLeaderboard />
 
         {/* Metrics */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>

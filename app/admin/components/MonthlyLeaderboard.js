@@ -5,17 +5,16 @@ import { bg } from 'date-fns/locale'
 
 const fmtEur = (n) => `${Number(n || 0).toFixed(2)} €`
 
-// Връща списък с последните 12 месеца като {value: 'YYYY-MM', label: 'Май 2026'}
-function lastMonths(n = 12) {
-  const out = []
-  const d = new Date()
-  d.setDate(1)
-  for (let i = 0; i < n; i++) {
-    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    out.push({ value, label: format(d, 'LLLL yyyy', { locale: bg }) })
-    d.setMonth(d.getMonth() - 1)
-  }
-  return out
+// Връща [текущ месец, минал месец]
+function currentAndLastMonth() {
+  const now = new Date()
+  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  return [
+    { value: fmt(thisMonth), label: `Този месец (${format(thisMonth, 'LLLL', { locale: bg })})` },
+    { value: fmt(lastMonth), label: `Минал месец (${format(lastMonth, 'LLLL', { locale: bg })})` },
+  ]
 }
 
 const MEDAL = {
@@ -25,7 +24,7 @@ const MEDAL = {
 }
 
 export default function MonthlyLeaderboard() {
-  const months = lastMonths(12)
+  const months = currentAndLastMonth()
   const [month, setMonth] = useState(months[0].value)
   const [data, setData]   = useState(null)
   const [loading, setLoading] = useState(true)

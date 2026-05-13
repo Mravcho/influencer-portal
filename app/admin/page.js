@@ -191,6 +191,9 @@ export default function AdminPage() {
       </header>
 
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem' }}>
+        {/* Monthly leaderboard — най-отгоре */}
+        <MonthlyLeaderboard />
+
         {/* Summary metrics */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.5rem' }}>
           {[
@@ -207,9 +210,6 @@ export default function AdminPage() {
 
         {/* Charts */}
         <StatsCharts />
-
-        {/* Monthly leaderboard */}
-        <MonthlyLeaderboard />
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', marginBottom: '1.5rem' }}>
