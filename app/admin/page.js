@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import StatsCharts from './components/StatsCharts'
 
 const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Facebook', 'Друга']
 
@@ -202,6 +203,9 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
+
+        {/* Charts */}
+        <StatsCharts />
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', marginBottom: '1.5rem' }}>
