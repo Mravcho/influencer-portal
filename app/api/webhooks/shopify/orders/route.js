@@ -130,6 +130,15 @@ export async function POST(request) {
   for (const influencer of influencers) {
     const sanitized = sanitizeWebhookOrder(order, influencer.promo_code)
 
+    // Проверка дали поръчката вече съществува – ако да, ще е update (без имейл)
+    const { data: existing } = await supabaseAdmin
+      .from('orders')
+      .select('id')
+      .eq('shopify_order_id', sanitized.shopify_order_id)
+      .maybeSingle()
+
+    const isNewOrder = !existing
+
     const row = {
       influencer_id: influencer.id,
       shopify_order_id: sanitized.shopify_order_id,
@@ -156,8 +165,9 @@ export async function POST(request) {
       continue
     }
 
+    // Имейл само при НОВА поръчка – не при update на статус
     let emailed = false
-    if (influencer.email && influencer.email_notifications !== false) {
+    if (isNewOrder && influencer.email && influencer.email_notifications !== false) {
       try {
         await sendNewOrderNotification({
           to: influencer.email,
@@ -172,7 +182,12 @@ export async function POST(request) {
       }
     }
 
-    results.push({ influencer: influencer.name, saved: true, emailed })
+    results.push({
+      influencer: influencer.name,
+      saved: true,
+      action: isNewOrder ? 'created' : 'updated',
+      emailed,
+    })
   }
 
   return NextResponse.json({ ok: true, results })
