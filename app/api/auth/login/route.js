@@ -18,21 +18,42 @@ function extractClientInfo(request) {
   }
 }
 
-// Записва опит за вход (успешен или не)
+// Записва опит за вход (успешен или не).
+// Ако новите колони липсват (стара schema), fallback-ва на базовите полета.
 async function logAttempt({ influencerId, attemptedUsername, success, failureReason, clientInfo }) {
-  const { data, error } = await supabaseAdmin
+  // Опит 1: пълен запис (изисква migrations_all.sql пуснат)
+  const fullPayload = {
+    influencer_id:      influencerId,
+    attempted_username: attemptedUsername,
+    success,
+    failure_reason:     failureReason,
+    ...clientInfo,
+  }
+  let { data, error } = await supabaseAdmin
     .from('login_sessions')
-    .insert({
-      influencer_id:      influencerId,
-      attempted_username: attemptedUsername,
-      success,
-      failure_reason:     failureReason,
-      ...clientInfo,
-    })
+    .insert(fullPayload)
     .select('id')
     .single()
-  if (error) console.error('Login attempt log error:', error.message)
-  return data?.id || null
+
+  if (!error) return data?.id || null
+
+  // Опит 2: ако грешката е заради липсваща колона — записваме без новите полета
+  // (само успешни сесии). Това поддържа стара schema.
+  if (success && /column.*does not exist/i.test(error.message)) {
+    console.warn('login_sessions has outdated schema — falling back. Run migrations_all.sql!')
+    const fallback = await supabaseAdmin
+      .from('login_sessions')
+      .insert({
+        influencer_id: influencerId,
+        ...clientInfo,
+      })
+      .select('id')
+      .single()
+    return fallback.data?.id || null
+  }
+
+  console.error('Login attempt log error:', error.message, '(code:', error.code, ')')
+  return null
 }
 
 export async function POST(request) {
