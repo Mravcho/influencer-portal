@@ -121,6 +121,24 @@ export default function AdminPage() {
     load()
   }
 
+  const deleteInfluencer = async (inf) => {
+    const ok = confirm(
+      `Сигурен ли си че искаш да ИЗТРИЕШ инфлуенсъра "${inf.name}"?\n\n` +
+      `Това ще премахне:\n` +
+      `• ${inf.orderCount || 0} поръчки\n` +
+      `• Всички сесии и история\n\n` +
+      `Действието е НЕОБРАТИМО.`
+    )
+    if (!ok) return
+    const res = await fetch(`/api/admin/influencers?id=${inf.id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(data.error || 'Грешка при изтриване')
+      return
+    }
+    load()
+  }
+
   const syncOne = async (id, full = false) => {
     const key = full ? `full_${id}` : id
     setSyncStatus(s => ({ ...s, [key]: 'syncing' }))
@@ -321,6 +339,11 @@ export default function AdminPage() {
                         <button className="btn btn-sm btn-ghost" onClick={() => toggleActive(inf)} title={inf.active ? 'Деактивирай' : 'Активирай'}>
                           {inf.active ? '⏸' : '▶'}
                         </button>
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => deleteInfluencer(inf)}
+                          title="Изтрий инфлуенсъра (необратимо)"
+                        >🗑</button>
                       </div>
                     </td>
                   </tr>
