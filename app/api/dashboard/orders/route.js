@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+// Поръчки със следните статуси не носят комисионна и не се броят в общата сума
+const VOIDED_STATUSES = new Set(['voided', 'refunded'])
+function isVoided(order) {
+  return VOIDED_STATUSES.has(order.financial_status)
+}
+
 function getCommissionable(order) {
+  if (isVoided(order)) return 0
   const stored = parseFloat(order.commissionable_revenue)
   if (stored > 0) return stored
   return (order.line_items || []).reduce(
@@ -10,6 +17,7 @@ function getCommissionable(order) {
 }
 
 function getSavings(order) {
+  if (isVoided(order)) return 0
   const stored = parseFloat(order.total_savings)
   if (stored > 0) return stored
   return (order.line_items || []).reduce(
@@ -18,7 +26,13 @@ function getSavings(order) {
 }
 
 function getShipping(order) {
+  if (isVoided(order)) return 0
   return parseFloat(order.shipping_total || 0)
+}
+
+function getPaid(order) {
+  if (isVoided(order)) return 0
+  return parseFloat(order.total_price || 0)
 }
 
 export async function GET(request) {
@@ -70,18 +84,22 @@ export async function GET(request) {
 
   const orders = raw.map(o => ({
     ...o,
+    total_price:            Math.round(getPaid(o) * 100) / 100,
     commissionable_revenue: Math.round(getCommissionable(o) * 100) / 100,
     total_savings:          Math.round(getSavings(o) * 100) / 100,
     shipping_total:         Math.round(getShipping(o) * 100) / 100,
+    voided:                 isVoided(o),
   }))
 
-  const totalRevenue          = orders.reduce((s, o) => s + parseFloat(o.total_price || 0), 0)
+  const totalRevenue          = orders.reduce((s, o) => s + o.total_price, 0)
   const commissionableRevenue = orders.reduce((s, o) => s + o.commissionable_revenue, 0)
   const totalSavings          = orders.reduce((s, o) => s + o.total_savings, 0)
   const totalCommission       = commissionableRevenue * (commission / 100)
+  const activeOrdersCount     = orders.filter(o => !o.voided).length
 
   const productMap = {}
   orders.forEach(order => {
+    if (order.voided) return
     ;(order.line_items || []).forEach(item => {
       if (item.discounted === false) return
       const key = item.title
@@ -96,13 +114,14 @@ export async function GET(request) {
     orders,
     commission,
     stats: {
-      totalOrders:           orders.length,
+      totalOrders:           activeOrdersCount,
+      voidedCount:           orders.length - activeOrdersCount,
       totalRevenue:          Math.round(totalRevenue * 100) / 100,
       commissionableRevenue: Math.round(commissionableRevenue * 100) / 100,
       totalCommission:       Math.round(totalCommission * 100) / 100,
       totalSavings:          Math.round(totalSavings * 100) / 100,
-      avgOrderValue:         orders.length
-        ? Math.round((totalRevenue / orders.length) * 100) / 100
+      avgOrderValue:         activeOrdersCount
+        ? Math.round((totalRevenue / activeOrdersCount) * 100) / 100
         : 0,
     },
     topProducts: Object.values(productMap)

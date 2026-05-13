@@ -15,13 +15,18 @@ export async function GET() {
   const enriched = await Promise.all(influencers.map(async (inf) => {
     const { data: orders } = await supabaseAdmin
       .from('orders')
-      .select('total_price, commissionable_revenue, line_items')
+      .select('total_price, commissionable_revenue, line_items, financial_status')
       .eq('influencer_id', inf.id)
 
-    const totalRevenue = (orders || []).reduce((s, o) => s + parseFloat(o.total_price || 0), 0)
+    // Изключваме отказани/рефундирани поръчки от всички тотали
+    const activeOrders = (orders || []).filter(
+      o => o.financial_status !== 'voided' && o.financial_status !== 'refunded'
+    )
+
+    const totalRevenue = activeOrders.reduce((s, o) => s + parseFloat(o.total_price || 0), 0)
 
     // Комисионната се изчислява от пълната цена на продуктите с отстъпка
-    const totalCommissionable = (orders || []).reduce((s, o) => {
+    const totalCommissionable = activeOrders.reduce((s, o) => {
       const stored = parseFloat(o.commissionable_revenue)
       if (stored > 0) return s + stored
       // Fallback за стари поръчки без stored commissionable_revenue
@@ -32,7 +37,7 @@ export async function GET() {
 
     return {
       ...inf,
-      orderCount:      (orders || []).length,
+      orderCount:      activeOrders.length,
       totalRevenue:    Math.round(totalRevenue * 100) / 100,
       totalCommission: Math.round(totalCommissionable * inf.commission / 100 * 100) / 100,
     }
