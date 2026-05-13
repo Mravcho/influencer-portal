@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { bg } from 'date-fns/locale'
 import InfluencerLeaderboard from './components/InfluencerLeaderboard'
+import PayoutWidget from './components/PayoutWidget'
 
 function ymd(d) {
   return format(d, 'yyyy-MM-dd')
@@ -184,6 +185,9 @@ export default function Dashboard() {
 
         {/* Leaderboard */}
         <InfluencerLeaderboard />
+
+        {/* Payouts */}
+        <PayoutWidget />
 
         {/* Metrics */}
         <div className="grid-4" style={{ marginBottom: '1.5rem' }}>

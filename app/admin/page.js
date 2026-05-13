@@ -199,6 +199,7 @@ export default function AdminPage() {
           >
             {syncStatus.fullAll === 'syncing' ? '⟳ Ре-синк...' : syncStatus.fullAll === 'done' ? '✓ Готово' : '↺ Пълен ре-синк'}
           </button>
+          <button className="btn btn-sm" onClick={() => router.push('/admin/payouts')} title="Заявки за изплащане">💰 Изплащане</button>
           <button className="btn btn-sm" onClick={() => router.push('/admin/sessions')} title="История на влизанията">👤 Сесии</button>
           <button className="btn btn-sm" onClick={() => router.push('/admin/settings')} title="Брандинг настройки">⚙ Настройки</button>
           <button className="btn btn-sm btn-ghost" onClick={logout}>Изход</button>
