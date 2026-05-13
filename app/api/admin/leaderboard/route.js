@@ -69,23 +69,43 @@ export async function GET(request) {
     e.commission += commissionableOf(o) * (parseFloat(inf.commission || 0) / 100)
   })
 
+  // Включваме ВСИЧКИ инфлуенсъри в класирането, дори с 0 поръчки.
+  // Така user-ът вижда всички 8 (например), не само тези с поръчки.
+  influencers.forEach(inf => {
+    if (!byInf[inf.id]) {
+      byInf[inf.id] = {
+        id:         inf.id,
+        name:       inf.name,
+        promo_code: inf.promo_code,
+        avatar_url: inf.avatar_url,
+        platform:   inf.platform,
+        orders:     0,
+        revenue:    0,
+        commission: 0,
+      }
+    }
+  })
+
   const ranked = Object.values(byInf)
     .map(e => ({
       ...e,
       revenue:    Math.round(e.revenue    * 100) / 100,
       commission: Math.round(e.commission * 100) / 100,
     }))
-    .sort((a, b) => b.commission - a.commission)
+    .sort((a, b) => b.commission - a.commission || b.orders - a.orders)
     .map((e, idx) => ({ ...e, rank: idx + 1 }))
+
+  const withOrders = ranked.filter(r => r.orders > 0)
 
   return NextResponse.json({
     month: `${year}-${String(month).padStart(2, '0')}`,
     ranking: ranked,
     totals: {
-      influencers: ranked.length,
-      orders:      ranked.reduce((s, e) => s + e.orders, 0),
-      revenue:     Math.round(ranked.reduce((s, e) => s + e.revenue, 0) * 100) / 100,
-      commission:  Math.round(ranked.reduce((s, e) => s + e.commission, 0) * 100) / 100,
+      influencers:      ranked.length,
+      withOrders:       withOrders.length,
+      orders:           ranked.reduce((s, e) => s + e.orders, 0),
+      revenue:          Math.round(ranked.reduce((s, e) => s + e.revenue, 0) * 100) / 100,
+      commission:       Math.round(ranked.reduce((s, e) => s + e.commission, 0) * 100) / 100,
     },
   })
 }

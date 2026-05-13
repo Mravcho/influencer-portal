@@ -53,7 +53,7 @@ export default function MonthlyLeaderboard() {
             🏆 Класация за месеца
           </div>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
-            {totals.influencers || 0} активни инфлуенсъри · {totals.orders || 0} поръчки · общо комисионни <strong style={{ color: 'var(--accent)' }}>{fmtEur(totals.commission)}</strong>
+            {totals.withOrders ?? totals.influencers ?? 0}/{totals.influencers || 0} инфлуенсъри с поръчки · {totals.orders || 0} поръчки · общо <strong style={{ color: 'var(--accent)' }}>{fmtEur(totals.commission)}</strong>
           </div>
         </div>
         <select
@@ -152,7 +152,7 @@ export default function MonthlyLeaderboard() {
             })}
           </div>
 
-          {/* Останалите 4-10 — таблица */}
+          {/* Останалите (включително с 0 поръчки) — компактна таблица */}
           {ranking.length > 3 && (
             <table style={{ fontSize: 13 }}>
               <thead>
@@ -165,8 +165,8 @@ export default function MonthlyLeaderboard() {
                 </tr>
               </thead>
               <tbody>
-                {ranking.slice(3, 10).map(r => (
-                  <tr key={r.id}>
+                {ranking.slice(3).map(r => (
+                  <tr key={r.id} style={r.orders === 0 ? { opacity: 0.55 } : {}}>
                     <td style={{ fontWeight: 600, color: 'var(--muted)' }}>{r.rank}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -188,7 +188,7 @@ export default function MonthlyLeaderboard() {
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: 500 }}>{r.orders}</td>
                     <td style={{ textAlign: 'right', color: 'var(--muted)' }}>{fmtEur(r.revenue)}</td>
-                    <td style={{ textAlign: 'right', color: 'var(--accent)', fontWeight: 600 }}>{fmtEur(r.commission)}</td>
+                    <td style={{ textAlign: 'right', color: r.orders > 0 ? 'var(--accent)' : 'var(--muted)', fontWeight: 600 }}>{fmtEur(r.commission)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -57,6 +57,11 @@ export async function GET(request) {
     return `${parts[0]} ${parts[1].charAt(0).toUpperCase()}.`
   }
 
+  // Включваме всички активни инфлуенсъри (дори с 0 поръчки)
+  Object.keys(nameById).forEach(id => {
+    if (!(id in counts)) counts[id] = 0
+  })
+
   const ranked = Object.entries(counts)
     .map(([id, orders]) => ({
       id,
