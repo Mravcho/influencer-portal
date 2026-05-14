@@ -30,6 +30,9 @@ CREATE TABLE IF NOT EXISTS branding (
 );
 INSERT INTO branding (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
+-- Default banner за инфлуенсърски dashboard-и (fallback ако индивидуалният липсва)
+ALTER TABLE branding ADD COLUMN IF NOT EXISTS default_banner_url TEXT;
+
 -- ===== LOGIN SESSIONS — успешни + неуспешни опити =====
 CREATE TABLE IF NOT EXISTS login_sessions (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),

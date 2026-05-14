@@ -4,10 +4,10 @@ import { useRouter } from 'next/navigation'
 
 export default function AdminSettings() {
   const router = useRouter()
-  const [branding, setBranding] = useState({ logo_url: '', login_bg_url: '' })
+  const [branding, setBranding] = useState({ logo_url: '', login_bg_url: '', default_banner_url: '' })
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
-  const [uploading, setUploading] = useState({ logo: false, bg: false })
+  const [uploading, setUploading] = useState({ logo: false, bg: false, banner: false })
   const [msg, setMsg]           = useState({ type: '', text: '' })
 
   useEffect(() => {
@@ -16,20 +16,26 @@ export default function AdminSettings() {
         if (r.status === 401 || r.status === 403) { router.push('/login'); return null }
         return r.json()
       })
-      .then(d => { if (d) setBranding({ logo_url: d.logo_url || '', login_bg_url: d.login_bg_url || '' }) })
+      .then(d => {
+        if (d) setBranding({
+          logo_url:           d.logo_url           || '',
+          login_bg_url:       d.login_bg_url       || '',
+          default_banner_url: d.default_banner_url || '',
+        })
+      })
       .finally(() => setLoading(false))
   }, [router])
 
   const setField = (k, v) => setBranding(b => ({ ...b, [k]: v }))
 
   const uploadFile = async (file, kind) => {
-    const stateKey = kind === 'logo' ? 'logo' : 'bg'
+    const stateKey = kind === 'logo' ? 'logo' : kind === 'banner' ? 'banner' : 'bg'
     setUploading(u => ({ ...u, [stateKey]: true }))
     setMsg({})
 
     const fd = new FormData()
     fd.append('file', file)
-    fd.append('kind', kind)
+    fd.append('kind', kind === 'banner' ? 'default-banner' : kind)
 
     const res = await fetch('/api/admin/settings/upload', { method: 'POST', body: fd })
     const data = await res.json()
@@ -40,7 +46,8 @@ export default function AdminSettings() {
       return
     }
 
-    if (kind === 'logo') setField('logo_url', data.url)
+    if (kind === 'logo')   setField('logo_url', data.url)
+    else if (kind === 'banner') setField('default_banner_url', data.url)
     else setField('login_bg_url', data.url)
   }
 
@@ -51,8 +58,9 @@ export default function AdminSettings() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        logo_url:     branding.logo_url || null,
-        login_bg_url: branding.login_bg_url || null,
+        logo_url:           branding.logo_url || null,
+        login_bg_url:       branding.login_bg_url || null,
+        default_banner_url: branding.default_banner_url || null,
       }),
     })
     const data = await res.json()
@@ -189,6 +197,57 @@ export default function AdminSettings() {
           />
           <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
             Препоръчителни размери: 1200×1800 px или по-голяма. Макс 5 MB.
+          </p>
+        </div>
+
+        {/* Default banner за всички инфлуенсъри */}
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Default снимка за инфлуенсърски dashboard</h2>
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+            Тази снимка ще се показва на топа на dashboard-а за <strong>всички инфлуенсъри</strong>, които нямат собствен banner. Индивидуалният banner (от формата за редактиране на инфлуенсър) винаги има приоритет.
+          </p>
+
+          <div style={{
+            width: '100%', height: 200, borderRadius: 12,
+            background: 'var(--bg)', border: '1px solid var(--border)',
+            backgroundImage: branding.default_banner_url ? `url(${branding.default_banner_url})` : 'none',
+            backgroundSize: 'cover', backgroundPosition: 'center',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginBottom: 12, overflow: 'hidden',
+          }}>
+            {!branding.default_banner_url && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Няма снимка</span>}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <label className="btn btn-sm" style={{ cursor: 'pointer', display: 'inline-flex' }}>
+              {uploading.banner ? '⟳ Качване...' : '📤 Качи ново'}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0], 'banner')}
+                disabled={uploading.banner}
+                style={{ display: 'none' }}
+              />
+            </label>
+            {branding.default_banner_url && (
+              <button
+                className="btn btn-sm btn-ghost"
+                style={{ color: 'var(--danger)' }}
+                onClick={() => setField('default_banner_url', '')}
+              >Премахни</button>
+            )}
+          </div>
+
+          <label style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
+            Или поставете URL директно:
+          </label>
+          <input
+            value={branding.default_banner_url}
+            onChange={e => setField('default_banner_url', e.target.value)}
+            placeholder="https://..."
+          />
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
+            Препоръчителни размери: 1600×500 px. Макс 5 MB.
           </p>
         </div>
 

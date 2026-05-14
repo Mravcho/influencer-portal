@@ -57,12 +57,21 @@ export async function GET(request) {
     commission = parseFloat(inf?.commission || 0)
   }
 
-  // Тегли banner_url на текущия инфлуенсър за hero на dashboard-а
-  const { data: profile } = await supabaseAdmin
-    .from('influencers')
-    .select('banner_url')
-    .eq('id', influencerId)
-    .single()
+  // Тегли banner_url на инфлуенсъра + default banner от branding (fallback)
+  const [{ data: profile }, { data: brandingRow }] = await Promise.all([
+    supabaseAdmin
+      .from('influencers')
+      .select('banner_url')
+      .eq('id', influencerId)
+      .single(),
+    supabaseAdmin
+      .from('branding')
+      .select('default_banner_url')
+      .eq('id', 1)
+      .maybeSingle(),
+  ])
+
+  const effectiveBanner = profile?.banner_url || brandingRow?.default_banner_url || null
 
   let query = supabaseAdmin
     .from('orders')
@@ -120,7 +129,7 @@ export async function GET(request) {
   return NextResponse.json({
     orders,
     commission,
-    bannerUrl: profile?.banner_url || null,
+    bannerUrl: effectiveBanner,
     stats: {
       totalOrders:           activeOrdersCount,
       voidedCount:           orders.length - activeOrdersCount,

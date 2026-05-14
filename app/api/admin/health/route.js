@@ -16,8 +16,8 @@ export async function GET() {
       check: () => supabaseAdmin.from('orders').select('id, commissionable_revenue, total_savings, shipping_total').limit(1),
     },
     {
-      name: 'branding',
-      check: () => supabaseAdmin.from('branding').select('id, logo_url').limit(1),
+      name: 'branding (default_banner_url)',
+      check: () => supabaseAdmin.from('branding').select('id, logo_url, default_banner_url').limit(1),
     },
     {
       name: 'login_sessions (success, attempted_username)',
