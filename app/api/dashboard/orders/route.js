@@ -57,11 +57,11 @@ export async function GET(request) {
     commission = parseFloat(inf?.commission || 0)
   }
 
-  // Тегли banner_url на инфлуенсъра + default banner от branding (fallback)
+  // Тегли banner_url + avatar_url + name на инфлуенсъра + default banner (fallback)
   const [{ data: profile }, { data: brandingRow }] = await Promise.all([
     supabaseAdmin
       .from('influencers')
-      .select('banner_url')
+      .select('name, banner_url, avatar_url, platform, promo_code')
       .eq('id', influencerId)
       .single(),
     supabaseAdmin
@@ -130,6 +130,10 @@ export async function GET(request) {
     orders,
     commission,
     bannerUrl: effectiveBanner,
+    avatarUrl: profile?.avatar_url || null,
+    name:      profile?.name || null,
+    platform:  profile?.platform || null,
+    promoCode: profile?.promo_code || null,
     stats: {
       totalOrders:           activeOrdersCount,
       voidedCount:           orders.length - activeOrdersCount,

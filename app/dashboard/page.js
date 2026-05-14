@@ -91,7 +91,8 @@ export default function Dashboard() {
     </div>
   )
 
-  const { orders = [], stats = {}, topProducts = [], bannerUrl = null } = data || {}
+  const { orders = [], stats = {}, topProducts = [], bannerUrl = null, avatarUrl = null } = data || {}
+  const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -133,14 +134,53 @@ export default function Dashboard() {
               <div style={{ position: 'absolute', bottom: -60, right: 80, width: 140, height: 140, borderRadius: '50%', background: 'rgba(255,255,255,.08)' }} />
             </>
           )}
-          <div style={{ position: 'relative', padding: bannerUrl ? '1.5rem' : '1.5rem', paddingTop: bannerUrl ? 'auto' : '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: bannerUrl ? 260 : 'auto' }}>
-            <div style={{ fontSize: 12, opacity: .85, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px' }}>
+          <div style={{ position: 'relative', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: bannerUrl ? 260 : 'auto' }}>
+            {/* Голяма профилна снимка горе вляво */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={userInfo.name}
+                  style={{
+                    width: 96, height: 96, borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '4px solid rgba(255,255,255,.95)',
+                    boxShadow: '0 4px 16px rgba(0,0,0,.25)',
+                    flexShrink: 0,
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: 96, height: 96, borderRadius: '50%',
+                  background: 'rgba(255,255,255,.95)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 32, fontWeight: 700, color: 'var(--accent-dk)',
+                  border: '4px solid rgba(255,255,255,.95)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,.25)',
+                  flexShrink: 0,
+                }}>{userInfo.name?.slice(0, 2).toUpperCase() || '??'}</div>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, opacity: .85, fontWeight: 500, textShadow: bannerUrl ? '0 1px 4px rgba(0,0,0,.5)' : 'none' }}>
+                  Здравей,
+                </div>
+                <div style={{
+                  fontSize: 28, fontWeight: 700, lineHeight: 1.1,
+                  textShadow: bannerUrl ? '0 2px 8px rgba(0,0,0,.5)' : 'none',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {firstName || userInfo.name} 👋
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: 11, opacity: .85, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px' }}>
               Очаквана комисионна
             </div>
-            <div className="hero-amount" style={{ fontSize: 42, fontWeight: 700, margin: '4px 0', textShadow: bannerUrl ? '0 2px 8px rgba(0,0,0,.4)' : 'none' }}>
+            <div className="hero-amount" style={{ fontSize: 38, fontWeight: 700, margin: '2px 0', textShadow: bannerUrl ? '0 2px 8px rgba(0,0,0,.5)' : 'none' }}>
               {fmtEur(stats.totalCommission || 0)}
             </div>
-            <div className="hero-sub" style={{ fontSize: 13, opacity: .9, textShadow: bannerUrl ? '0 1px 4px rgba(0,0,0,.4)' : 'none' }}>
+            <div className="hero-sub" style={{ fontSize: 13, opacity: .95, textShadow: bannerUrl ? '0 1px 4px rgba(0,0,0,.5)' : 'none' }}>
               {stats.totalOrders || 0} поръчки · {userInfo.commission}% комисионна · клиентите спестиха <strong>{fmtEur(stats.totalSavings || 0)}</strong>
             </div>
           </div>

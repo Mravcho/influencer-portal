@@ -144,13 +144,52 @@ export default function AdminInfluencerView() {
             <div style={{ position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,.1)' }} />
           )}
           <div style={{ position: 'relative', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: heroBanner ? 260 : 'auto' }}>
-            <div style={{ fontSize: 12, opacity: .85, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px' }}>
+            {/* Голяма профилна снимка горе вляво */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+              {influencer.avatar_url ? (
+                <img
+                  src={influencer.avatar_url}
+                  alt={influencer.name}
+                  style={{
+                    width: 96, height: 96, borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '4px solid rgba(255,255,255,.95)',
+                    boxShadow: '0 4px 16px rgba(0,0,0,.25)',
+                    flexShrink: 0,
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: 96, height: 96, borderRadius: '50%',
+                  background: 'rgba(255,255,255,.95)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 32, fontWeight: 700, color: 'var(--accent-dk)',
+                  border: '4px solid rgba(255,255,255,.95)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,.25)',
+                  flexShrink: 0,
+                }}>{influencer.name?.slice(0, 2).toUpperCase()}</div>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, opacity: .85, fontWeight: 500, textShadow: heroBanner ? '0 1px 4px rgba(0,0,0,.5)' : 'none' }}>
+                  Здравей,
+                </div>
+                <div style={{
+                  fontSize: 28, fontWeight: 700, lineHeight: 1.1,
+                  textShadow: heroBanner ? '0 2px 8px rgba(0,0,0,.5)' : 'none',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {(influencer.name || '').split(/\s+/)[0]} 👋
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: 11, opacity: .85, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px' }}>
               Очаквана комисионна
             </div>
-            <div className="hero-amount" style={{ fontSize: 42, fontWeight: 700, margin: '4px 0', textShadow: heroBanner ? '0 2px 8px rgba(0,0,0,.4)' : 'none' }}>
+            <div className="hero-amount" style={{ fontSize: 38, fontWeight: 700, margin: '2px 0', textShadow: heroBanner ? '0 2px 8px rgba(0,0,0,.5)' : 'none' }}>
               {fmtEur(stats.totalCommission || 0)}
             </div>
-            <div className="hero-sub" style={{ fontSize: 13, opacity: .9, textShadow: heroBanner ? '0 1px 4px rgba(0,0,0,.4)' : 'none' }}>
+            <div className="hero-sub" style={{ fontSize: 13, opacity: .95, textShadow: heroBanner ? '0 1px 4px rgba(0,0,0,.5)' : 'none' }}>
               {stats.totalOrders || 0} поръчки · {commission}% комисионна · клиентите спестиха <strong>{fmtEur(stats.totalSavings || 0)}</strong>
             </div>
           </div>
