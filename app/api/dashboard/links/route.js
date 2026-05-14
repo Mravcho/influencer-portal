@@ -32,7 +32,9 @@ export async function GET(request) {
     .order('is_default', { ascending: false })
     .order('created_at', { ascending: false })
 
-  // Click count за всеки линк (същия 90-дневен прозорец както в /clicks)
+  // Click count за всеки линк — филтрираме И по influencer_id, за да не
+  // броим orphan clicks (от изтрит инфлуенсър, чийто share_link някак е
+  // запазен с current short_code). Така per-link броят съвпада с тотала.
   const since = new Date()
   since.setDate(since.getDate() - CLICK_WINDOW_DAYS)
   since.setHours(0, 0, 0, 0)
@@ -44,6 +46,7 @@ export async function GET(request) {
       .from('link_clicks')
       .select('link_id')
       .in('link_id', linkIds)
+      .eq('influencer_id', influencerId)
       .gte('clicked_at', since.toISOString())
     ;(clicks || []).forEach(c => {
       if (!c.link_id) return
