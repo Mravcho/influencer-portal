@@ -39,7 +39,7 @@ export default function ShareLinksWidget({ viewId = null, baseUrl }) {
   const [error, setError]     = useState('')
 
   const linksUrl  = viewId ? `/api/dashboard/links?viewId=${viewId}`  : '/api/dashboard/links'
-  const clicksUrl = viewId ? `/api/dashboard/clicks?days=30&viewId=${viewId}` : '/api/dashboard/clicks?days=30'
+  const clicksUrl = viewId ? `/api/dashboard/clicks?days=90&viewId=${viewId}` : '/api/dashboard/clicks?days=90'
 
   const portalBase = useMemo(() => {
     if (baseUrl) return baseUrl
@@ -109,7 +109,7 @@ export default function ShareLinksWidget({ viewId = null, baseUrl }) {
             🔗 Споделяеми линкове
           </div>
           <div style={{ fontSize: 24, fontWeight: 700, marginTop: 2 }}>
-            {totalClicks} <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--muted)' }}>клика (30 дни)</span>
+            {totalClicks} <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--muted)' }}>клика (90 дни)</span>
           </div>
         </div>
         {!viewId && (
@@ -210,35 +210,18 @@ export default function ShareLinksWidget({ viewId = null, baseUrl }) {
         ))}
       </div>
 
-      {/* Top държави / referrers */}
-      {(stats?.topCountries?.length > 0 || stats?.topReferrers?.length > 0) && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
-          {stats.topCountries?.length > 0 && (
-            <div style={{ background: 'var(--bg)', borderRadius: 8, padding: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
-                Държави
-              </div>
-              {stats.topCountries.map(c => (
-                <div key={c.country} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}>
-                  <span>{c.country}</span>
-                  <strong>{c.count}</strong>
-                </div>
-              ))}
+      {/* Откъде идват кликовете */}
+      {stats?.topReferrers?.length > 0 && (
+        <div style={{ background: 'var(--bg)', borderRadius: 8, padding: 10, marginTop: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+            Откъде идват
+          </div>
+          {stats.topReferrers.map(r => (
+            <div key={r.host} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.host}</span>
+              <strong>{r.count}</strong>
             </div>
-          )}
-          {stats.topReferrers?.length > 0 && (
-            <div style={{ background: 'var(--bg)', borderRadius: 8, padding: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
-                Откъде идват
-              </div>
-              {stats.topReferrers.map(r => (
-                <div key={r.host} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>{r.host}</span>
-                  <strong>{r.count}</strong>
-                </div>
-              ))}
-            </div>
-          )}
+          ))}
         </div>
       )}
     </div>
