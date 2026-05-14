@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { syncInfluencer } from '@/lib/sync'
 import { sendWelcomeEmail } from '@/lib/email'
+import { ensureDefaultLink } from '@/lib/share-links'
 
 const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
@@ -113,6 +114,11 @@ export async function POST(request) {
       console.error('Initial sync failed:', err)
       return { error: err.message }
     })
+
+  // Auto-create default share link за новия инфлуенсър
+  await ensureDefaultLink(data).catch(err =>
+    console.error('Default share link creation failed:', err.message)
+  )
 
   // Welcome email с линк за задаване на парола (валиден 7 дни)
   if (data.email) {

@@ -5,6 +5,7 @@ import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { bg } from 'date-fns/locale'
 import InfluencerLeaderboard from '@/app/dashboard/components/InfluencerLeaderboard'
 import PayoutWidget from '@/app/dashboard/components/PayoutWidget'
+import ShareLinksWidget from '@/app/dashboard/components/ShareLinksWidget'
 
 function ymd(d) { return format(d, 'yyyy-MM-dd') }
 
@@ -154,6 +155,9 @@ export default function AdminInfluencerView() {
             </div>
           </div>
         </div>
+
+        {/* Share links (read-only за admin view) */}
+        <ShareLinksWidget viewId={id} />
 
         {/* Leaderboard — както го вижда инфлуенсърът */}
         <InfluencerLeaderboard viewId={id} />

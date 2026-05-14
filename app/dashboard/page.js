@@ -5,6 +5,7 @@ import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { bg } from 'date-fns/locale'
 import InfluencerLeaderboard from './components/InfluencerLeaderboard'
 import PayoutWidget from './components/PayoutWidget'
+import ShareLinksWidget from './components/ShareLinksWidget'
 
 function ymd(d) {
   return format(d, 'yyyy-MM-dd')
@@ -182,6 +183,9 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        {/* Share links */}
+        <ShareLinksWidget />
 
         {/* Leaderboard */}
         <InfluencerLeaderboard />

@@ -31,6 +31,14 @@ export async function GET() {
       name: 'payout_requests',
       check: () => supabaseAdmin.from('payout_requests').select('id, status, amount').limit(1),
     },
+    {
+      name: 'share_links',
+      check: () => supabaseAdmin.from('share_links').select('id, short_code, target_url').limit(1),
+    },
+    {
+      name: 'link_clicks',
+      check: () => supabaseAdmin.from('link_clicks').select('id, clicked_at').limit(1),
+    },
   ]
 
   for (const t of tests) {
