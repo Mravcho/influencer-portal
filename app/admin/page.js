@@ -290,6 +290,7 @@ export default function AdminPage() {
               <thead><tr>
                 <th>Инфлуенсър</th>
                 <th>Промокод</th>
+                <th>Кликове 90д</th>
                 <th>Поръчки</th>
                 <th>Приход</th>
                 <th>Ком. %</th>
@@ -334,6 +335,9 @@ export default function AdminPage() {
                       </div>
                     </td>
                     <td><code style={{ background: 'var(--bg)', padding: '2px 7px', borderRadius: 5, fontSize: 12 }}>{inf.promo_code}</code></td>
+                    <td style={{ fontWeight: 600, color: inf.clickCount > 0 ? 'var(--accent)' : 'var(--muted)' }}>
+                      {inf.clickCount || 0}
+                    </td>
                     <td style={{ fontWeight: 600 }}>{inf.orderCount || 0}</td>
                     <td>{fmtEur(inf.totalRevenue)}</td>
                     <td>{inf.commission}%</td>
@@ -390,7 +394,7 @@ export default function AdminPage() {
                   </tr>
                 ))}
                 {influencers.length === 0 && (
-                  <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--muted)', padding: '2rem' }}>
+                  <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--muted)', padding: '2rem' }}>
                     Няма добавени инфлуенсъри.{' '}
                     <button className="btn btn-sm" style={{ marginLeft: 8 }} onClick={() => setTab('form')}>Добави първия</button>
                   </td></tr>

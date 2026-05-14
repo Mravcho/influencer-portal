@@ -21,6 +21,20 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Pre-fetch click counts за последните 90 дни (всички инфлуенсъри наведнъж)
+  const clickWindow = new Date()
+  clickWindow.setDate(clickWindow.getDate() - 90)
+  clickWindow.setHours(0, 0, 0, 0)
+  const { data: allClicks } = await supabaseAdmin
+    .from('link_clicks')
+    .select('influencer_id')
+    .gte('clicked_at', clickWindow.toISOString())
+  const clicksByInf = {}
+  ;(allClicks || []).forEach(c => {
+    if (!c.influencer_id) return
+    clicksByInf[c.influencer_id] = (clicksByInf[c.influencer_id] || 0) + 1
+  })
+
   // Добавяме order stats за всеки
   const enriched = await Promise.all(influencers.map(async (inf) => {
     const { data: orders } = await supabaseAdmin
@@ -50,6 +64,7 @@ export async function GET() {
       orderCount:      activeOrders.length,
       totalRevenue:    Math.round(totalRevenue * 100) / 100,
       totalCommission: Math.round(totalCommissionable * inf.commission / 100 * 100) / 100,
+      clickCount:      clicksByInf[inf.id] || 0,
     }
   }))
 
