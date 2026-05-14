@@ -91,8 +91,9 @@ export default function Dashboard() {
     </div>
   )
 
-  const { orders = [], stats = {}, topProducts = [], bannerUrl = null, avatarUrl = null } = data || {}
+  const { orders = [], stats = {}, topProducts = [], bannerUrl = null, avatarUrl = null, currentMonth = {} } = data || {}
   const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
+  const monthLabel = format(new Date(), 'LLLL', { locale: bg })
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -175,13 +176,13 @@ export default function Dashboard() {
             </div>
 
             <div style={{ fontSize: 11, opacity: .85, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px' }}>
-              Очаквана комисионна
+              Очаквана комисионна за {monthLabel}
             </div>
             <div className="hero-amount" style={{ fontSize: 38, fontWeight: 700, margin: '2px 0', textShadow: bannerUrl ? '0 2px 8px rgba(0,0,0,.5)' : 'none' }}>
-              {fmtEur(stats.totalCommission || 0)}
+              {fmtEur(currentMonth.commission || 0)}
             </div>
             <div className="hero-sub" style={{ fontSize: 13, opacity: .95, textShadow: bannerUrl ? '0 1px 4px rgba(0,0,0,.5)' : 'none' }}>
-              {stats.totalOrders || 0} поръчки · {userInfo.commission}% комисионна · клиентите спестиха <strong>{fmtEur(stats.totalSavings || 0)}</strong>
+              {currentMonth.orders || 0} поръчки · {userInfo.commission}% комисионна · клиентите спестиха <strong>{fmtEur(currentMonth.savings || 0)}</strong>
             </div>
           </div>
         </div>

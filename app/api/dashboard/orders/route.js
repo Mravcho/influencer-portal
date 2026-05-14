@@ -126,6 +126,22 @@ export async function GET(request) {
     })
   })
 
+  // Текущ месец stats — независими от филтъра (за hero "Очаквана комисионна")
+  const monthStart = new Date()
+  monthStart.setDate(1)
+  monthStart.setHours(0, 0, 0, 0)
+
+  const { data: monthRaw } = await supabaseAdmin
+    .from('orders')
+    .select('total_price, commissionable_revenue, total_savings, line_items, financial_status')
+    .eq('influencer_id', influencerId)
+    .gte('created_at_shopify', monthStart.toISOString())
+
+  const monthOrders = (monthRaw || []).filter(o => !isVoided(o))
+  const monthCommissionable = monthOrders.reduce((s, o) => s + getCommissionable(o), 0)
+  const monthCommission     = monthCommissionable * (commission / 100)
+  const monthSavings        = monthOrders.reduce((s, o) => s + getSavings(o), 0)
+
   return NextResponse.json({
     orders,
     commission,
@@ -134,6 +150,11 @@ export async function GET(request) {
     name:      profile?.name || null,
     platform:  profile?.platform || null,
     promoCode: profile?.promo_code || null,
+    currentMonth: {
+      orders:     monthOrders.length,
+      commission: Math.round(monthCommission * 100) / 100,
+      savings:    Math.round(monthSavings    * 100) / 100,
+    },
     stats: {
       totalOrders:           activeOrdersCount,
       voidedCount:           orders.length - activeOrdersCount,

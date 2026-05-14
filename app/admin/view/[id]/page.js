@@ -92,8 +92,9 @@ export default function AdminInfluencerView() {
     </div>
   )
 
-  const { orders = [], stats = {}, topProducts = [], commission = influencer?.commission || 0, bannerUrl = null } = data || {}
+  const { orders = [], stats = {}, topProducts = [], commission = influencer?.commission || 0, bannerUrl = null, currentMonth = {} } = data || {}
   const heroBanner = bannerUrl || influencer?.banner_url || null
+  const monthLabel = format(new Date(), 'LLLL', { locale: bg })
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -184,13 +185,13 @@ export default function AdminInfluencerView() {
             </div>
 
             <div style={{ fontSize: 11, opacity: .85, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px' }}>
-              Очаквана комисионна
+              Очаквана комисионна за {monthLabel}
             </div>
             <div className="hero-amount" style={{ fontSize: 38, fontWeight: 700, margin: '2px 0', textShadow: heroBanner ? '0 2px 8px rgba(0,0,0,.5)' : 'none' }}>
-              {fmtEur(stats.totalCommission || 0)}
+              {fmtEur(currentMonth.commission || 0)}
             </div>
             <div className="hero-sub" style={{ fontSize: 13, opacity: .95, textShadow: heroBanner ? '0 1px 4px rgba(0,0,0,.5)' : 'none' }}>
-              {stats.totalOrders || 0} поръчки · {commission}% комисионна · клиентите спестиха <strong>{fmtEur(stats.totalSavings || 0)}</strong>
+              {currentMonth.orders || 0} поръчки · {commission}% комисионна · клиентите спестиха <strong>{fmtEur(currentMonth.savings || 0)}</strong>
             </div>
           </div>
         </div>
