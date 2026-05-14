@@ -198,12 +198,6 @@ export default function AdminInfluencerView() {
         {/* Payouts — веднага под главната карта */}
         <PayoutWidget viewId={id} />
 
-        {/* Share links (read-only за admin view) */}
-        <ShareLinksWidget viewId={id} />
-
-        {/* Leaderboard — както го вижда инфлуенсърът */}
-        <InfluencerLeaderboard viewId={id} />
-
         {/* Date filters */}
         <div className="card" style={{ marginBottom: '1rem', padding: '14px' }}>
           <div className="filter-row">
@@ -342,6 +336,12 @@ export default function AdminInfluencerView() {
             </tbody>
           </table>
         </div>
+
+        {/* Share links (read-only за admin view) */}
+        <ShareLinksWidget viewId={id} />
+
+        {/* Leaderboard — както го вижда инфлуенсърът */}
+        <InfluencerLeaderboard viewId={id} />
       </main>
     </div>
   )

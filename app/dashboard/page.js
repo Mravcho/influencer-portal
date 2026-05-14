@@ -186,6 +186,9 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Payouts — веднага под главната карта */}
+        <PayoutWidget />
+
         {/* Date filters */}
         <div className="card" style={{ marginBottom: '1rem', padding: '14px' }}>
           <div className="filter-row">
@@ -223,15 +226,6 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
-
-        {/* Payouts — веднага под главната карта */}
-        <PayoutWidget />
-
-        {/* Share links */}
-        <ShareLinksWidget />
-
-        {/* Leaderboard */}
-        <InfluencerLeaderboard />
 
         {/* Metrics */}
         <div className="grid-4" style={{ marginBottom: '1.5rem' }}>
@@ -359,6 +353,12 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
+
+        {/* Share links */}
+        <ShareLinksWidget />
+
+        {/* Leaderboard */}
+        <InfluencerLeaderboard />
       </main>
     </div>
   )
