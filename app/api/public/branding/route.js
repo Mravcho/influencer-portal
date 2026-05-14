@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // GET /api/public/branding → публично достъпни branding URLs (за login страницата)
 export async function GET() {
   const { data } = await supabaseAdmin
