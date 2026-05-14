@@ -35,9 +35,9 @@ export async function GET(request) {
 
   const clickList = clicks || []
 
-  // Дневна разбивка
+  // Дневна разбивка — включваме и днешния ден (затова days+1 итерации)
   const dailyMap = {}
-  for (let i = 0; i < days; i++) {
+  for (let i = 0; i <= days; i++) {
     const d = new Date(since)
     d.setDate(d.getDate() + i)
     const key = d.toISOString().slice(0, 10)
