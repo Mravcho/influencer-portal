@@ -17,7 +17,14 @@ export async function GET(request) {
   since.setDate(since.getDate() - days)
   since.setHours(0, 0, 0, 0)
 
-  // Всички кликове за периода
+  // Total — отделна count заявка за да сме сигурни (не разчитаме на data.length)
+  const { count: totalCount } = await supabaseAdmin
+    .from('link_clicks')
+    .select('id', { count: 'exact', head: true })
+    .eq('influencer_id', influencerId)
+    .gte('clicked_at', since.toISOString())
+
+  // Реални редове (за timeline, държави, referrers) — взимаме до 500 за тежки сайтове
   const { data: clicks } = await supabaseAdmin
     .from('link_clicks')
     .select('id, link_id, clicked_at, country, city, referrer')
@@ -69,7 +76,8 @@ export async function GET(request) {
     .slice(0, 5)
 
   return NextResponse.json({
-    total:        clickList.length,
+    total:        totalCount ?? clickList.length,
+    sampleSize:   clickList.length,
     daily:        Object.values(dailyMap),
     topCountries,
     topReferrers,
