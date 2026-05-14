@@ -13,6 +13,15 @@ export default function LoginPage() {
   const [forgotIdent, setForgotIdent] = useState('')
   const [forgotSent, setForgotSent]   = useState(false)
 
+  const [applyMode, setApplyMode] = useState(false)
+  const [applySent, setApplySent] = useState(false)
+  const [applyForm, setApplyForm] = useState({
+    full_name: '', email: '', phone: '',
+    instagram_url: '', tiktok_url: '', facebook_url: '', youtube_url: '', other_url: '',
+    motivation: '',
+  })
+  const setApplyField = (k, v) => setApplyForm(f => ({ ...f, [k]: v }))
+
   useEffect(() => {
     fetch('/api/public/branding')
       .then(r => r.json())
@@ -30,6 +39,25 @@ export default function LoginPage() {
     })
     setLoading(false)
     setForgotSent(true)
+  }
+
+  const submitApplication = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (!applyForm.instagram_url && !applyForm.tiktok_url && !applyForm.facebook_url && !applyForm.youtube_url && !applyForm.other_url) {
+      setError('Моля въведи поне един линк към соц. мрежа')
+      return
+    }
+    setLoading(true)
+    const res = await fetch('/api/auth/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(applyForm),
+    })
+    const data = await res.json()
+    setLoading(false)
+    if (!res.ok) { setError(data.error || 'Грешка'); return }
+    setApplySent(true)
   }
 
   const handleLogin = async (e) => {
@@ -108,7 +136,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {!forgotMode && (
+          {!forgotMode && !applyMode && (
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {error && <div className="alert alert-error" style={{ marginBottom: 0 }}>{error}</div>}
 
@@ -152,6 +180,116 @@ export default function LoginPage() {
               >
                 Забравена парола?
               </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0' }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>или</span>
+                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { setApplyMode(true); setApplySent(false); setError('') }}
+                className="btn"
+                style={{ width: '100%', justifyContent: 'center', padding: '10px' }}
+              >
+                ✨ Кандидатствай като инфлуенсър
+              </button>
+            </form>
+          )}
+
+          {applyMode && (
+            <form onSubmit={submitApplication} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {applySent ? (
+                <>
+                  <div className="alert alert-success" style={{ marginBottom: 0 }}>
+                    Заявката ти е получена! Ще те свържем по имейл скоро.
+                  </div>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => { setApplyMode(false); setApplySent(false) }}
+                    style={{ width: '100%', justifyContent: 'center', padding: '10px' }}
+                  >← Назад към вход</button>
+                </>
+              ) : (
+                <>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 2 }}>Кандидатствай</h2>
+                  <p style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    Попълни формата — ще се свържем с теб скоро.
+                  </p>
+
+                  {error && <div className="alert alert-error" style={{ marginBottom: 0 }}>{error}</div>}
+
+                  <input
+                    type="text" placeholder="Име и фамилия *" required
+                    value={applyForm.full_name}
+                    onChange={e => setApplyField('full_name', e.target.value)}
+                  />
+                  <input
+                    type="email" placeholder="Имейл *" required
+                    value={applyForm.email}
+                    onChange={e => setApplyField('email', e.target.value)}
+                  />
+                  <input
+                    type="tel" placeholder="Телефон"
+                    value={applyForm.phone}
+                    onChange={e => setApplyField('phone', e.target.value)}
+                  />
+
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                    Поне един линк към твой профил в социалните мрежи:
+                  </div>
+                  <input
+                    type="url" placeholder="Instagram линк"
+                    value={applyForm.instagram_url}
+                    onChange={e => setApplyField('instagram_url', e.target.value)}
+                  />
+                  <input
+                    type="url" placeholder="TikTok линк"
+                    value={applyForm.tiktok_url}
+                    onChange={e => setApplyField('tiktok_url', e.target.value)}
+                  />
+                  <input
+                    type="url" placeholder="Facebook линк"
+                    value={applyForm.facebook_url}
+                    onChange={e => setApplyField('facebook_url', e.target.value)}
+                  />
+                  <input
+                    type="url" placeholder="YouTube линк"
+                    value={applyForm.youtube_url}
+                    onChange={e => setApplyField('youtube_url', e.target.value)}
+                  />
+                  <input
+                    type="url" placeholder="Друг линк (по желание)"
+                    value={applyForm.other_url}
+                    onChange={e => setApplyField('other_url', e.target.value)}
+                  />
+
+                  <textarea
+                    placeholder="Защо искаш да си инфлуенсър за RealFood? (кратко мотивационно обяснение)"
+                    value={applyForm.motivation}
+                    onChange={e => setApplyField('motivation', e.target.value)}
+                    rows={4}
+                    style={{ resize: 'vertical', fontFamily: 'inherit', minHeight: 80 }}
+                  />
+
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: 4 }}
+                    disabled={loading}
+                  >
+                    {loading ? 'Изпращане...' : 'Изпрати заявка'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => { setApplyMode(false); setError('') }}
+                    style={{ width: '100%', justifyContent: 'center' }}
+                  >← Назад</button>
+                </>
+              )}
             </form>
           )}
 

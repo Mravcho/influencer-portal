@@ -39,6 +39,10 @@ export async function GET() {
       name: 'link_clicks',
       check: () => supabaseAdmin.from('link_clicks').select('id, clicked_at').limit(1),
     },
+    {
+      name: 'influencer_applications',
+      check: () => supabaseAdmin.from('influencer_applications').select('id, status').limit(1),
+    },
   ]
 
   for (const t of tests) {

@@ -24,7 +24,8 @@ export default function AdminPage() {
   const [avatarLoading, setAvatarLoading] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
-  const [pendingPayouts, setPendingPayouts]   = useState(0)
+  const [pendingPayouts, setPendingPayouts]      = useState(0)
+  const [pendingApplications, setPendingApplications] = useState(0)
 
   const load = async () => {
     const res = await fetch('/api/admin/influencers')
@@ -34,16 +35,20 @@ export default function AdminPage() {
 
   useEffect(() => { load() }, []) // eslint-disable-line
 
-  // Pending payouts count за badge на бутона
+  // Pending payouts + applications count за badges
   useEffect(() => {
     const fetchPending = () => {
       fetch('/api/admin/payouts?count=pending')
         .then(r => r.json())
         .then(d => setPendingPayouts(d.count || 0))
         .catch(() => {})
+      fetch('/api/admin/applications?count=pending')
+        .then(r => r.json())
+        .then(d => setPendingApplications(d.count || 0))
+        .catch(() => {})
     }
     fetchPending()
-    const interval = setInterval(fetchPending, 30_000) // refresh на всеки 30 сек
+    const interval = setInterval(fetchPending, 30_000)
     return () => clearInterval(interval)
   }, [])
 
@@ -212,6 +217,33 @@ export default function AdminPage() {
             title="Изтрива поръчките от базата и ги вкарва наново с точни данни за отстъпка и доставка"
           >
             {syncStatus.fullAll === 'syncing' ? '⟳ Ре-синк...' : syncStatus.fullAll === 'done' ? '✓ Готово' : '↺ Пълен ре-синк'}
+          </button>
+          <button
+            className="btn btn-sm"
+            onClick={() => router.push('/admin/applications')}
+            title="Заявки за инфлуенсъри"
+            style={{ position: 'relative' }}
+          >
+            📨 Заявки
+            {pendingApplications > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: -6, right: -6,
+                background: '#dc2626',
+                color: '#fff',
+                fontSize: 10,
+                fontWeight: 700,
+                minWidth: 18,
+                height: 18,
+                borderRadius: 9,
+                padding: '0 5px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid var(--surface)',
+                lineHeight: 1,
+              }}>{pendingApplications}</span>
+            )}
           </button>
           <button
             className="btn btn-sm"
