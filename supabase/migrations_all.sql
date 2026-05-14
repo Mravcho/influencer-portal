@@ -10,6 +10,7 @@ ALTER TABLE influencers
   ADD COLUMN IF NOT EXISTS avatar_url           TEXT,
   ADD COLUMN IF NOT EXISTS banner_url           TEXT,
   ADD COLUMN IF NOT EXISTS email                TEXT,
+  ADD COLUMN IF NOT EXISTS phone                TEXT,
   ADD COLUMN IF NOT EXISTS email_notifications  BOOLEAN DEFAULT true,
   ADD COLUMN IF NOT EXISTS notes                TEXT;
 

@@ -232,7 +232,7 @@ export default function LoginPage() {
                     onChange={e => setApplyField('email', e.target.value)}
                   />
                   <input
-                    type="tel" placeholder="Телефон"
+                    type="tel" placeholder="Телефон *" required
                     value={applyForm.phone}
                     onChange={e => setApplyField('phone', e.target.value)}
                   />

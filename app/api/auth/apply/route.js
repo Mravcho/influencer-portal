@@ -14,8 +14,8 @@ export async function POST(request) {
     motivation,
   } = body
 
-  if (!full_name || !email) {
-    return NextResponse.json({ error: 'Имена и имейл са задължителни' }, { status: 400 })
+  if (!full_name || !email || !phone) {
+    return NextResponse.json({ error: 'Имена, имейл и телефон са задължителни' }, { status: 400 })
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: 'Невалиден имейл адрес' }, { status: 400 })
