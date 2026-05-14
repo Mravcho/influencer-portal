@@ -89,13 +89,14 @@ export async function GET(request) {
     }
   })
 
+  // Класираме по брой поръчки (различните инфлуенсъри имат различни %, за да е fair)
   const ranked = Object.values(byInf)
     .map(e => ({
       ...e,
       revenue:    Math.round(e.revenue    * 100) / 100,
       commission: Math.round(e.commission * 100) / 100,
     }))
-    .sort((a, b) => b.commission - a.commission || b.orders - a.orders)
+    .sort((a, b) => b.orders - a.orders || b.revenue - a.revenue)
     .map((e, idx) => ({ ...e, rank: idx + 1 }))
 
   const withOrders = ranked.filter(r => r.orders > 0)
