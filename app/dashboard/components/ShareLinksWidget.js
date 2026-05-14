@@ -28,13 +28,11 @@ function MiniBars({ daily, color = '#1D9E75', height = 60 }) {
 }
 
 export default function ShareLinksWidget({ viewId = null, baseUrl }) {
-  const [links, setLinks]     = useState([])
-  const [stats, setStats]     = useState(null)
+  const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState(null)
 
-  const linksUrl  = viewId ? `/api/dashboard/links?viewId=${viewId}`  : '/api/dashboard/links'
-  const clicksUrl = viewId ? `/api/dashboard/clicks?days=90&viewId=${viewId}` : '/api/dashboard/clicks?days=90'
+  const linksUrl = viewId ? `/api/dashboard/links?viewId=${viewId}` : '/api/dashboard/links'
 
   const portalBase = useMemo(() => {
     if (baseUrl) return baseUrl
@@ -44,15 +42,14 @@ export default function ShareLinksWidget({ viewId = null, baseUrl }) {
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([
-      fetch(linksUrl).then(r => r.json()),
-      fetch(clicksUrl).then(r => r.json()),
-    ]).then(([linksRes, statsRes]) => {
-      setLinks(linksRes.links || [])
-      setStats(statsRes)
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [linksUrl, clicksUrl])
+    fetch(linksUrl)
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [linksUrl])
+
+  const links = data?.links || []
+  const stats = data ? { total: data.total, daily: data.daily, topReferrers: data.topReferrers } : null
 
   const fullUrl = (code) => `${portalBase}/r/${code}`
 
