@@ -243,6 +243,12 @@ export default function Dashboard() {
           ))}
         </div>
 
+        {/* Share links */}
+        <ShareLinksWidget />
+
+        {/* Leaderboard */}
+        <InfluencerLeaderboard />
+
         {/* Top products with images */}
         <div className="card" style={{ marginBottom: '1rem' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
@@ -353,12 +359,6 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
-
-        {/* Share links */}
-        <ShareLinksWidget />
-
-        {/* Leaderboard */}
-        <InfluencerLeaderboard />
       </main>
     </div>
   )

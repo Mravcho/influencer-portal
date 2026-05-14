@@ -234,6 +234,12 @@ export default function AdminInfluencerView() {
           ))}
         </div>
 
+        {/* Share links (read-only за admin view) */}
+        <ShareLinksWidget viewId={id} />
+
+        {/* Leaderboard — както го вижда инфлуенсърът */}
+        <InfluencerLeaderboard viewId={id} />
+
         {/* Top products */}
         <div className="card" style={{ marginBottom: '1rem' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
@@ -336,12 +342,6 @@ export default function AdminInfluencerView() {
             </tbody>
           </table>
         </div>
-
-        {/* Share links (read-only за admin view) */}
-        <ShareLinksWidget viewId={id} />
-
-        {/* Leaderboard — както го вижда инфлуенсърът */}
-        <InfluencerLeaderboard viewId={id} />
       </main>
     </div>
   )
