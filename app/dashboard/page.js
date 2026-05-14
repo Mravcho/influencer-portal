@@ -224,14 +224,14 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Payouts — веднага под главната карта */}
+        <PayoutWidget />
+
         {/* Share links */}
         <ShareLinksWidget />
 
         {/* Leaderboard */}
         <InfluencerLeaderboard />
-
-        {/* Payouts */}
-        <PayoutWidget />
 
         {/* Metrics */}
         <div className="grid-4" style={{ marginBottom: '1.5rem' }}>

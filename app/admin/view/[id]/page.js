@@ -195,14 +195,14 @@ export default function AdminInfluencerView() {
           </div>
         </div>
 
+        {/* Payouts — веднага под главната карта */}
+        <PayoutWidget viewId={id} />
+
         {/* Share links (read-only за admin view) */}
         <ShareLinksWidget viewId={id} />
 
         {/* Leaderboard — както го вижда инфлуенсърът */}
         <InfluencerLeaderboard viewId={id} />
-
-        {/* Payouts (read-only за admin view) */}
-        <PayoutWidget viewId={id} />
 
         {/* Date filters */}
         <div className="card" style={{ marginBottom: '1rem', padding: '14px' }}>
