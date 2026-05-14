@@ -87,19 +87,20 @@ export default function LoginPage() {
           : 'linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%)',
         backgroundSize: 'cover', backgroundPosition: 'center',
       }}>
-        {/* Лек overlay за по-добра четимост ако има текст */}
+        {/* Силен gradient overlay долу — гарантира четимост на текста */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(135deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.35) 100%)',
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 80%, rgba(0,0,0,.85) 100%)',
         }} />
         <div style={{
           position: 'absolute', bottom: 40, left: 40, right: 40,
-          color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,.4)',
+          color: '#fff',
+          textShadow: '0 2px 12px rgba(0,0,0,.85), 0 1px 4px rgba(0,0,0,.5)',
         }}>
           <h2 style={{ fontSize: 32, fontWeight: 700, lineHeight: 1.2, marginBottom: 8 }}>
             Влез в портала
           </h2>
-          <p style={{ fontSize: 15, opacity: .9 }}>
+          <p style={{ fontSize: 15, opacity: .95 }}>
             Виж своите поръчки и комисионна в реално време.
           </p>
         </div>
