@@ -98,7 +98,7 @@ export default function ShareLinksWidget({ viewId = null, baseUrl }) {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               <div style={{ fontWeight: 600, fontSize: 13 }}>
-                {l.label || 'Промо линк'}
+                {l.is_default ? 'Кратък линк за споделяне в соц. мрежи' : (l.label || 'Промо линк')}
               </div>
               <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--muted)' }}>
                 <strong style={{ color: 'var(--text)' }}>{l.clicks}</strong> {l.clicks === 1 ? 'клик' : 'клика'}
