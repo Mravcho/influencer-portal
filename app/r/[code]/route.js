@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { buildShopifyDiscountUrl, isBot } from '@/lib/share-links'
+import { buildShopifyDiscountUrl, isBot, SHOP_BASE_URL } from '@/lib/share-links'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -23,42 +23,43 @@ function extractClientInfo(request) {
 
 export async function GET(request, { params }) {
   const code = (params?.code || '').toLowerCase()
-  if (!code) {
-    return NextResponse.redirect(new URL('/', request.url))
-  }
+  if (!code) return NextResponse.redirect(SHOP_BASE_URL)
 
-  // 1. Опитваме се да намерим share_link по short_code
-  let link = null
-  const { data: linkRow } = await supabaseAdmin
+  // 1. Намираме share_link → влъжваме инфлуенсъра
+  const { data: link } = await supabaseAdmin
     .from('share_links')
-    .select('id, influencer_id, target_url')
+    .select('id, influencer_id')
     .eq('short_code', code)
     .maybeSingle()
-  link = linkRow
 
-  // 2. Fallback: ако няма share_link, намираме инфлуенсър по промо код
-  //    Това позволява старите URL-и да работят дори без явно създадени share_links.
   let influencerId = link?.influencer_id || null
-  let targetUrl    = link?.target_url    || null
+  let influencer   = null
 
-  if (!link) {
+  if (influencerId) {
     const { data: inf } = await supabaseAdmin
       .from('influencers')
-      .select('id, promo_code')
+      .select('id, promo_code, platform')
+      .eq('id', influencerId)
+      .single()
+    influencer = inf
+  } else {
+    // Fallback: ако няма share_link, търсим по промо код директно
+    const { data: inf } = await supabaseAdmin
+      .from('influencers')
+      .select('id, promo_code, platform')
       .ilike('promo_code', code)
       .maybeSingle()
-    if (inf) {
-      influencerId = inf.id
-      targetUrl    = buildShopifyDiscountUrl(inf.promo_code, '/')
-    }
+    influencer = inf
+    influencerId = inf?.id || null
   }
 
-  // Няма match → пренасочваме към магазина без промо
-  if (!targetUrl) {
-    return NextResponse.redirect(process.env.SHOP_BASE_URL || 'https://realfood.bg', 302)
-  }
+  // Няма match → пренасочваме към магазина
+  if (!influencer) return NextResponse.redirect(SHOP_BASE_URL, 302)
 
-  // 3. Записваме клика — само ако НЕ е bot/crawler (social preview не се брои)
+  // Изграждаме target dynamically — UTM-те винаги отразяват текущата платформа/промо код
+  const targetUrl = buildShopifyDiscountUrl(influencer.promo_code, influencer.platform)
+
+  // Записваме клика — само ако НЕ е bot
   const clientInfo = extractClientInfo(request)
   if (!isBot(clientInfo.user_agent) && influencerId) {
     try {
