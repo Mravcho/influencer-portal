@@ -161,7 +161,7 @@ export async function POST(request) {
 // PATCH /api/admin/influencers → обновяване
 export async function PATCH(request) {
   const body = await request.json()
-  const { id, password, ...rest } = body
+  const { id, password, send_password_reset, ...rest } = body
 
   if (!id) return NextResponse.json({ error: 'Липсва id' }, { status: 400 })
 
@@ -178,6 +178,27 @@ export async function PATCH(request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Опционално изпращане на welcome мейл с линк за задаване на парола (валиден 7 дни)
+  if (send_password_reset && data.email) {
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: tokenRow } = await supabaseAdmin
+      .from('password_reset_tokens')
+      .insert({ influencer_id: data.id, expires_at: expiresAt })
+      .select('token')
+      .single()
+
+    if (tokenRow?.token) {
+      const resetUrl = `${PORTAL_URL}/reset-password?token=${tokenRow.token}`
+      sendWelcomeEmail({
+        to:        data.email,
+        name:      data.name,
+        promoCode: data.promo_code,
+        resetUrl,
+      }).catch(err => console.error('Welcome email failed:', err.message))
+    }
+  }
+
   return NextResponse.json(data)
 }
 

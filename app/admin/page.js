@@ -10,6 +10,7 @@ const emptyForm = {
   name: '', username: '', password: '', promo_code: '', commission: 10,
   platform: 'Instagram', email: '', email_notifications: true, notes: '',
   profile_url: '', avatar_url: '', banner_url: '',
+  send_password_reset: false,
 }
 
 export default function AdminPage() {
@@ -18,8 +19,8 @@ export default function AdminPage() {
   const [tab, setTab]     = useState('list')
   const [form, setForm]   = useState(emptyForm)
   const [editId, setEditId] = useState(null)
+  const [originalEmail, setOriginalEmail] = useState('')
   const [msg, setMsg]     = useState({ type: '', text: '' })
-  const [syncStatus, setSyncStatus] = useState({})
   const [loading, setLoading] = useState(false)
   const [avatarLoading, setAvatarLoading] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
@@ -108,15 +109,23 @@ export default function AdminPage() {
 
     if (!res.ok) { setMsg({ type: 'error', text: data.error }); return }
 
-    setMsg({ type: 'success', text: editId ? 'Инфлуенсърът е обновен.' : `${data.name} е добавен с код ${data.promo_code}.` })
+    const resetSent = editId && form.send_password_reset && form.email && form.email !== originalEmail
+    setMsg({
+      type: 'success',
+      text: editId
+        ? (resetSent ? 'Инфлуенсърът е обновен. Изпратен е welcome мейл на новия адрес.' : 'Инфлуенсърът е обновен.')
+        : `${data.name} е добавен с код ${data.promo_code}.`,
+    })
     setForm(emptyForm)
     setEditId(null)
+    setOriginalEmail('')
     load()
     setTimeout(() => setTab('list'), 1200)
   }
 
   const startEdit = (inf) => {
     setEditId(inf.id)
+    setOriginalEmail(inf.email || '')
     setForm({
       name: inf.name, username: inf.username, password: '',
       promo_code: inf.promo_code, commission: inf.commission,
@@ -126,6 +135,7 @@ export default function AdminPage() {
       profile_url: inf.profile_url || '',
       avatar_url:  inf.avatar_url  || '',
       banner_url:  inf.banner_url  || '',
+      send_password_reset: false,
     })
     setTab('form')
     setMsg({})
@@ -158,27 +168,6 @@ export default function AdminPage() {
     load()
   }
 
-  const syncOne = async (id, full = false) => {
-    const key = full ? `full_${id}` : id
-    setSyncStatus(s => ({ ...s, [key]: 'syncing' }))
-    const url = `/api/admin/sync?id=${id}${full ? '&full=true' : ''}`
-    const res  = await fetch(url, { method: 'POST' })
-    const data = await res.json()
-    const result = data.results?.[0]
-    setSyncStatus(s => ({ ...s, [key]: result?.error ? 'error' : 'done' }))
-    if (!result?.error) load()
-    setTimeout(() => setSyncStatus(s => ({ ...s, [key]: '' })), 3000)
-  }
-
-  const syncAll = async (full = false) => {
-    const key = full ? 'fullAll' : 'all'
-    setSyncStatus({ [key]: 'syncing' })
-    await fetch(`/api/admin/sync${full ? '?full=true' : ''}`, { method: 'POST' })
-    setSyncStatus({ [key]: 'done' })
-    load()
-    setTimeout(() => setSyncStatus({}), 3000)
-  }
-
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/login')
@@ -206,18 +195,6 @@ export default function AdminPage() {
           </div>
         </div>
         <div className="header-actions">
-          <button className="btn btn-sm" onClick={() => syncAll(false)} disabled={syncStatus.all === 'syncing'}>
-            {syncStatus.all === 'syncing' ? '⟳ Синхронизиране...' : syncStatus.all === 'done' ? '✓ Готово' : '⟳ Sync нови'}
-          </button>
-          <button
-            className="btn btn-sm"
-            style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' }}
-            onClick={() => { if (confirm('Ще изтрие ВСИЧКИ поръчки и ще ги вземе отново от Shopify. Продължи?')) syncAll(true) }}
-            disabled={syncStatus.fullAll === 'syncing'}
-            title="Изтрива поръчките от базата и ги вкарва наново с точни данни за отстъпка и доставка"
-          >
-            {syncStatus.fullAll === 'syncing' ? '⟳ Ре-синк...' : syncStatus.fullAll === 'done' ? '✓ Готово' : '↺ Пълен ре-синк'}
-          </button>
           <button
             className="btn btn-sm"
             onClick={() => router.push('/admin/applications')}
@@ -396,23 +373,6 @@ export default function AdminPage() {
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button className="btn btn-sm" onClick={() => router.push(`/admin/view/${inf.id}`)} title="Виж изгледа на инфлуенсъра">👁</button>
                         <button className="btn btn-sm" onClick={() => startEdit(inf)} title="Редактиране">✎</button>
-                        <button
-                          className="btn btn-sm"
-                          onClick={() => syncOne(inf.id, false)}
-                          disabled={syncStatus[inf.id] === 'syncing'}
-                          title="Sync само нови поръчки"
-                        >
-                          {syncStatus[inf.id] === 'syncing' ? '⟳' : syncStatus[inf.id] === 'done' ? '✓' : '⟳'}
-                        </button>
-                        <button
-                          className="btn btn-sm"
-                          style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' }}
-                          onClick={() => { if (confirm(`Пълен ре-синк за ${inf.name}?`)) syncOne(inf.id, true) }}
-                          disabled={syncStatus[`full_${inf.id}`] === 'syncing'}
-                          title="Изтрива и ре-синква с точни данни за отстъпка и доставка"
-                        >
-                          {syncStatus[`full_${inf.id}`] === 'syncing' ? '⟳' : '↺'}
-                        </button>
                         <button className="btn btn-sm btn-ghost" onClick={() => toggleActive(inf)} title={inf.active ? 'Деактивирай' : 'Активирай'}>
                           {inf.active ? '⏸' : '▶'}
                         </button>
@@ -599,6 +559,17 @@ export default function AdminPage() {
                 <div>
                   <label style={labelStyle}>Мейл адрес</label>
                   <input type="email" value={form.email} onChange={e => setField('email', e.target.value)} placeholder="maria@example.com" />
+                  {editId && form.email && form.email !== originalEmail && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, marginTop: 6, color: 'var(--accent-dk)' }}>
+                      <input
+                        type="checkbox"
+                        checked={form.send_password_reset}
+                        onChange={e => setField('send_password_reset', e.target.checked)}
+                        style={{ width: 'auto', cursor: 'pointer' }}
+                      />
+                      Прати welcome мейл на новия адрес
+                    </label>
+                  )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 2 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
@@ -626,7 +597,7 @@ export default function AdminPage() {
                   {loading ? 'Запазване...' : editId ? 'Обнови' : '+ Добави'}
                 </button>
                 {editId && (
-                  <button type="button" className="btn" onClick={() => { setEditId(null); setForm(emptyForm); setMsg({}); setTab('list') }}>
+                  <button type="button" className="btn" onClick={() => { setEditId(null); setOriginalEmail(''); setForm(emptyForm); setMsg({}); setTab('list') }}>
                     Отказ
                   </button>
                 )}
