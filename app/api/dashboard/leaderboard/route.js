@@ -65,17 +65,18 @@ export async function GET(request) {
   })
 
   const ranked = Object.entries(counts)
-    .map(([id, orders]) => {
-      const isMe = id === currentUserId
+    .map(([id, orders]) => ({ id, orders }))
+    .sort((a, b) => b.orders - a.orders)
+    .map((e, idx) => {
+      const isMe = e.id === currentUserId
       return {
-        id,
-        name: isMe ? nameById[id] : anonymize(nameById[id]),
-        orders,
+        id: e.id,
+        name: isMe ? nameById[e.id] : anonymize(nameById[e.id]),
+        orders: isMe ? e.orders : null,
         isMe,
+        rank: idx + 1,
       }
     })
-    .sort((a, b) => b.orders - a.orders)
-    .map((e, idx) => ({ ...e, rank: idx + 1 }))
 
   // Намираме мястото на текущия инфлуенсър
   const myRank = ranked.find(r => r.isMe) || null

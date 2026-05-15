@@ -151,8 +151,8 @@ function LeaderRow({ row }) {
         {row.name}
         {row.isMe && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--accent-dk)' }}>(ти)</span>}
       </div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: row.isMe ? 'var(--accent-dk)' : 'var(--text)' }}>
-        {row.orders} {row.orders === 1 ? 'поръчка' : 'поръчки'}
+      <div style={{ fontSize: 13, fontWeight: 600, color: row.isMe ? 'var(--accent-dk)' : 'var(--muted)' }}>
+        {row.orders == null ? '— поръчки' : `${row.orders} ${row.orders === 1 ? 'поръчка' : 'поръчки'}`}
       </div>
     </div>
   )
