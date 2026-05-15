@@ -52,12 +52,11 @@ export async function GET(request) {
     counts[o.influencer_id] = (counts[o.influencer_id] || 0) + 1
   })
 
-  // Анонимизирай имената до първо име + initial
+  // Анонимизирай името до първа буква + звездички (напр. "Мария Иванова" → "М******")
   const anonymize = (fullName) => {
-    const parts = (fullName || '').trim().split(/\s+/)
-    if (parts.length === 0) return 'Аноним'
-    if (parts.length === 1) return parts[0]
-    return `${parts[0]} ${parts[1].charAt(0).toUpperCase()}.`
+    const trimmed = (fullName || '').trim()
+    if (!trimmed) return 'Аноним'
+    return `${trimmed.charAt(0).toUpperCase()}******`
   }
 
   // Включваме всички активни инфлуенсъри (дори с 0 поръчки)
@@ -66,12 +65,15 @@ export async function GET(request) {
   })
 
   const ranked = Object.entries(counts)
-    .map(([id, orders]) => ({
-      id,
-      name: anonymize(nameById[id]),
-      orders,
-      isMe: id === currentUserId,
-    }))
+    .map(([id, orders]) => {
+      const isMe = id === currentUserId
+      return {
+        id,
+        name: isMe ? nameById[id] : anonymize(nameById[id]),
+        orders,
+        isMe,
+      }
+    })
     .sort((a, b) => b.orders - a.orders)
     .map((e, idx) => ({ ...e, rank: idx + 1 }))
 
