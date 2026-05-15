@@ -34,10 +34,11 @@ export async function GET(request) {
 
   const { data: influencers } = await supabaseAdmin
     .from('influencers')
-    .select('id, name')
+    .select('id, name, promo_code')
     .eq('active', true)
 
   const nameById = Object.fromEntries((influencers || []).map(i => [i.id, i.name]))
+  const promoById = Object.fromEntries((influencers || []).map(i => [i.id, i.promo_code]))
 
   const { data: orders } = await supabaseAdmin
     .from('orders')
@@ -52,13 +53,6 @@ export async function GET(request) {
     counts[o.influencer_id] = (counts[o.influencer_id] || 0) + 1
   })
 
-  // Анонимизирай името до първа буква + звездички (напр. "Мария Иванова" → "М******")
-  const anonymize = (fullName) => {
-    const trimmed = (fullName || '').trim()
-    if (!trimmed) return 'Аноним'
-    return `${trimmed.charAt(0).toUpperCase()}******`
-  }
-
   // Включваме всички активни инфлуенсъри (дори с 0 поръчки)
   Object.keys(nameById).forEach(id => {
     if (!(id in counts)) counts[id] = 0
@@ -71,7 +65,8 @@ export async function GET(request) {
       const isMe = e.id === currentUserId
       return {
         id: e.id,
-        name: isMe ? nameById[e.id] : anonymize(nameById[e.id]),
+        // Чуждите инфлуенсъри се идентифицират с промокод (без име); своят ред показва истинско име
+        name: isMe ? nameById[e.id] : (promoById[e.id] || 'Аноним'),
         orders: isMe ? e.orders : null,
         isMe,
         rank: idx + 1,
