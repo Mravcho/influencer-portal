@@ -79,12 +79,13 @@ export async function POST(request) {
   }
 
   // Инфлуенсър — търсим по username ИЛИ email (и двете работят като идентификатор).
+  // email.ilike прави case-insensitive сравнение — без значение как е записан имейлът в базата.
   // НЕ ползваме .single() — при дубликат би гръмнал тихо. Взимаме най-скоро създадения.
   const ident = username.toLowerCase().trim()
   const { data: matches } = await supabaseAdmin
     .from('influencers')
     .select('id, name, username, password_hash, promo_code, commission, platform, active, created_at')
-    .or(`username.eq.${ident},email.eq.${ident}`)
+    .or(`username.eq.${ident},email.ilike.${ident}`)
     .order('created_at', { ascending: false })
     .limit(1)
   const influencer = matches && matches.length > 0 ? matches[0] : null

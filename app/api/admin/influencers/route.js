@@ -101,7 +101,7 @@ export async function POST(request) {
       profile_url:         profile_url   || null,
       avatar_url:          avatar_url    || null,
       banner_url:          banner_url    || null,
-      email:               email         || null,
+      email:               email ? email.toLowerCase().trim() : null,
       email_notifications: email_notifications !== false,
     })
     .select('id, name, username, promo_code, commission, platform, email')
@@ -164,6 +164,7 @@ export async function PATCH(request) {
   const updates = { ...rest }
   if (rest.username) updates.username = rest.username.toLowerCase()
   if (rest.promo_code) updates.promo_code = rest.promo_code.toUpperCase()
+  if (typeof rest.email === 'string') updates.email = rest.email ? rest.email.toLowerCase().trim() : null
   if (password) updates.password_hash = await bcrypt.hash(password, 10)
 
   const { data, error } = await supabaseAdmin
