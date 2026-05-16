@@ -99,28 +99,45 @@ export default function AdminPage() {
     const method = editId ? 'PATCH' : 'POST'
     const body   = editId ? { id: editId, ...form } : form
 
-    const res = await fetch('/api/admin/influencers', {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    const data = await res.json()
-    setLoading(false)
+    // Hard timeout: не оставяме бутона да се блокира ако сървърът виси
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30_000)
 
-    if (!res.ok) { setMsg({ type: 'error', text: data.error }); return }
+    try {
+      const res = await fetch('/api/admin/influencers', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+      const data = await res.json().catch(() => ({}))
 
-    const resetSent = editId && form.send_password_reset && form.email && form.email !== originalEmail
-    setMsg({
-      type: 'success',
-      text: editId
-        ? (resetSent ? 'Инфлуенсърът е обновен. Изпратен е welcome мейл на новия адрес.' : 'Инфлуенсърът е обновен.')
-        : `${data.name} е добавен с код ${data.promo_code}.`,
-    })
-    setForm(emptyForm)
-    setEditId(null)
-    setOriginalEmail('')
-    load()
-    setTimeout(() => setTab('list'), 1200)
+      if (!res.ok) {
+        setMsg({ type: 'error', text: data.error || `Грешка (${res.status})` })
+        return
+      }
+
+      const resetSent = editId && form.send_password_reset && form.email && form.email !== originalEmail
+      setMsg({
+        type: 'success',
+        text: editId
+          ? (resetSent ? 'Инфлуенсърът е обновен. Изпратен е welcome мейл на новия адрес.' : 'Инфлуенсърът е обновен.')
+          : `${data.name} е добавен с код ${data.promo_code}.`,
+      })
+      setForm(emptyForm)
+      setEditId(null)
+      setOriginalEmail('')
+      load()
+      setTimeout(() => setTab('list'), 1200)
+    } catch (err) {
+      const msg = err.name === 'AbortError'
+        ? 'Заявката се забави твърде много. Опитай отново.'
+        : `Мрежова грешка: ${err.message || 'неизвестна'}`
+      setMsg({ type: 'error', text: msg })
+    } finally {
+      clearTimeout(timeoutId)
+      setLoading(false)
+    }
   }
 
   const startEdit = (inf) => {

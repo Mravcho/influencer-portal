@@ -112,30 +112,12 @@ export async function POST(request) {
     return NextResponse.json({ error: msg }, { status: 409 })
   }
 
-  // Първоначален sync на поръчки от началото на годината.
-  // Изчакваме го за да сме сигурни, че поръчките са в базата при response-а
-  // (иначе serverless-ът може да приключи преди sync-а да завърши).
-  // Welcome имейлът е отделен и НЕ зависи от резултата на sync-а — за него:
-  //   - email_notifications = false, за да не получи още един имейл при намерени поръчки
-  const syncResult = await syncInfluencer({
-    id:                  data.id,
-    name:                data.name,
-    promo_code:          data.promo_code,
-    commission:          data.commission,
-    email:               null, // изключваме order notification email при initial sync
-    email_notifications: false,
-  }, { sinceOverride: '2026-01-01T00:00:00.000Z' })
-    .catch(err => {
-      console.error('Initial sync failed:', err)
-      return { error: err.message }
-    })
-
-  // Auto-create default share link за новия инфлуенсър
+  // Auto-create default share link за новия инфлуенсър (бързо — само Supabase insert)
   await ensureDefaultLink(data).catch(err =>
     console.error('Default share link creation failed:', err.message)
   )
 
-  // Welcome email с линк за задаване на парола (валиден 7 дни)
+  // Welcome email с линк за задаване на парола (валиден 7 дни) — fire-and-forget
   if (data.email) {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     const { data: tokenRow } = await supabaseAdmin
@@ -155,7 +137,21 @@ export async function POST(request) {
     }
   }
 
-  return NextResponse.json({ ...data, initialSync: syncResult }, { status: 201 })
+  // Първоначален sync на поръчки — fire-and-forget. Не блокираме response-а;
+  // бъдещите поръчки идват през Shopify webhook. Ако промокодът е нов, sync-ът
+  // обикновено връща 0 поръчки. Ако има исторически — те ще се появят в базата
+  // когато sync-ът приключи (Vercel държи функцията жива до response-а).
+  syncInfluencer({
+    id:                  data.id,
+    name:                data.name,
+    promo_code:          data.promo_code,
+    commission:          data.commission,
+    email:               null,
+    email_notifications: false,
+  }, { sinceOverride: '2026-01-01T00:00:00.000Z' })
+    .catch(err => console.error('Initial sync failed:', err.message))
+
+  return NextResponse.json(data, { status: 201 })
 }
 
 // PATCH /api/admin/influencers → обновяване
