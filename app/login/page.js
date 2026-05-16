@@ -143,10 +143,10 @@ export default function LoginPage() {
 
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>
-                  Потребителско име
+                  Потребителско име или имейл
                 </label>
                 <input
-                  type="text" value={username} placeholder="напр. maria_style"
+                  type="text" value={username} placeholder="maria_style или maria@example.com"
                   onChange={e => setUsername(e.target.value)} required autoFocus
                 />
               </div>
