@@ -79,16 +79,33 @@ export async function POST(request) {
   }
 
   // Инфлуенсър — търсим по username ИЛИ email (и двете работят като идентификатор).
-  // email.ilike прави case-insensitive сравнение — без значение как е записан имейлът в базата.
-  // НЕ ползваме .single() — при дубликат би гръмнал тихо. Взимаме най-скоро създадения.
+  // Правим две отделни заявки за по-предсказуемо поведение (без .or() escape pitfalls).
   const ident = username.toLowerCase().trim()
-  const { data: matches } = await supabaseAdmin
+  const SELECT_COLS = 'id, name, username, password_hash, promo_code, commission, platform, active, created_at, email'
+
+  // 1) Опитай първо по username (exact, lowercase)
+  let { data: byUsername } = await supabaseAdmin
     .from('influencers')
-    .select('id, name, username, password_hash, promo_code, commission, platform, active, created_at')
-    .or(`username.eq.${ident},email.ilike.${ident}`)
+    .select(SELECT_COLS)
+    .eq('username', ident)
     .order('created_at', { ascending: false })
     .limit(1)
-  const influencer = matches && matches.length > 0 ? matches[0] : null
+  let influencer = byUsername && byUsername.length > 0 ? byUsername[0] : null
+
+  // 2) Ако не намерим — и идентификаторът прилича на email — пробвай по email (case-insensitive)
+  if (!influencer && ident.includes('@')) {
+    const { data: byEmail, error: emailErr } = await supabaseAdmin
+      .from('influencers')
+      .select(SELECT_COLS)
+      .ilike('email', ident)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    if (emailErr) console.error('Login email lookup error:', emailErr.message)
+    influencer = byEmail && byEmail.length > 0 ? byEmail[0] : null
+    console.log(`Login: identifier="${ident}" → email lookup found=${!!influencer}`)
+  } else if (!influencer) {
+    console.log(`Login: identifier="${ident}" → no username match, doesn't look like email, giving up`)
+  }
 
   // Неуспех: няма такъв username
   if (!influencer) {
