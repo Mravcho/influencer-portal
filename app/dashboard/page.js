@@ -6,6 +6,7 @@ import { bg } from 'date-fns/locale'
 import InfluencerLeaderboard from './components/InfluencerLeaderboard'
 import PayoutWidget from './components/PayoutWidget'
 import ShareLinksWidget from './components/ShareLinksWidget'
+import ProductRequestsWidget from './components/ProductRequestsWidget'
 
 function ymd(d) {
   return format(d, 'yyyy-MM-dd')
@@ -246,6 +247,9 @@ export default function Dashboard() {
 
         {/* Share links */}
         <ShareLinksWidget />
+
+        {/* Product requests */}
+        <ProductRequestsWidget />
 
         {/* Leaderboard */}
         <InfluencerLeaderboard />
