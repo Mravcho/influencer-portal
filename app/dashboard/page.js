@@ -7,6 +7,7 @@ import InfluencerLeaderboard from './components/InfluencerLeaderboard'
 import PayoutWidget from './components/PayoutWidget'
 import ShareLinksWidget from './components/ShareLinksWidget'
 import ProductRequestsWidget from './components/ProductRequestsWidget'
+import MyProductRequestsWidget from './components/MyProductRequestsWidget'
 
 function ymd(d) {
   return format(d, 'yyyy-MM-dd')
@@ -250,6 +251,9 @@ export default function Dashboard() {
 
         {/* Product requests */}
         <ProductRequestsWidget />
+
+        {/* История на заявките за продукти */}
+        <MyProductRequestsWidget />
 
         {/* Leaderboard */}
         <InfluencerLeaderboard />
