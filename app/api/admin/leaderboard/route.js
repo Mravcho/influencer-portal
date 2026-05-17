@@ -33,11 +33,12 @@ export async function GET(request) {
   const startOfMonth = new Date(year, month - 1, 1)
   const endOfMonth   = new Date(year, month, 1) // exclusive
 
-  // Инфлуенсъри (само активни — деактивираните не участват в класацията)
+  // Инфлуенсъри — само активни И не маркирани за изключване
   const { data: influencers, error: infErr } = await supabaseAdmin
     .from('influencers')
     .select('id, name, promo_code, commission, avatar_url, platform')
     .eq('active', true)
+    .eq('exclude_from_leaderboard', false)
   if (infErr) return NextResponse.json({ error: infErr.message }, { status: 500 })
 
   const infMap = Object.fromEntries(influencers.map(i => [i.id, i]))

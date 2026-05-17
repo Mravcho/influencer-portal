@@ -36,6 +36,7 @@ export async function GET(request) {
     .from('influencers')
     .select('id, name, promo_code')
     .eq('active', true)
+    .eq('exclude_from_leaderboard', false)
 
   const nameById = Object.fromEntries((influencers || []).map(i => [i.id, i.name]))
   const promoById = Object.fromEntries((influencers || []).map(i => [i.id, i.promo_code]))

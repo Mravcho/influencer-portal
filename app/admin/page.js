@@ -11,6 +11,7 @@ const emptyForm = {
   platform: 'Instagram', email: '', email_notifications: true, notes: '',
   profile_url: '', avatar_url: '', banner_url: '',
   send_password_reset: false,
+  exclude_from_leaderboard: false,
 }
 
 export default function AdminPage() {
@@ -160,6 +161,7 @@ export default function AdminPage() {
       avatar_url:  inf.avatar_url  || '',
       banner_url:  inf.banner_url  || '',
       send_password_reset: false,
+      exclude_from_leaderboard: inf.exclude_from_leaderboard === true,
     })
     setTab('form')
     setMsg({})
@@ -667,6 +669,21 @@ export default function AdminPage() {
               <div>
                 <label style={labelStyle}>Бележки (само за admin)</label>
                 <input value={form.notes} onChange={e => setField('notes', e.target.value)} placeholder="Договор №, контакт..." />
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.exclude_from_leaderboard}
+                    onChange={e => setField('exclude_from_leaderboard', e.target.checked)}
+                    style={{ width: 'auto', cursor: 'pointer' }}
+                  />
+                  🚫 Изключи от класацията
+                </label>
+                <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                  Инфлуенсърът работи нормално, но не се показва в месечната класация (и при админ, и при инфлуенсърите).
+                </p>
               </div>
 
               {editId && allProducts.length > 0 && (

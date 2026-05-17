@@ -16,7 +16,7 @@ export const maxDuration = 60
 export async function GET() {
   const { data: influencers, error } = await supabaseAdmin
     .from('influencers')
-    .select('id, name, username, promo_code, commission, platform, active, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes')
+    .select('id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -77,7 +77,7 @@ export async function POST(request) {
   const {
     name, username, password, promo_code, commission, platform,
     notes, profile_url, avatar_url, banner_url,
-    email, email_notifications,
+    email, email_notifications, exclude_from_leaderboard,
   } = body
 
   if (!name || !username || !promo_code) {
@@ -103,6 +103,7 @@ export async function POST(request) {
       banner_url:          banner_url    || null,
       email:               email ? email.toLowerCase().trim() : null,
       email_notifications: email_notifications !== false,
+      exclude_from_leaderboard: exclude_from_leaderboard === true,
     })
     .select('id, name, username, promo_code, commission, platform, email')
     .single()
