@@ -20,6 +20,8 @@ export default function AdminPage() {
   const [form, setForm]   = useState(emptyForm)
   const [editId, setEditId] = useState(null)
   const [originalEmail, setOriginalEmail] = useState('')
+  const [allProducts, setAllProducts]               = useState([])
+  const [assignedProductIds, setAssignedProductIds] = useState(new Set())
   const [msg, setMsg]     = useState({ type: '', text: '' })
   const [loading, setLoading] = useState(false)
   const [avatarLoading, setAvatarLoading] = useState(false)
@@ -140,7 +142,7 @@ export default function AdminPage() {
     }
   }
 
-  const startEdit = (inf) => {
+  const startEdit = async (inf) => {
     setEditId(inf.id)
     setOriginalEmail(inf.email || '')
     setForm({
@@ -156,6 +158,30 @@ export default function AdminPage() {
     })
     setTab('form')
     setMsg({})
+
+    // Зареждаме каталога и индивидуалните присвоявания за този инфлуенсър
+    const [prodRes, assignRes] = await Promise.all([
+      fetch('/api/admin/request-products').then(r => r.ok ? r.json() : []),
+      fetch(`/api/admin/influencer-products?influencer_id=${inf.id}`).then(r => r.ok ? r.json() : []),
+    ])
+    setAllProducts(prodRes || [])
+    setAssignedProductIds(new Set(assignRes || []))
+  }
+
+  const toggleProductAccess = async (productId, willAssign) => {
+    if (willAssign) {
+      await fetch('/api/admin/influencer-products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ influencer_id: editId, request_product_id: productId }),
+      })
+      setAssignedProductIds(s => new Set(s).add(productId))
+    } else {
+      await fetch(`/api/admin/influencer-products?influencer_id=${editId}&request_product_id=${productId}`, {
+        method: 'DELETE',
+      })
+      setAssignedProductIds(s => { const n = new Set(s); n.delete(productId); return n })
+    }
   }
 
   const toggleActive = async (inf) => {
@@ -266,6 +292,7 @@ export default function AdminPage() {
               }}>{pendingPayouts}</span>
             )}
           </button>
+          <button className="btn btn-sm" onClick={() => router.push('/admin/request-products')} title="Каталог за заявки">🎁 Каталог</button>
           <button className="btn btn-sm" onClick={() => router.push('/admin/sessions')} title="История на влизанията">👤 Сесии</button>
           <button className="btn btn-sm" onClick={() => router.push('/admin/settings')} title="Брандинг настройки">⚙ Настройки</button>
           <button className="btn btn-sm btn-ghost" onClick={logout}>Изход</button>
@@ -609,6 +636,50 @@ export default function AdminPage() {
                 <label style={labelStyle}>Бележки (само за admin)</label>
                 <input value={form.notes} onChange={e => setField('notes', e.target.value)} placeholder="Договор №, контакт..." />
               </div>
+
+              {editId && allProducts.length > 0 && (
+                <div>
+                  <label style={labelStyle}>🎁 Достъпни продукти за заявка</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {allProducts.filter(p => p.is_global && p.active).length > 0 && (
+                      <div style={{
+                        background: 'var(--bg)', padding: '8px 10px', borderRadius: 6, fontSize: 12,
+                      }}>
+                        <strong>Глобални</strong> (достъпни на всички):{' '}
+                        {allProducts.filter(p => p.is_global && p.active).map(p => p.name).join(', ')}
+                      </div>
+                    )}
+                    {allProducts.filter(p => !p.is_global && p.active).length === 0 && (
+                      <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                        Няма индивидуални продукти. Добави такива в{' '}
+                        <a href="/admin/request-products" style={{ color: 'var(--accent)' }}>🎁 Каталог</a> с „Индивидуално".
+                      </p>
+                    )}
+                    {allProducts.filter(p => !p.is_global && p.active).map(p => (
+                      <label key={p.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '6px 10px', background: 'var(--bg)', borderRadius: 6,
+                        fontSize: 13, cursor: 'pointer',
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={assignedProductIds.has(p.id)}
+                          onChange={e => toggleProductAccess(p.id, e.target.checked)}
+                          style={{ width: 'auto', cursor: 'pointer' }}
+                        />
+                        {p.image_url && (
+                          <img src={p.image_url} alt={p.name}
+                            style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }} />
+                        )}
+                        <span style={{ flex: 1 }}>{p.name}</span>
+                        <span style={{ color: 'var(--muted)', fontSize: 11 }}>
+                          {p.request_interval_days}д · {p.free_quantity} безпл · -{p.paid_discount_pct}%
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button type="submit" className="btn btn-primary" disabled={loading}>
                   {loading ? 'Запазване...' : editId ? 'Обнови' : '+ Добави'}
