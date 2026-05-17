@@ -33,51 +33,39 @@ export async function GET(request) {
   }
 
   const allProducts = [...(globalProducts || []), ...individualProducts]
-  if (allProducts.length === 0) return NextResponse.json([])
+    .sort((a, b) => a.name.localeCompare(b.name))
 
-  // 3) Последна заявка на този инфлуенсър за всеки от тези продукти (за cooldown)
-  const productIds = allProducts.map(p => p.id)
-  const { data: lastRequests } = await supabaseAdmin
+  // Глобален free lockout: най-скорошната заявка с free_quantity > 0 заключва безплатното
+  // за всички продукти, до изтичане на интервала на ТОЗИ продукт.
+  const { data: lastFreeReq } = await supabaseAdmin
     .from('product_requests')
-    .select('request_product_id, requested_at, status')
+    .select('requested_at, request_product:request_products(name, request_interval_days)')
     .eq('influencer_id', influencerId)
-    .in('request_product_id', productIds)
     .neq('status', 'cancelled')
+    .gt('free_quantity', 0)
     .order('requested_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
-  // Maps product_id → latest non-cancelled request timestamp
-  const lastByProduct = {}
-  ;(lastRequests || []).forEach(r => {
-    if (!lastByProduct[r.request_product_id]) {
-      lastByProduct[r.request_product_id] = r.requested_at
+  let freeLockedUntil = null
+  let freeLockedDays  = 0
+  let freeLockedFromName = null
+  if (lastFreeReq?.request_product?.request_interval_days) {
+    const reqAt    = new Date(lastFreeReq.requested_at).getTime()
+    const lockedTo = reqAt + lastFreeReq.request_product.request_interval_days * 24 * 60 * 60 * 1000
+    if (lockedTo > Date.now()) {
+      freeLockedUntil    = new Date(lockedTo).toISOString()
+      freeLockedDays     = Math.ceil((lockedTo - Date.now()) / (1000 * 60 * 60 * 24))
+      freeLockedFromName = lastFreeReq.request_product.name
     }
-  })
+  }
 
-  const now = Date.now()
-  const enriched = allProducts.map(p => {
-    const lastAt = lastByProduct[p.id] ? new Date(lastByProduct[p.id]) : null
-    const nextEligibleAt = lastAt
-      ? new Date(lastAt.getTime() + p.request_interval_days * 24 * 60 * 60 * 1000)
-      : null
-    const daysRemaining = nextEligibleAt
-      ? Math.max(0, Math.ceil((nextEligibleAt.getTime() - now) / (1000 * 60 * 60 * 24)))
-      : 0
-    return {
-      ...p,
-      last_requested_at:  lastAt ? lastAt.toISOString() : null,
-      next_eligible_at:   nextEligibleAt ? nextEligibleAt.toISOString() : null,
-      days_remaining:     daysRemaining,
-      can_request:        !nextEligibleAt || nextEligibleAt.getTime() <= now,
-    }
+  return NextResponse.json({
+    free_locked_until:      freeLockedUntil,
+    free_days_remaining:    freeLockedDays,
+    free_locked_from_name:  freeLockedFromName,
+    products: allProducts,
   })
-
-  // Сортирай: най-напред тези, които може да заяви; после по име
-  enriched.sort((a, b) => {
-    if (a.can_request !== b.can_request) return a.can_request ? -1 : 1
-    return a.name.localeCompare(b.name)
-  })
-
-  return NextResponse.json(enriched)
 }
 
 // POST { product_id, quantity } → създава заявка ако cooldown позволява
@@ -116,31 +104,31 @@ export async function POST(request) {
     }
   }
 
-  // Cooldown check — последна неотменена заявка за същия продукт
-  const { data: lastReq } = await supabaseAdmin
-    .from('product_requests')
-    .select('requested_at')
-    .eq('influencer_id', influencerId)
-    .eq('request_product_id', product_id)
-    .neq('status', 'cancelled')
-    .order('requested_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  // Глобален free lockout: ако последната заявка с free_quantity > 0 е още в интервал
+  // → безплатното за този инфлуенсър е заключено за ВСИЧКИ продукти.
+  // Платените (с -X%) се позволяват винаги — само свеждаме free_quantity до 0.
+  let freeAllowed = true
+  if (product.free_quantity > 0) {
+    const { data: lastFreeReq } = await supabaseAdmin
+      .from('product_requests')
+      .select('requested_at, request_product:request_products(request_interval_days)')
+      .eq('influencer_id', influencerId)
+      .neq('status', 'cancelled')
+      .gt('free_quantity', 0)
+      .order('requested_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-  if (lastReq) {
-    const lastAt = new Date(lastReq.requested_at).getTime()
-    const nextOk = lastAt + product.request_interval_days * 24 * 60 * 60 * 1000
-    if (nextOk > Date.now()) {
-      const daysLeft = Math.ceil((nextOk - Date.now()) / (1000 * 60 * 60 * 24))
-      return NextResponse.json({
-        error: `Следваща заявка за този продукт е възможна след ${daysLeft} дни`,
-      }, { status: 429 })
+    if (lastFreeReq?.request_product?.request_interval_days) {
+      const reqAt    = new Date(lastFreeReq.requested_at).getTime()
+      const lockedTo = reqAt + lastFreeReq.request_product.request_interval_days * 24 * 60 * 60 * 1000
+      if (lockedTo > Date.now()) freeAllowed = false
     }
   }
 
   // Изчисляваме безплатно / платено
-  const freeQty   = Math.min(qty, product.free_quantity)
-  const paidQty   = Math.max(0, qty - freeQty)
+  const freeQty   = freeAllowed ? Math.min(qty, product.free_quantity) : 0
+  const paidQty   = qty - freeQty
   const unitPaid  = Number(product.price) * (1 - Number(product.paid_discount_pct) / 100)
   const paidTotal = Math.round(paidQty * unitPaid * 100) / 100
 

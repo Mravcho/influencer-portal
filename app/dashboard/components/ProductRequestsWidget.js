@@ -2,16 +2,28 @@
 import { useEffect, useState } from 'react'
 
 export default function ProductRequestsWidget() {
-  const [products, setProducts]   = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [selected, setSelected]   = useState(null) // { product, qty }
-  const [submitting, setSubmitting] = useState(false)
-  const [msg, setMsg]             = useState({ type: '', text: '' })
+  const [products, setProducts]                 = useState([])
+  const [freeLocked, setFreeLocked]             = useState(null) // { daysRemaining, fromName }
+  const [loading, setLoading]                   = useState(true)
+  const [selected, setSelected]                 = useState(null) // { product, qty }
+  const [submitting, setSubmitting]             = useState(false)
+  const [msg, setMsg]                           = useState({ type: '', text: '' })
 
   const load = async () => {
     setLoading(true)
     const res = await fetch('/api/dashboard/request-products')
-    if (res.ok) setProducts(await res.json())
+    if (res.ok) {
+      const data = await res.json()
+      setProducts(data.products || [])
+      if (data.free_locked_until) {
+        setFreeLocked({
+          daysRemaining: data.free_days_remaining,
+          fromName:      data.free_locked_from_name,
+        })
+      } else {
+        setFreeLocked(null)
+      }
+    }
     setLoading(false)
   }
 
@@ -49,6 +61,18 @@ export default function ProductRequestsWidget() {
           🎁 Заяви продукт
         </div>
 
+        {/* Глобален free lockout банер */}
+        {freeLocked && (
+          <div style={{
+            background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10,
+            padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#78350f',
+          }}>
+            ⏳ Безплатната заявка е заключена още <strong>{freeLocked.daysRemaining} дни</strong>
+            {freeLocked.fromName && <> (от „{freeLocked.fromName}")</>}.
+            Може да поръчваш с -% отстъпка по всяко време.
+          </div>
+        )}
+
         {products.length === 0 && (
           <p style={{ color: 'var(--muted)', fontSize: 13, padding: '8px 0 4px' }}>
             В момента няма достъпни продукти за заявка. Свържи се с админ ако очакваш да виждаш такива.
@@ -60,7 +84,6 @@ export default function ProductRequestsWidget() {
             <div key={p.id} style={{
               background: 'var(--bg)', borderRadius: 12, padding: 12,
               display: 'flex', flexDirection: 'column', gap: 8,
-              opacity: p.can_request ? 1 : 0.7,
             }}>
               {p.image_url ? (
                 <img src={p.image_url} alt={p.name} style={{
@@ -75,24 +98,17 @@ export default function ProductRequestsWidget() {
               )}
               <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>{p.name}</div>
               <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                {p.free_quantity > 0 && (
-                  <>1-{p.free_quantity} бр. безплатно</>
+                {p.free_quantity > 0 && !freeLocked && (
+                  <>{p.free_quantity} бр. безпл. · </>
                 )}
-                {p.free_quantity > 0 && ' · '}
-                <>над това: -{p.paid_discount_pct}%</>
+                над безпл.: -{p.paid_discount_pct}%
               </div>
               <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                Интервал: на всеки {p.request_interval_days} дни
+                Заключва безпл. за {p.request_interval_days}д
               </div>
-              {p.can_request ? (
-                <button className="btn btn-sm btn-primary" onClick={() => openRequest(p)}>
-                  Заяви
-                </button>
-              ) : (
-                <button className="btn btn-sm" disabled style={{ background: 'var(--bg)', color: 'var(--muted)' }}>
-                  Достъпно след {p.days_remaining}д
-                </button>
-              )}
+              <button className="btn btn-sm btn-primary" onClick={() => openRequest(p)}>
+                Заяви
+              </button>
             </div>
           ))}
         </div>
@@ -108,15 +124,16 @@ export default function ProductRequestsWidget() {
           onSubmit={submit}
           submitting={submitting}
           msg={msg}
+          freeLocked={freeLocked}
         />
       )}
     </>
   )
 }
 
-function RequestModal({ product, qty, setQty, onClose, onSubmit, submitting, msg }) {
-  const freeQty   = Math.min(qty, product.free_quantity)
-  const paidQty   = Math.max(0, qty - freeQty)
+function RequestModal({ product, qty, setQty, onClose, onSubmit, submitting, msg, freeLocked }) {
+  const freeQty   = freeLocked ? 0 : Math.min(qty, product.free_quantity)
+  const paidQty   = qty - freeQty
   const unitPaid  = Number(product.price) * (1 - Number(product.paid_discount_pct) / 100)
   const paidTotal = Math.round(paidQty * unitPaid * 100) / 100
 
@@ -169,7 +186,14 @@ function RequestModal({ product, qty, setQty, onClose, onSubmit, submitting, msg
           background: 'var(--bg)', padding: 12, borderRadius: 10, marginBottom: 14, fontSize: 13,
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span>Безплатно</span>
+            <span>
+              Безплатно
+              {freeLocked && (
+                <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 6 }}>
+                  (свободно след {freeLocked.daysRemaining}д)
+                </span>
+              )}
+            </span>
             <span style={{ fontWeight: 600 }}>{freeQty} бр.</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
