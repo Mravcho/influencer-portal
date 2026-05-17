@@ -41,7 +41,6 @@ export default function ProductRequestsWidget() {
   }
 
   if (loading) return null
-  if (products.length === 0) return null
 
   return (
     <>
@@ -49,6 +48,12 @@ export default function ProductRequestsWidget() {
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
           🎁 Заяви продукт
         </div>
+
+        {products.length === 0 && (
+          <p style={{ color: 'var(--muted)', fontSize: 13, padding: '8px 0 4px' }}>
+            В момента няма достъпни продукти за заявка. Свържи се с админ ако очакваш да виждаш такива.
+          </p>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
           {products.map(p => (
