@@ -29,6 +29,7 @@ export default function AdminPage() {
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [pendingPayouts, setPendingPayouts]      = useState(0)
   const [pendingApplications, setPendingApplications] = useState(0)
+  const [pendingProductRequests, setPendingProductRequests] = useState(0)
 
   const load = async () => {
     const res = await fetch('/api/admin/influencers')
@@ -48,6 +49,10 @@ export default function AdminPage() {
       fetch('/api/admin/applications?count=pending')
         .then(r => r.json())
         .then(d => setPendingApplications(d.count || 0))
+        .catch(() => {})
+      fetch('/api/admin/product-requests?count=pending')
+        .then(r => r.json())
+        .then(d => setPendingProductRequests(d.count || 0))
         .catch(() => {})
     }
     fetchPending()
@@ -290,6 +295,33 @@ export default function AdminPage() {
                 border: '2px solid var(--surface)',
                 lineHeight: 1,
               }}>{pendingPayouts}</span>
+            )}
+          </button>
+          <button
+            className="btn btn-sm"
+            onClick={() => router.push('/admin/product-requests')}
+            title="Заявки за продукти от инфлуенсъри"
+            style={{ position: 'relative' }}
+          >
+            🎁 Заявки
+            {pendingProductRequests > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: -6, right: -6,
+                background: '#dc2626',
+                color: '#fff',
+                fontSize: 10,
+                fontWeight: 700,
+                minWidth: 18,
+                height: 18,
+                borderRadius: 9,
+                padding: '0 5px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid var(--surface)',
+                lineHeight: 1,
+              }}>{pendingProductRequests}</span>
             )}
           </button>
           <button className="btn btn-sm" onClick={() => router.push('/admin/request-products')} title="Каталог за заявки">🎁 Каталог</button>

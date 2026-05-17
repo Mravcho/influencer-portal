@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { sendProductRequestEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
+
+const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'pavel@realfood.bg'
+const PORTAL_URL  = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
 // GET → списък с продукти достъпни за този инфлуенсър + cooldown info за всеки
 export async function GET(request) {
@@ -132,7 +136,7 @@ export async function POST(request) {
   const unitPaid  = Number(product.price) * (1 - Number(product.paid_discount_pct) / 100)
   const paidTotal = Math.round(paidQty * unitPaid * 100) / 100
 
-  // Записваме заявката (Phase 3 ще създаде Shopify Draft Order)
+  // Записваме заявката
   const { data, error } = await supabaseAdmin
     .from('product_requests')
     .insert({
@@ -148,5 +152,27 @@ export async function POST(request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Известие до admin (fire-and-forget) — не блокираме отговора
+  const { data: inf } = await supabaseAdmin
+    .from('influencers')
+    .select('name, promo_code')
+    .eq('id', influencerId)
+    .single()
+
+  if (inf) {
+    sendProductRequestEmail({
+      to:              ADMIN_EMAIL,
+      adminPortalUrl:  PORTAL_URL,
+      influencerName:  inf.name,
+      promoCode:       inf.promo_code,
+      productName:     product.name,
+      quantity:        qty,
+      freeQty,
+      paidQty,
+      paidTotal,
+    }).catch(err => console.error('Admin product-request email failed:', err.message))
+  }
+
   return NextResponse.json(data, { status: 201 })
 }
