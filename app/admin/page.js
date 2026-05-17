@@ -443,9 +443,20 @@ export default function AdminPage() {
                       )}
                     </td>
                     <td>
-                      <span className={`badge ${inf.active ? 'badge-green' : 'badge-gray'}`}>
-                        {inf.active ? 'Активен' : 'Неактивен'}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                        <span className={`badge ${inf.active ? 'badge-green' : 'badge-gray'}`}>
+                          {inf.active ? 'Активен' : 'Неактивен'}
+                        </span>
+                        {inf.exclude_from_leaderboard && (
+                          <span
+                            className="badge"
+                            title="Не участва в класацията"
+                            style={{ background: '#fee2e2', color: '#991b1b', fontSize: 10 }}
+                          >
+                            🚫 Извън класация
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
