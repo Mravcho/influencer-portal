@@ -1,11 +1,14 @@
 'use client'
 import { useEffect, useState } from 'react'
 
+const EMPTY_SHIPPING = { method: '', recipient: '', phone: '', location: '' }
+
 export default function ProductRequestsWidget() {
   const [products, setProducts]                 = useState([])
   const [freeLocked, setFreeLocked]             = useState(null) // { daysRemaining, fromName }
+  const [shippingDefaults, setShippingDefaults] = useState(EMPTY_SHIPPING)
   const [loading, setLoading]                   = useState(true)
-  const [selected, setSelected]                 = useState(null) // { product, qty }
+  const [selected, setSelected]                 = useState(null) // { product, qty, shipping }
   const [submitting, setSubmitting]             = useState(false)
   const [msg, setMsg]                           = useState({ type: '', text: '' })
 
@@ -15,6 +18,7 @@ export default function ProductRequestsWidget() {
     if (res.ok) {
       const data = await res.json()
       setProducts(data.products || [])
+      setShippingDefaults({ ...EMPTY_SHIPPING, ...(data.shipping_defaults || {}) })
       if (data.free_locked_until) {
         setFreeLocked({
           daysRemaining: data.free_days_remaining,
@@ -30,7 +34,7 @@ export default function ProductRequestsWidget() {
   useEffect(() => { load() }, [])
 
   const openRequest = (product) => {
-    setSelected({ product, qty: 1 })
+    setSelected({ product, qty: 1, shipping: { ...shippingDefaults } })
     setMsg({})
   }
 
@@ -43,7 +47,11 @@ export default function ProductRequestsWidget() {
     const res = await fetch('/api/dashboard/request-products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ product_id: selected.product.id, quantity: selected.qty }),
+      body: JSON.stringify({
+        product_id: selected.product.id,
+        quantity:   selected.qty,
+        shipping:   selected.shipping,
+      }),
     })
     const data = await res.json()
     setSubmitting(false)
@@ -120,6 +128,8 @@ export default function ProductRequestsWidget() {
           product={selected.product}
           qty={selected.qty}
           setQty={q => setSelected(s => ({ ...s, qty: q }))}
+          shipping={selected.shipping}
+          setShipping={patch => setSelected(s => ({ ...s, shipping: { ...s.shipping, ...patch } }))}
           onClose={closeRequest}
           onSubmit={submit}
           submitting={submitting}
@@ -131,11 +141,26 @@ export default function ProductRequestsWidget() {
   )
 }
 
-function RequestModal({ product, qty, setQty, onClose, onSubmit, submitting, msg, freeLocked }) {
+const SHIPPING_OPTIONS = [
+  { value: 'econt_office',  label: '📦 Еконт офис' },
+  { value: 'speedy_office', label: '🚚 Спиди офис' },
+  { value: 'boxnow',        label: '📮 BoxNow' },
+  { value: 'address',       label: '🏠 Адрес' },
+]
+
+const LOCATION_PLACEHOLDER = {
+  econt_office:  'Град, офис (напр. София, Младост 1, офис 5567)',
+  speedy_office: 'Град, офис (напр. София, офис 87)',
+  boxnow:        'Локация (напр. София, BoxNow Mall of Sofia)',
+  address:       'Пълен адрес: град, кв., улица, №, ап.',
+}
+
+function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, onSubmit, submitting, msg, freeLocked }) {
   const freeQty   = freeLocked ? 0 : Math.min(qty, product.free_quantity)
   const paidQty   = qty - freeQty
   const unitPaid  = Number(product.price) * (1 - Number(product.paid_discount_pct) / 100)
   const paidTotal = Math.round(paidQty * unitPaid * 100) / 100
+  const formValid = shipping.method && shipping.recipient?.trim() && shipping.phone?.trim() && shipping.location?.trim()
 
   return (
     <div
@@ -214,11 +239,72 @@ function RequestModal({ product, qty, setQty, onClose, onSubmit, submitting, msg
           </div>
         </div>
 
+        {/* Доставка */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>
+            Доставка
+          </div>
+
+          <label style={modalLabel}>Начин на доставка *</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
+            {SHIPPING_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setShipping({ method: opt.value })}
+                style={{
+                  padding: '8px 10px', borderRadius: 8, fontSize: 12,
+                  cursor: 'pointer', textAlign: 'left',
+                  border: `1px solid ${shipping.method === opt.value ? 'var(--accent)' : 'var(--border)'}`,
+                  background: shipping.method === opt.value ? 'var(--accent-lt)' : 'var(--bg)',
+                  color: shipping.method === opt.value ? 'var(--accent-dk)' : 'var(--text)',
+                  fontWeight: shipping.method === opt.value ? 600 : 400,
+                  fontFamily: 'inherit',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <label style={modalLabel}>Получател *</label>
+          <input
+            type="text" placeholder="Име и фамилия"
+            value={shipping.recipient || ''}
+            onChange={e => setShipping({ recipient: e.target.value })}
+            style={{ marginBottom: 8 }}
+          />
+
+          <label style={modalLabel}>Телефон *</label>
+          <input
+            type="tel" placeholder="+359 88 ..."
+            value={shipping.phone || ''}
+            onChange={e => setShipping({ phone: e.target.value })}
+            style={{ marginBottom: 8 }}
+          />
+
+          <label style={modalLabel}>
+            {shipping.method === 'address' ? 'Адрес *' : 'Офис / локация *'}
+          </label>
+          <input
+            type="text"
+            placeholder={LOCATION_PLACEHOLDER[shipping.method] || 'Първо избери начин на доставка'}
+            value={shipping.location || ''}
+            onChange={e => setShipping({ location: e.target.value })}
+            disabled={!shipping.method}
+          />
+        </div>
+
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn" onClick={onClose} disabled={submitting} style={{ flex: 1 }}>
             Отказ
           </button>
-          <button className="btn btn-primary" onClick={onSubmit} disabled={submitting} style={{ flex: 2 }}>
+          <button
+            className="btn btn-primary"
+            onClick={onSubmit}
+            disabled={submitting || !formValid}
+            style={{ flex: 2 }}
+          >
             {submitting ? 'Изпращане...' : 'Потвърди заявката'}
           </button>
         </div>
@@ -226,3 +312,5 @@ function RequestModal({ product, qty, setQty, onClose, onSubmit, submitting, msg
     </div>
   )
 }
+
+const modalLabel = { fontSize: 11, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }

@@ -64,11 +64,24 @@ export async function GET(request) {
     }
   }
 
+  // Pre-fill за shipping формата: последно използваните стойности от инфлуенсъра
+  const { data: shippingDefaults } = await supabaseAdmin
+    .from('influencers')
+    .select('last_shipping_method, last_shipping_recipient, last_shipping_phone, last_shipping_location, name')
+    .eq('id', influencerId)
+    .single()
+
   return NextResponse.json({
     free_locked_until:      freeLockedUntil,
     free_days_remaining:    freeLockedDays,
     free_locked_from_name:  freeLockedFromName,
     products: allProducts,
+    shipping_defaults: {
+      method:    shippingDefaults?.last_shipping_method    || '',
+      recipient: shippingDefaults?.last_shipping_recipient || shippingDefaults?.name || '',
+      phone:     shippingDefaults?.last_shipping_phone     || '',
+      location:  shippingDefaults?.last_shipping_location  || '',
+    },
   })
 }
 
@@ -78,10 +91,21 @@ export async function POST(request) {
   const influencerId = request.headers.get('x-user-id')
   if (!influencerId) return NextResponse.json({ error: 'Не сте логнат' }, { status: 401 })
 
-  const { product_id, quantity } = await request.json()
+  const { product_id, quantity, shipping } = await request.json()
   const qty = parseInt(quantity)
   if (!product_id || !qty || qty < 1) {
     return NextResponse.json({ error: 'Невалидна заявка' }, { status: 400 })
+  }
+
+  const VALID_METHODS = ['econt_office', 'speedy_office', 'boxnow', 'address']
+  if (!shipping || !VALID_METHODS.includes(shipping.method)) {
+    return NextResponse.json({ error: 'Избери начин на доставка' }, { status: 400 })
+  }
+  const recipient = String(shipping.recipient || '').trim()
+  const phone     = String(shipping.phone     || '').trim()
+  const location  = String(shipping.location  || '').trim()
+  if (!recipient || !phone || !location) {
+    return NextResponse.json({ error: 'Попълни име, телефон и адрес/офис за доставка' }, { status: 400 })
   }
 
   // Зареждаме продукта
@@ -147,11 +171,26 @@ export async function POST(request) {
       paid_quantity:      paidQty,
       paid_total:         paidTotal,
       status:             'pending',
+      shipping_method:    shipping.method,
+      shipping_recipient: recipient,
+      shipping_phone:     phone,
+      shipping_location:  location,
     })
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Запазваме последно използваните стойности на инфлуенсъра за pre-fill следващия път
+  await supabaseAdmin
+    .from('influencers')
+    .update({
+      last_shipping_method:    shipping.method,
+      last_shipping_recipient: recipient,
+      last_shipping_phone:     phone,
+      last_shipping_location:  location,
+    })
+    .eq('id', influencerId)
 
   // Известие до admin (fire-and-forget) — не блокираме отговора
   const { data: inf } = await supabaseAdmin

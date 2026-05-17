@@ -11,6 +11,13 @@ const STATUS_LABEL = {
   cancelled:       'Отказана',
 }
 
+const SHIPPING_LABEL = {
+  econt_office:  '📦 Еконт офис',
+  speedy_office: '🚚 Спиди офис',
+  boxnow:        '📮 BoxNow',
+  address:       '🏠 Адрес',
+}
+
 const STATUS_BADGE = {
   pending:         { bg: '#fef3c7', color: '#92400e' },
   sent_to_shopify: { bg: '#dbeafe', color: '#1e40af' },
@@ -140,6 +147,24 @@ export default function ProductRequestsPage() {
                       </div>
                     )}
                   </div>
+
+                  {r.shipping_method && (
+                    <div style={{
+                      background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8,
+                      padding: 10, marginBottom: 10, fontSize: 12,
+                    }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                        {SHIPPING_LABEL[r.shipping_method] || r.shipping_method}
+                      </div>
+                      <div><strong>Получател:</strong> {r.shipping_recipient || '—'}</div>
+                      <div><strong>Телефон:</strong>{' '}
+                        {r.shipping_phone
+                          ? <a href={`tel:${r.shipping_phone}`} style={{ color: 'var(--accent)' }}>{r.shipping_phone}</a>
+                          : '—'}
+                      </div>
+                      <div><strong>{r.shipping_method === 'address' ? 'Адрес' : 'Офис'}:</strong> {r.shipping_location || '—'}</div>
+                    </div>
+                  )}
 
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {r.status === 'pending' && (

@@ -25,6 +25,7 @@ export async function GET(request) {
     .select(`
       id, quantity, free_quantity, paid_quantity, paid_total,
       shopify_draft_order_id, status, requested_at, fulfilled_at, notes,
+      shipping_method, shipping_recipient, shipping_phone, shipping_location,
       influencer:influencers(id, name, username, promo_code, email),
       product:request_products(id, name, image_url, shopify_product_id, shopify_variant_id, price, paid_discount_pct)
     `)
@@ -53,6 +54,7 @@ export async function PATCH(request) {
     .select(`
       id, quantity, free_quantity, paid_quantity, paid_total, status,
       shopify_draft_order_id,
+      shipping_method, shipping_recipient, shipping_phone, shipping_location,
       influencer:influencers(id, name, email, promo_code),
       product:request_products(id, name, shopify_product_id, shopify_variant_id, price, paid_discount_pct)
     `)
@@ -123,16 +125,49 @@ export async function PATCH(request) {
       })
     }
 
+    const methodLabel = {
+      econt_office:  'Еконт офис',
+      speedy_office: 'Спиди офис',
+      boxnow:        'BoxNow',
+      address:       'Адрес',
+    }[req.shipping_method] || req.shipping_method || '—'
+
     let draftOrder
     try {
+      const noteLines = [
+        `Заявка от инфлуенсър: ${req.influencer.name} (${req.influencer.promo_code})`,
+        `Продукт: ${req.product.name}`,
+        `Безплатно: ${req.free_quantity} бр., платено: ${req.paid_quantity} бр.`,
+        `Сума за плащане: ${Number(req.paid_total).toFixed(2)} €`,
+        '',
+        '— ДОСТАВКА —',
+        `Начин: ${methodLabel}`,
+        `Получател: ${req.shipping_recipient || '—'}`,
+        `Телефон: ${req.shipping_phone || '—'}`,
+        `${req.shipping_method === 'address' ? 'Адрес' : 'Офис'}: ${req.shipping_location || '—'}`,
+      ]
+
+      // shipping_address за Shopify Draft Order
+      const nameParts = (req.shipping_recipient || '').trim().split(/\s+/)
+      const firstName = nameParts[0] || req.influencer.name
+      const lastName  = nameParts.slice(1).join(' ') || ''
+      const shippingAddress = {
+        first_name: firstName,
+        last_name:  lastName,
+        phone:      req.shipping_phone || '',
+        address1:   req.shipping_method === 'address'
+                      ? (req.shipping_location || '')
+                      : `${methodLabel}: ${req.shipping_location || ''}`,
+        country:    'Bulgaria',
+        country_code: 'BG',
+      }
+
       draftOrder = await createDraftOrder({
         lineItems,
-        note: `Заявка от инфлуенсър: ${req.influencer.name} (${req.influencer.promo_code})\n` +
-              `Продукт: ${req.product.name}\n` +
-              `Безплатно: ${req.free_quantity} бр., платено: ${req.paid_quantity} бр.\n` +
-              `Сума за плащане: ${Number(req.paid_total).toFixed(2)} €`,
+        note: noteLines.join('\n'),
         customerEmail: req.influencer.email || null,
-        tags: ['influencer-request', req.influencer.promo_code],
+        tags: ['influencer-request', req.influencer.promo_code, `shipping-${req.shipping_method || 'unknown'}`],
+        shippingAddress,
       })
     } catch (err) {
       return NextResponse.json({
