@@ -32,7 +32,7 @@ export default function Dashboard() {
   const router = useRouter()
   const [data, setData]         = useState(null)
   const [loading, setLoading]   = useState(true)
-  const [userInfo, setUserInfo] = useState({ name: '', promoCode: '', commission: 0 })
+  const [userInfo, setUserInfo] = useState({ name: '', promoCode: '', commission: 0, active: true })
   const [branding, setBranding] = useState({ logo_url: null })
 
   const [activeShortcut, setActiveShortcut] = useState('all')
@@ -189,6 +189,42 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Деактивиран акаунт — оскъден изглед, само досегашна статистика */}
+        {userInfo.active === false && (
+          <>
+            <div style={{
+              background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 12,
+              padding: '14px 18px', marginBottom: '1.5rem',
+              display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+            }}>
+              <div style={{ fontSize: 22 }}>⏸</div>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#78350f' }}>
+                  Акаунтът ти е временно деактивиран
+                </div>
+                <div style={{ fontSize: 12, color: '#92400e', marginTop: 2 }}>
+                  Можеш да видиш досегашната си статистика. За реактивация — свържи се с екипа на RealFood.
+                </div>
+              </div>
+            </div>
+
+            <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
+              <div className="metric">
+                <div className="metric-label">Общо поръчки</div>
+                <div className="metric-value">{stats.totalOrders || 0}</div>
+                <div className="metric-sub">с код {userInfo.promoCode}</div>
+              </div>
+              <div className="metric">
+                <div className="metric-label">Натрупана комисионна</div>
+                <div className="metric-value">{fmtEur(stats.totalCommission || 0)}</div>
+                <div className="metric-sub">{userInfo.commission}% от пълната цена</div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Активни инфлуенсъри — пълен изглед */}
+        {userInfo.active !== false && (<>
         {/* Payouts — веднага под главната карта */}
         <PayoutWidget />
 
@@ -368,6 +404,7 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
+        </>)}
       </main>
     </div>
   )

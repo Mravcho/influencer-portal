@@ -119,17 +119,8 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Грешно потребителско име или парола' }, { status: 401 })
   }
 
-  // Неуспех: акаунтът е деактивиран
-  if (!influencer.active) {
-    await logAttempt({
-      influencerId: influencer.id,
-      attemptedUsername: username,
-      success: false,
-      failureReason: 'inactive',
-      clientInfo,
-    })
-    return NextResponse.json({ error: 'Акаунтът е деактивиран' }, { status: 403 })
-  }
+  // Деактивиран акаунт — позволяваме login но UI ще ограничи изгледа
+  // (по-рано блокирахме тук; вече инфлуенсърът може да види оскъдна статистика)
 
   // Неуспех: грешна парола
   const valid = await bcrypt.compare(password, influencer.password_hash)
