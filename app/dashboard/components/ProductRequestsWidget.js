@@ -141,7 +141,7 @@ function RequestModal({ product, qty, setQty, onClose, onSubmit, submitting, msg
           <div>
             <div style={{ fontWeight: 600, fontSize: 15 }}>{product.name}</div>
             <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-              Каталожна цена: {Number(product.price).toFixed(2)} лв
+              Каталожна цена: {Number(product.price).toFixed(2)} €
             </div>
           </div>
         </div>
@@ -175,7 +175,7 @@ function RequestModal({ product, qty, setQty, onClose, onSubmit, submitting, msg
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
             <span>Платено (с -{product.paid_discount_pct}%)</span>
             <span style={{ fontWeight: 600 }}>
-              {paidQty} бр. × {unitPaid.toFixed(2)} лв
+              {paidQty} бр. × {unitPaid.toFixed(2)} €
             </span>
           </div>
           <div style={{
@@ -185,7 +185,7 @@ function RequestModal({ product, qty, setQty, onClose, onSubmit, submitting, msg
           }}>
             <span>Общо за плащане</span>
             <span style={{ color: paidTotal > 0 ? 'var(--accent-dk)' : 'var(--muted)' }}>
-              {paidTotal.toFixed(2)} лв
+              {paidTotal.toFixed(2)} €
             </span>
           </div>
         </div>

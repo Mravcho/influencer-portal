@@ -204,7 +204,7 @@ export default function RequestProductsPage() {
                       </div>
                     </div>
                   </td>
-                  <td>{Number(p.price || 0).toFixed(2)} лв</td>
+                  <td>{Number(p.price || 0).toFixed(2)} €</td>
                   <td>{p.request_interval_days}д</td>
                   <td>{p.free_quantity}</td>
                   <td>{p.paid_discount_pct}%</td>
