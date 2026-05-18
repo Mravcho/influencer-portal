@@ -200,6 +200,25 @@ export default function AdminPage() {
     load()
   }
 
+  const sendPasswordResetLink = async (inf) => {
+    if (!inf.email) {
+      alert(`${inf.name} няма записан имейл. Добави първо.`)
+      return
+    }
+    if (!confirm(`Да изпратя линк за нова парола на ${inf.email}?`)) return
+    const res = await fetch('/api/admin/influencers/send-password-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: inf.id }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      alert(data.error || 'Грешка при изпращане')
+      return
+    }
+    alert(`Линк за нова парола е изпратен на ${data.sentTo}.`)
+  }
+
   const deleteInfluencer = async (inf) => {
     const ok = confirm(
       `Сигурен ли си че искаш да ИЗТРИЕШ инфлуенсъра "${inf.name}"?\n\n` +
@@ -462,6 +481,13 @@ export default function AdminPage() {
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button className="btn btn-sm" onClick={() => router.push(`/admin/view/${inf.id}`)} title="Виж изгледа на инфлуенсъра">👁</button>
                         <button className="btn btn-sm" onClick={() => startEdit(inf)} title="Редактиране">✎</button>
+                        <button
+                          className="btn btn-sm"
+                          onClick={() => sendPasswordResetLink(inf)}
+                          title="Прати линк за нова парола"
+                          disabled={!inf.email}
+                          style={!inf.email ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+                        >🔑</button>
                         <button className="btn btn-sm btn-ghost" onClick={() => toggleActive(inf)} title={inf.active ? 'Деактивирай' : 'Активирай'}>
                           {inf.active ? '⏸' : '▶'}
                         </button>
