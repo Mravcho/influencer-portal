@@ -5,7 +5,7 @@ import { sendApplicationEmail } from '@/lib/email'
 // Списък с админи, които получават известия за нови заявки за инфлуенсър.
 // Може да се override-не с env var ADMIN_NOTIFY_EMAILS (запетая-разделени).
 const ADMIN_EMAILS = (process.env.ADMIN_NOTIFY_EMAILS || 'pavel@realfood.bg,s.zareva@realfood.bg,order@realfood.bg')
-  .split(',').map(s => s.trim()).filter(Boolean)
+  .split(/[,;\s]+/).map(s => s.trim()).filter(Boolean)
 const PORTAL_URL  = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
 // POST /api/auth/apply — публичен endpoint за кандидатстване

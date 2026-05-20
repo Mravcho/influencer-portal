@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 // Списък с админи, които получават известия за нови заявки за продукт.
 // Може да се override-не с env var ADMIN_NOTIFY_EMAILS (запетая-разделени).
 const ADMIN_EMAILS = (process.env.ADMIN_NOTIFY_EMAILS || 'pavel@realfood.bg,s.zareva@realfood.bg,order@realfood.bg')
-  .split(',').map(s => s.trim()).filter(Boolean)
+  .split(/[,;\s]+/).map(s => s.trim()).filter(Boolean)
 const PORTAL_URL  = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
 // GET → списък с продукти достъпни за този инфлуенсър + cooldown info за всеки
