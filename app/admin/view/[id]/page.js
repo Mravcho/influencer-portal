@@ -373,6 +373,90 @@ export default function AdminInfluencerView() {
           </div>
         </div>
 
+        {/* История на заявките за продукти */}
+        {activity && activity.productHistory && activity.productHistory.length > 0 && (
+          <div className="card" style={{ marginBottom: '1rem' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
+              📜 История на заявките за продукти
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {activity.productHistory.map(r => {
+                const badge = (
+                  r.status === 'fulfilled'       ? { bg: '#d1fae5', color: '#065f46', label: 'Доставена' } :
+                  r.status === 'cancelled'       ? { bg: '#fee2e2', color: '#991b1b', label: 'Отказана'  } :
+                  r.status === 'sent_to_shopify' ? { bg: '#dbeafe', color: '#1e40af', label: 'В Shopify' } :
+                                                   { bg: '#fef3c7', color: '#92400e', label: 'Чакаща'    }
+                )
+                return (
+                  <div key={r.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: 8, background: 'var(--bg)', borderRadius: 8,
+                  }}>
+                    {r.product?.image_url ? (
+                      <img src={r.product.image_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 32, height: 32, borderRadius: 6, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>📦</div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{r.product?.name || '?'}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                        {fmtDate(r.requested_at)} · {r.quantity} бр.
+                        {' '}({r.free_quantity} безпл + {r.paid_quantity} плат)
+                        {r.paid_total > 0 && <> · {fmtEur(r.paid_total)}</>}
+                        {r.fulfilled_at && <> · ✓ {fmtDate(r.fulfilled_at)}</>}
+                      </div>
+                    </div>
+                    <span style={{
+                      background: badge.bg, color: badge.color,
+                      padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, flexShrink: 0,
+                    }}>{badge.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* История на заявките за изплащане */}
+        {activity && activity.payoutHistory && activity.payoutHistory.length > 0 && (
+          <div className="card" style={{ marginBottom: '1rem' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
+              💰 История на заявките за изплащане
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {activity.payoutHistory.map(r => {
+                const badge = (
+                  r.status === 'paid'      ? { bg: '#d1fae5', color: '#065f46', label: 'Платена'  } :
+                  r.status === 'approved'  ? { bg: '#dbeafe', color: '#1e40af', label: 'Одобрена' } :
+                  r.status === 'rejected'  ? { bg: '#fee2e2', color: '#991b1b', label: 'Отказана' } :
+                                             { bg: '#fef3c7', color: '#92400e', label: 'Чакаща'   }
+                )
+                return (
+                  <div key={r.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: 8, background: 'var(--bg)', borderRadius: 8,
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--accent-dk)' }}>
+                        {fmtEur(r.amount)}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                        {fmtDate(r.requested_at)}
+                        {r.processed_at && <> · обработена: {fmtDate(r.processed_at)}</>}
+                        {r.notes && <> · „{r.notes}"</>}
+                      </div>
+                    </div>
+                    <span style={{
+                      background: badge.bg, color: badge.color,
+                      padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, flexShrink: 0,
+                    }}>{badge.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Orders table */}
         <div className="card table-cards">
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>

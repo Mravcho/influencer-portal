@@ -32,12 +32,35 @@ export async function GET(_request, { params }) {
     .order('requested_at', { ascending: false })
     .limit(10)
 
+  // ИСТОРИЯ — всички заявки за продукти (всеки статус), последните 30
+  const { data: productHistory } = await supabaseAdmin
+    .from('product_requests')
+    .select(`
+      id, quantity, free_quantity, paid_quantity, paid_total,
+      status, requested_at, fulfilled_at, shopify_draft_order_id,
+      shipping_method, shipping_location,
+      product:request_products(name, image_url)
+    `)
+    .eq('influencer_id', id)
+    .order('requested_at', { ascending: false })
+    .limit(30)
+
+  // ИСТОРИЯ — всички заявки за изплащане, последните 30
+  const { data: payoutHistory } = await supabaseAdmin
+    .from('payout_requests')
+    .select('id, amount, status, requested_at, processed_at, notes, admin_notes')
+    .eq('influencer_id', id)
+    .order('requested_at', { ascending: false })
+    .limit(30)
+
   const pendingProductCount = (productReqs || []).filter(r => r.status === 'pending').length
   const pendingPayoutCount  = (payoutReqs || []).length
 
   return NextResponse.json({
     productRequests: productReqs || [],
     payoutRequests:  payoutReqs  || [],
+    productHistory:  productHistory || [],
+    payoutHistory:   payoutHistory  || [],
     pendingProductCount,
     pendingPayoutCount,
   })
