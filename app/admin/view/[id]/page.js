@@ -31,6 +31,7 @@ export default function AdminInfluencerView() {
   const [influencer, setInfluencer] = useState(null)
   const [data, setData]             = useState(null)
   const [loading, setLoading]       = useState(true)
+  const [activity, setActivity]     = useState(null)
   const [activeShortcut, setActiveShortcut] = useState('all')
   const [from, setFrom] = useState('')
   const [to, setTo]     = useState('')
@@ -63,6 +64,14 @@ export default function AdminInfluencerView() {
   }, [id, router])
 
   useEffect(() => { if (id) load({ days: 0 }) }, [load, id])
+
+  useEffect(() => {
+    if (!id) return
+    fetch(`/api/admin/influencers/${id}/activity`)
+      .then(r => r.ok ? r.json() : null)
+      .then(setActivity)
+      .catch(() => {})
+  }, [id])
 
   const applyShortcut = (sc) => {
     setActiveShortcut(sc.key)
@@ -195,6 +204,99 @@ export default function AdminInfluencerView() {
             </div>
           </div>
         </div>
+
+        {/* Текущи активни заявки на инфлуенсъра */}
+        {activity && (activity.productRequests.length > 0 || activity.payoutRequests.length > 0) && (
+          <div className="card" style={{ marginBottom: '1rem', borderLeft: '4px solid #f59e0b' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
+                🔔 Активни заявки от този инфлуенсър
+              </div>
+              {activity.pendingProductCount > 0 && (
+                <span style={{
+                  background: '#fef3c7', color: '#92400e',
+                  padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700,
+                }}>
+                  🎁 {activity.pendingProductCount} нов{activity.pendingProductCount === 1 ? 'а заявка' : 'и заявки'} за продукт
+                </span>
+              )}
+              {activity.pendingPayoutCount > 0 && (
+                <span style={{
+                  background: '#fef3c7', color: '#92400e',
+                  padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700,
+                }}>
+                  💰 {activity.pendingPayoutCount} нов{activity.pendingPayoutCount === 1 ? 'а заявка' : 'и заявки'} за изплащане
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+              {/* Продукти */}
+              {activity.productRequests.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>🎁 За продукт</div>
+                  {activity.productRequests.map(r => (
+                    <div key={r.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: 8, background: 'var(--bg)', borderRadius: 8, marginBottom: 6,
+                    }}>
+                      {r.product?.image_url ? (
+                        <img src={r.product.image_url} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 36, height: 36, borderRadius: 6, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>📦</div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {r.product?.name || '?'}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                          {r.quantity} бр. · {fmtDate(r.requested_at)}
+                          {r.paid_total > 0 && <> · {fmtEur(r.paid_total)}</>}
+                        </div>
+                      </div>
+                      <span className={`badge ${r.status === 'pending' ? 'badge-amber' : 'badge-blue'}`} style={{ fontSize: 10 }}>
+                        {r.status === 'pending' ? 'Чака' : 'В Shopify'}
+                      </span>
+                    </div>
+                  ))}
+                  <button
+                    className="btn btn-sm btn-ghost"
+                    onClick={() => router.push('/admin/product-requests')}
+                    style={{ marginTop: 4 }}
+                  >Виж всички →</button>
+                </div>
+              )}
+
+              {/* Изплащания */}
+              {activity.payoutRequests.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>💰 За изплащане</div>
+                  {activity.payoutRequests.map(r => (
+                    <div key={r.id} style={{
+                      padding: 8, background: 'var(--bg)', borderRadius: 8, marginBottom: 6,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--accent-dk)' }}>
+                          {fmtEur(r.amount)}
+                        </span>
+                        <span className="badge badge-amber" style={{ fontSize: 10 }}>Чака</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                        {fmtDate(r.requested_at)}
+                        {r.notes && <> · „{r.notes}"</>}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    className="btn btn-sm btn-ghost"
+                    onClick={() => router.push('/admin/payouts')}
+                    style={{ marginTop: 4 }}
+                  >Виж всички →</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Payouts — веднага под главната карта */}
         <PayoutWidget viewId={id} />
