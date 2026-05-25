@@ -79,6 +79,13 @@ function sanitizeWebhookOrder(order, promoCode, productImages = {}) {
     totalSavings = savingsFromCode
   }
 
+  // Customer info (за admin feed)
+  const shippingAddr = order.shipping_address || order.billing_address || {}
+  const customerName = [
+    shippingAddr.first_name || order.customer?.first_name,
+    shippingAddr.last_name  || order.customer?.last_name,
+  ].filter(Boolean).join(' ').trim() || null
+
   return {
     shopify_order_id: order.id,
     order_number: `#${order.order_number}`,
@@ -91,6 +98,10 @@ function sanitizeWebhookOrder(order, promoCode, productImages = {}) {
     total_savings: Math.round(totalSavings * 100) / 100,
     commissionable_revenue: Math.round(commissionableRevenue * 100) / 100,
     shipping_total: Math.round(shippingTotal * 100) / 100,
+    customer_name:   customerName,
+    customer_email:  order.email || order.contact_email || order.customer?.email || null,
+    customer_phone:  shippingAddr.phone || order.phone || order.customer?.phone || null,
+    shipping_city:   shippingAddr.city || null,
   }
 }
 
@@ -158,6 +169,10 @@ export async function POST(request) {
       commissionable_revenue: sanitized.commissionable_revenue,
       total_savings: sanitized.total_savings,
       shipping_total: sanitized.shipping_total,
+      customer_name:  sanitized.customer_name,
+      customer_email: sanitized.customer_email,
+      customer_phone: sanitized.customer_phone,
+      shipping_city:  sanitized.shipping_city,
       synced_at: new Date().toISOString(),
     }
 

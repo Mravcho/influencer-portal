@@ -345,6 +345,7 @@ export default function AdminPage() {
               }}>{pendingProductRequests}</span>
             )}
           </button>
+          <button className="btn btn-sm" onClick={() => router.push('/admin/orders')} title="Всички поръчки през промокод">📋 Поръчки</button>
           <button className="btn btn-sm" onClick={() => router.push('/admin/request-products')} title="Каталог за заявки">🎁 Каталог</button>
           <button className="btn btn-sm" onClick={() => router.push('/admin/sessions')} title="История на влизанията">👤 Сесии</button>
           <button className="btn btn-sm" onClick={() => router.push('/admin/settings')} title="Брандинг настройки">⚙ Настройки</button>
