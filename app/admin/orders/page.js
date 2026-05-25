@@ -105,93 +105,130 @@ export default function AdminOrdersPage() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="card table-wrap">
-          {loading && <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '1rem' }}>Зареждане...</p>}
+        {/* Order cards */}
+        {loading && (
+          <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '1rem' }}>Зареждане...</p>
+        )}
 
-          {!loading && orders.length === 0 && (
-            <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '2rem' }}>
-              Няма поръчки за избраните филтри.
-            </p>
-          )}
+        {!loading && orders.length === 0 && (
+          <div className="card" style={{ textAlign: 'center', color: 'var(--muted)', padding: '2rem' }}>
+            Няма поръчки за избраните филтри.
+          </div>
+        )}
 
-          {!loading && orders.length > 0 && (
-            <table style={{ minWidth: 1100 }}>
-              <thead>
-                <tr>
-                  <th>Дата</th>
-                  <th>№</th>
-                  <th>Клиент</th>
-                  <th>Град</th>
-                  <th>Продукти</th>
-                  <th>Сума</th>
-                  <th>Отстъпка</th>
-                  <th>Инфлуенсър</th>
-                  <th>Статус</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map(o => (
-                  <tr key={o.id}>
-                    <td style={{ whiteSpace: 'nowrap', color: 'var(--muted)' }}>{fmtDate(o.created_at_shopify)}</td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{o.order_number}</td>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{o.customer_name || <span style={{ color: 'var(--muted)' }}>—</span>}</div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                        {o.customer_email && <div>{o.customer_email}</div>}
-                        {o.customer_phone && (
-                          <div><a href={`tel:${o.customer_phone}`} style={{ color: 'var(--accent)' }}>{o.customer_phone}</a></div>
-                        )}
+        {!loading && orders.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {orders.map(o => (
+              <div key={o.id} className="card" style={{ padding: 14 }}>
+                {/* Ред 1: дата · № · status (вдясно) */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  gap: 10, flexWrap: 'wrap', marginBottom: 10, paddingBottom: 10,
+                  borderBottom: '1px solid var(--border)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{fmtDate(o.created_at_shopify)}</span>
+                    <span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--muted)' }}>{o.order_number}</span>
+                  </div>
+                  <OrderStatusBadge order={o} />
+                </div>
+
+                {/* Grid: клиент (ляво) · инфлуенсър (дясно) */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(200px, 1fr) auto',
+                  gap: 16,
+                  alignItems: 'flex-start',
+                  marginBottom: 10,
+                }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>
+                      Клиент
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>
+                      {o.customer_name || <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— без име</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 2 }}>
+                      {o.customer_email && (
+                        <a href={`mailto:${o.customer_email}`} style={{ color: 'var(--accent)' }}>
+                          ✉ {o.customer_email}
+                        </a>
+                      )}
+                      {o.customer_phone && (
+                        <a href={`tel:${o.customer_phone}`} style={{ color: 'var(--accent)' }}>
+                          📞 {o.customer_phone}
+                        </a>
+                      )}
+                      {o.shipping_city && <span>📍 {o.shipping_city}</span>}
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>
+                      Инфлуенсър
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+                      {o.influencer?.avatar_url ? (
+                        <img src={o.influencer.avatar_url} alt={o.influencer.name}
+                          style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{
+                          width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-lt)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 11, fontWeight: 700, color: 'var(--accent-dk)', flexShrink: 0,
+                        }}>{o.influencer?.name?.slice(0, 2).toUpperCase()}</div>
+                      )}
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{o.influencer?.name || '?'}</div>
+                        <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 10 }}>
+                          {o.influencer?.promo_code || '—'}
+                        </code>
                       </div>
-                    </td>
-                    <td style={{ color: 'var(--muted)' }}>{o.shipping_city || '—'}</td>
-                    <td>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {(o.line_items || []).map((item, i) => (
-                          <span key={i} className={`product-chip ${item.discounted ? 'discounted' : ''}`}>
-                            {item.image_url ? (
-                              <img src={item.image_url} alt="" className="product-thumb" style={{ width: 22, height: 22 }} />
-                            ) : (
-                              <span className="product-thumb-placeholder" style={{ width: 22, height: 22, fontSize: 9 }}>
-                                {item.title?.slice(0, 1).toUpperCase()}
-                              </span>
-                            )}
-                            <span>{item.quantity}× {item.title}</span>
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(o.total_price)}</td>
-                    <td style={{ color: '#16a34a', whiteSpace: 'nowrap' }}>
-                      {parseFloat(o.total_savings || 0) > 0 ? `−${fmtEur(o.total_savings)}` : '—'}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {o.influencer?.avatar_url ? (
-                          <img src={o.influencer.avatar_url} alt={o.influencer.name}
-                            style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Продукти */}
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>
+                    Продукти
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {(o.line_items || []).map((item, i) => (
+                      <span key={i} className={`product-chip ${item.discounted ? 'discounted' : ''}`}>
+                        {item.image_url ? (
+                          <img src={item.image_url} alt="" className="product-thumb" style={{ width: 22, height: 22 }} />
                         ) : (
-                          <div style={{
-                            width: 24, height: 24, borderRadius: '50%', background: 'var(--accent-lt)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 10, fontWeight: 700, color: 'var(--accent-dk)', flexShrink: 0,
-                          }}>{o.influencer?.name?.slice(0, 2).toUpperCase()}</div>
+                          <span className="product-thumb-placeholder" style={{ width: 22, height: 22, fontSize: 9 }}>
+                            {item.title?.slice(0, 1).toUpperCase()}
+                          </span>
                         )}
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>{o.influencer?.name || '?'}</div>
-                          <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 10 }}>
-                            {o.influencer?.promo_code || '—'}
-                          </code>
-                        </div>
-                      </div>
-                    </td>
-                    <td><OrderStatusBadge order={o} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                        <span>{item.quantity}× {item.title}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Footer: суми */}
+                <div style={{
+                  display: 'flex', justifyContent: 'flex-end', gap: 18, flexWrap: 'wrap',
+                  paddingTop: 10, borderTop: '1px solid var(--border)',
+                }}>
+                  {parseFloat(o.total_savings || 0) > 0 && (
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px' }}>Отстъпка</div>
+                      <div style={{ fontWeight: 600, color: '#16a34a', fontSize: 14 }}>−{fmtEur(o.total_savings)}</div>
+                    </div>
+                  )}
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px' }}>Платено</div>
+                    <div style={{ fontWeight: 700, color: 'var(--accent-dk)', fontSize: 16 }}>{fmtEur(o.total_price)}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   )
