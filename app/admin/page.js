@@ -31,6 +31,7 @@ export default function AdminPage() {
   const [pendingPayouts, setPendingPayouts]      = useState(0)
   const [pendingApplications, setPendingApplications] = useState(0)
   const [pendingProductRequests, setPendingProductRequests] = useState(0)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const load = async () => {
     const res = await fetch('/api/admin/influencers')
@@ -351,7 +352,78 @@ export default function AdminPage() {
           <button className="btn btn-sm" onClick={() => router.push('/admin/settings')} title="Брандинг настройки">⚙ Настройки</button>
           <button className="btn btn-sm btn-ghost" onClick={logout}>Изход</button>
         </div>
+
+        {/* Hamburger — само на мобилен */}
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Меню"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="4" y1="7"  x2="20" y2="7"  />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <line x1="4" y1="17" x2="20" y2="17" />
+          </svg>
+          {(pendingApplications + pendingPayouts + pendingProductRequests) > 0 && (
+            <span style={{
+              position: 'absolute', top: -4, right: -4,
+              background: '#dc2626', color: '#fff',
+              fontSize: 10, fontWeight: 700,
+              minWidth: 16, height: 16, borderRadius: 8,
+              padding: '0 4px', display: 'inline-flex',
+              alignItems: 'center', justifyContent: 'center',
+              border: '2px solid var(--surface)', lineHeight: 1,
+            }}>{pendingApplications + pendingPayouts + pendingProductRequests}</span>
+          )}
+        </button>
       </header>
+
+      {/* Mobile drawer */}
+      {mobileMenuOpen && (
+        <>
+          <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)} />
+          <div className="mobile-drawer">
+            <div className="mobile-drawer-header">
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Меню</div>
+              <button
+                className="btn btn-sm btn-ghost"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Затвори"
+                style={{ fontSize: 18, padding: '4px 10px' }}
+              >✕</button>
+            </div>
+
+            {[
+              { icon: '📨', label: 'Заявки за инфлуенсъри', path: '/admin/applications', count: pendingApplications },
+              { icon: '💰', label: 'Изплащане',             path: '/admin/payouts',      count: pendingPayouts },
+              { icon: '🎁', label: 'Заявки за продукти',    path: '/admin/product-requests', count: pendingProductRequests },
+              { icon: '📋', label: 'Всички поръчки',        path: '/admin/orders' },
+              { icon: '🎁', label: 'Каталог продукти',       path: '/admin/request-products' },
+              { icon: '👤', label: 'Сесии',                  path: '/admin/sessions' },
+              { icon: '⚙',  label: 'Настройки',              path: '/admin/settings' },
+            ].map(item => (
+              <button
+                key={item.path}
+                className="mobile-drawer-item"
+                onClick={() => { setMobileMenuOpen(false); router.push(item.path) }}
+              >
+                <span className="icon">{item.icon}</span>
+                <span>{item.label}</span>
+                {item.count > 0 && <span className="badge-count">{item.count}</span>}
+              </button>
+            ))}
+
+            <button
+              className="mobile-drawer-item"
+              onClick={() => { setMobileMenuOpen(false); logout() }}
+              style={{ marginTop: 12, color: '#dc2626' }}
+            >
+              <span className="icon">↪</span>
+              <span>Изход</span>
+            </button>
+          </div>
+        </>
+      )}
 
       <main className="main-container">
         {/* Monthly leaderboard — най-отгоре */}

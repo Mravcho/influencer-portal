@@ -163,13 +163,95 @@ tbody tr:hover td { background: var(--bg); }
   flex-wrap: wrap;
   justify-content: flex-end;
 }
-@media (max-width: 560px) {
-  .header-actions {
-    width: 100%;
-    justify-content: stretch;
-  }
-  .header-actions .btn { flex: 1; justify-content: center; }
+
+/* Hamburger бутон — само на мобилен */
+.mobile-menu-btn {
+  display: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
 }
+.mobile-menu-btn svg { width: 22px; height: 22px; }
+
+@media (max-width: 560px) {
+  .header-actions { display: none; }
+  .mobile-menu-btn { display: inline-flex; }
+}
+
+/* Mobile drawer */
+.mobile-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 100;
+  animation: drawerFade .15s ease-out;
+}
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 86%;
+  max-width: 320px;
+  background: var(--surface);
+  z-index: 101;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: drawerSlide .2s ease-out;
+}
+.mobile-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.mobile-drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--bg);
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text);
+}
+.mobile-drawer-item:hover { background: var(--accent-lt); }
+.mobile-drawer-item .icon { font-size: 18px; width: 24px; text-align: center; }
+.mobile-drawer-item .badge-count {
+  margin-left: auto;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+@keyframes drawerFade  { from { opacity: 0 } to { opacity: 1 } }
+@keyframes drawerSlide { from { transform: translateX(100%) } to { transform: translateX(0) } }
 
 /* Main container — padding по-малко на мобилен */
 .main-container {
