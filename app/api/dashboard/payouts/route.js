@@ -66,7 +66,7 @@ export async function GET(request) {
 
   const { data: payouts } = await supabaseAdmin
     .from('payout_requests')
-    .select('id, amount, status, requested_at, processed_at, notes, admin_notes')
+    .select('id, amount, status, requested_at, processed_at, notes, admin_notes, invoice_url, invoice_filename')
     .eq('influencer_id', influencerId)
     .order('requested_at', { ascending: false })
 
@@ -81,11 +81,16 @@ export async function POST(request) {
   }
 
   const influencerId = request.headers.get('x-user-id')
-  const { amount, notes } = await request.json()
+  const { amount, notes, invoice_url, invoice_filename } = await request.json()
   const amt = parseFloat(amount)
 
   if (!amt || amt <= 0) return NextResponse.json({ error: 'Невалидна сума' }, { status: 400 })
   if (amt < MIN_PAYOUT)  return NextResponse.json({ error: `Минимална сума за заявка: ${MIN_PAYOUT} €` }, { status: 400 })
+  if (!invoice_url) {
+    return NextResponse.json({
+      error: 'Прикачи фактура — без финансов документ не се правят изплащания.',
+    }, { status: 400 })
+  }
 
   const balance = await calcAvailable(influencerId)
   if (amt > balance.available) {
@@ -96,7 +101,15 @@ export async function POST(request) {
 
   const { data, error } = await supabaseAdmin
     .from('payout_requests')
-    .insert({ influencer_id: influencerId, amount: amt, notes: notes || null, status: 'pending' })
+    .insert({
+      influencer_id:        influencerId,
+      amount:               amt,
+      notes:                notes || null,
+      status:               'pending',
+      invoice_url,
+      invoice_filename:     invoice_filename || null,
+      invoice_uploaded_at:  new Date().toISOString(),
+    })
     .select()
     .single()
 

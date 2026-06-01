@@ -114,6 +114,7 @@ export default function AdminPayouts() {
                   <th>Инфлуенсър</th>
                   <th>Сума</th>
                   <th>Заявка</th>
+                  <th>Фактура</th>
                   <th>Бележка</th>
                   <th>Статус</th>
                   <th>Действие</th>
@@ -147,6 +148,21 @@ export default function AdminPayouts() {
                       <td data-label="Заявка" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
                         <div>{format(new Date(p.requested_at), 'd MMM yyyy', { locale: bg })}</div>
                         <div style={{ color: 'var(--muted)' }}>{format(new Date(p.requested_at), 'HH:mm', { locale: bg })}</div>
+                      </td>
+                      <td data-label="Фактура" style={{ fontSize: 12 }}>
+                        {p.invoice_url ? (
+                          <a
+                            href={p.invoice_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4,
+                              color: 'var(--accent)', fontWeight: 600,
+                            }}
+                          >📎 {p.invoice_filename ? (p.invoice_filename.length > 18 ? p.invoice_filename.slice(0, 15) + '...' : p.invoice_filename) : 'Виж'}</a>
+                        ) : (
+                          <span style={{ color: 'var(--muted)', fontSize: 11 }}>— стара заявка</span>
+                        )}
                       </td>
                       <td data-label="Бележка" style={{ fontSize: 11, maxWidth: 200 }}>
                         {p.notes && <div>{p.notes}</div>}

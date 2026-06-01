@@ -19,7 +19,7 @@ export async function GET(request) {
 
   let query = supabaseAdmin
     .from('payout_requests')
-    .select('id, amount, status, requested_at, processed_at, notes, admin_notes, influencer_id')
+    .select('id, amount, status, requested_at, processed_at, notes, admin_notes, influencer_id, invoice_url, invoice_filename')
     .order('requested_at', { ascending: false })
     .limit(200)
 

@@ -19,6 +19,9 @@ export default function PayoutWidget({ viewId = null }) {
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]   = useState('')
+  const [invoiceUrl, setInvoiceUrl] = useState('')
+  const [invoiceFilename, setInvoiceFilename] = useState('')
+  const [uploadingInvoice, setUploadingInvoice] = useState(false)
 
   const load = () => {
     const url = viewId
@@ -33,21 +36,54 @@ export default function PayoutWidget({ viewId = null }) {
   const { balance, payouts } = data
   const canRequest = balance.available >= balance.minPayout
 
+  const uploadInvoice = async (file) => {
+    if (!file) return
+    setError('')
+    setUploadingInvoice(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch('/api/dashboard/payouts/upload-invoice', { method: 'POST', body: fd })
+    const d = await res.json()
+    setUploadingInvoice(false)
+    if (!res.ok) {
+      setError(d.error || 'Грешка при качване на фактурата')
+      return
+    }
+    setInvoiceUrl(d.url)
+    setInvoiceFilename(d.filename || file.name)
+  }
+
+  const resetForm = () => {
+    setShowForm(false)
+    setAmount('')
+    setNotes('')
+    setInvoiceUrl('')
+    setInvoiceFilename('')
+    setError('')
+  }
+
   const submit = async (e) => {
     e.preventDefault()
     setError('')
+    if (!invoiceUrl) {
+      setError('Прикачи фактура — без финансов документ не се правят изплащания.')
+      return
+    }
     setSubmitting(true)
     const res = await fetch('/api/dashboard/payouts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: parseFloat(amount), notes: notes || null }),
+      body: JSON.stringify({
+        amount: parseFloat(amount),
+        notes: notes || null,
+        invoice_url: invoiceUrl,
+        invoice_filename: invoiceFilename,
+      }),
     })
     const d = await res.json()
     setSubmitting(false)
     if (!res.ok) { setError(d.error || 'Грешка'); return }
-    setShowForm(false)
-    setAmount('')
-    setNotes('')
+    resetForm()
     load()
   }
 
@@ -108,6 +144,57 @@ export default function PayoutWidget({ viewId = null }) {
           </div>
           <div>
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
+              📎 Фактура * <span style={{ fontWeight: 400 }}>(PDF, JPG, PNG, WebP — макс 15 MB)</span>
+            </label>
+            {!invoiceUrl ? (
+              <label
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '12px', border: '2px dashed var(--border)', borderRadius: 10,
+                  cursor: uploadingInvoice ? 'wait' : 'pointer',
+                  background: 'var(--surface)', fontSize: 13, color: 'var(--muted)',
+                }}
+              >
+                {uploadingInvoice ? '⟳ Качване...' : '📎 Избери файл с фактурата'}
+                <input
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  onChange={e => e.target.files?.[0] && uploadInvoice(e.target.files[0])}
+                  disabled={uploadingInvoice}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            ) : (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                background: '#d1fae5', border: '1px solid #6ee7b7', borderRadius: 10,
+                fontSize: 13,
+              }}>
+                <span>✓</span>
+                <span style={{ flex: 1, minWidth: 0, color: '#065f46', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {invoiceFilename}
+                </span>
+                <a
+                  href={invoiceUrl} target="_blank" rel="noopener noreferrer"
+                  style={{ fontSize: 11, color: '#065f46', fontWeight: 600 }}
+                >Виж</a>
+                <button
+                  type="button"
+                  onClick={() => { setInvoiceUrl(''); setInvoiceFilename('') }}
+                  style={{
+                    background: 'none', border: 'none', color: '#dc2626',
+                    cursor: 'pointer', fontSize: 14, padding: 0,
+                  }}
+                  aria-label="Премахни"
+                >✕</button>
+              </div>
+            )}
+            <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+              Без прикачена фактура заявката не може да бъде изпратена.
+            </p>
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
               Бележка (опционално)
             </label>
             <input
@@ -116,10 +203,10 @@ export default function PayoutWidget({ viewId = null }) {
             />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
+            <button type="submit" className="btn btn-primary" disabled={submitting || uploadingInvoice || !invoiceUrl}>
               {submitting ? 'Изпращане...' : 'Изпрати заявка'}
             </button>
-            <button type="button" className="btn" onClick={() => setShowForm(false)}>Отказ</button>
+            <button type="button" className="btn" onClick={resetForm}>Отказ</button>
           </div>
         </form>
       )}
@@ -150,6 +237,12 @@ export default function PayoutWidget({ viewId = null }) {
                       <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, fontStyle: 'italic' }}>
                         Admin: {p.admin_notes}
                       </div>
+                    )}
+                    {p.invoice_url && (
+                      <a
+                        href={p.invoice_url} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4, display: 'inline-block' }}
+                      >📎 {p.invoice_filename || 'Виж фактура'}</a>
                     )}
                   </div>
                   <span className={`badge ${s.badge}`}>{s.label}</span>
