@@ -16,7 +16,7 @@ export const maxDuration = 60
 export async function GET() {
   const { data: influencers, error } = await supabaseAdmin
     .from('influencers')
-    .select('id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes')
+    .select('id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes, share_link_target, contract_url, contract_filename, contract_uploaded_at')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -78,11 +78,15 @@ export async function POST(request) {
     name, username, password, promo_code, commission, platform,
     notes, profile_url, avatar_url, banner_url,
     email, email_notifications, exclude_from_leaderboard,
+    share_link_target, contract_url, contract_filename,
   } = body
 
-  if (!name || !username || !promo_code) {
-    return NextResponse.json({ error: 'Липсват задължителни полета' }, { status: 400 })
+  // Промо кодът вече е опционален — за инфлуенсъри без commission setup.
+  // Името и username са задължителни.
+  if (!name || !username) {
+    return NextResponse.json({ error: 'Името и потребителското име са задължителни' }, { status: 400 })
   }
+  const promoCodeNorm = promo_code ? promo_code.trim().toUpperCase() : null
 
   // Ако не е подадена парола — генерираме случайна (инфлуенсърът ще си зададе своя през reset линка)
   const initialPassword = password || crypto.randomBytes(16).toString('hex')
@@ -94,18 +98,22 @@ export async function POST(request) {
       name,
       username: username.toLowerCase(),
       password_hash,
-      promo_code: promo_code.toUpperCase(),
-      commission: commission || 10,
+      promo_code:          promoCodeNorm,
+      commission:          commission || 10,
       platform,
-      notes,
+      notes:               notes || null,
       profile_url:         profile_url   || null,
       avatar_url:          avatar_url    || null,
       banner_url:          banner_url    || null,
       email:               email ? email.toLowerCase().trim() : null,
       email_notifications: email_notifications !== false,
       exclude_from_leaderboard: exclude_from_leaderboard === true,
+      share_link_target:   share_link_target ? share_link_target.trim() : null,
+      contract_url:        contract_url        || null,
+      contract_filename:   contract_filename   || null,
+      contract_uploaded_at: contract_url ? new Date().toISOString() : null,
     })
-    .select('id, name, username, promo_code, commission, platform, email')
+    .select('id, name, username, promo_code, commission, platform, email, share_link_target')
     .single()
 
   if (error) {

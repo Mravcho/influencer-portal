@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { buildShopifyDiscountUrl, isBot, SHOP_BASE_URL } from '@/lib/share-links'
+import { buildShopifyDiscountUrl, buildNonPromoTargetUrl, isBot, SHOP_BASE_URL } from '@/lib/share-links'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -38,7 +38,7 @@ export async function GET(request, { params }) {
   if (influencerId) {
     const { data: inf } = await supabaseAdmin
       .from('influencers')
-      .select('id, promo_code, platform')
+      .select('id, promo_code, platform, share_link_target, username')
       .eq('id', influencerId)
       .single()
     influencer = inf
@@ -46,7 +46,7 @@ export async function GET(request, { params }) {
     // Fallback: ако няма share_link, търсим по промо код директно
     const { data: inf } = await supabaseAdmin
       .from('influencers')
-      .select('id, promo_code, platform')
+      .select('id, promo_code, platform, share_link_target, username')
       .ilike('promo_code', code)
       .maybeSingle()
     influencer = inf
@@ -56,8 +56,15 @@ export async function GET(request, { params }) {
   // Няма match → пренасочваме към магазина
   if (!influencer) return NextResponse.redirect(SHOP_BASE_URL, 302)
 
-  // Изграждаме target dynamically — UTM-те винаги отразяват текущата платформа/промо код
-  const targetUrl = buildShopifyDiscountUrl(influencer.promo_code, influencer.platform)
+  // Изграждаме target dynamically — UTM-те винаги отразяват текущата платформа/промо код.
+  // Ако няма промокод, изграждаме no-promo URL (share_link_target или дефолтна страница).
+  const targetUrl = influencer.promo_code
+    ? buildShopifyDiscountUrl(influencer.promo_code, influencer.platform)
+    : buildNonPromoTargetUrl({
+        shareLinkTarget: influencer.share_link_target,
+        platform:        influencer.platform,
+        attribution:     influencer.username || influencer.id,
+      })
 
   // Записваме клика — само ако НЕ е bot
   const clientInfo = extractClientInfo(request)

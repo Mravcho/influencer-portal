@@ -12,6 +12,8 @@ const emptyForm = {
   profile_url: '', avatar_url: '', banner_url: '',
   send_password_reset: false,
   exclude_from_leaderboard: false,
+  share_link_target: '',
+  contract_url: '', contract_filename: '',
 }
 
 export default function AdminPage() {
@@ -28,6 +30,7 @@ export default function AdminPage() {
   const [avatarLoading, setAvatarLoading] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
+  const [contractUploading, setContractUploading] = useState(false)
   const [pendingPayouts, setPendingPayouts]      = useState(0)
   const [pendingApplications, setPendingApplications] = useState(0)
   const [pendingProductRequests, setPendingProductRequests] = useState(0)
@@ -84,6 +87,23 @@ export default function AdminPage() {
 
     if (kind === 'banner') setField('banner_url', data.url)
     else setField('avatar_url', data.url)
+  }
+
+  const uploadContract = async (file) => {
+    if (!file) return
+    setContractUploading(true)
+    setMsg({})
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch('/api/admin/influencers/upload-contract', { method: 'POST', body: fd })
+    const data = await res.json()
+    setContractUploading(false)
+    if (!res.ok) {
+      setMsg({ type: 'error', text: data.error || 'Грешка при качване на договора' })
+      return
+    }
+    setField('contract_url', data.url)
+    setField('contract_filename', data.filename || file.name)
   }
 
   const fetchAvatar = async () => {
@@ -154,7 +174,7 @@ export default function AdminPage() {
     setOriginalEmail(inf.email || '')
     setForm({
       name: inf.name, username: inf.username, password: '',
-      promo_code: inf.promo_code, commission: inf.commission,
+      promo_code: inf.promo_code || '', commission: inf.commission,
       platform: inf.platform || 'Instagram', email: inf.email || '',
       email_notifications: inf.email_notifications !== false,
       notes: inf.notes || '',
@@ -163,6 +183,9 @@ export default function AdminPage() {
       banner_url:  inf.banner_url  || '',
       send_password_reset: false,
       exclude_from_leaderboard: inf.exclude_from_leaderboard === true,
+      share_link_target: inf.share_link_target || '',
+      contract_url: inf.contract_url || '',
+      contract_filename: inf.contract_filename || '',
     })
     setTab('form')
     setMsg({})
@@ -647,8 +670,11 @@ export default function AdminPage() {
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Промокод Shopify *</label>
-                  <input value={form.promo_code} onChange={e => setField('promo_code', e.target.value.toUpperCase())} placeholder="MARIA15" required style={{ textTransform: 'uppercase' }} />
+                  <label style={labelStyle}>Промокод Shopify (опционално)</label>
+                  <input value={form.promo_code} onChange={e => setField('promo_code', e.target.value.toUpperCase())} placeholder="MARIA15" style={{ textTransform: 'uppercase' }} />
+                  <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                    Остави празно за инфлуенсъри без commission setup (само за клик статистики).
+                  </p>
                 </div>
               </div>
               <div className="grid-2">
@@ -811,8 +837,76 @@ export default function AdminPage() {
                 </div>
               </div>
               <div>
-                <label style={labelStyle}>Бележки (само за admin)</label>
-                <input value={form.notes} onChange={e => setField('notes', e.target.value)} placeholder="Договор №, контакт..." />
+                <label style={labelStyle}>
+                  Линк за пренасочване (когато няма промокод)
+                </label>
+                <input
+                  value={form.share_link_target}
+                  onChange={e => setField('share_link_target', e.target.value)}
+                  placeholder="https://realfood.bg/collections/protein или /collections/protein"
+                />
+                <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                  Само ако НЯМА промокод. Може да е пълен URL или path (напр. <code>/collections/protein</code>).
+                  Ако оставиш празно → пренасочва към началната страница.
+                </p>
+              </div>
+
+              <div>
+                <label style={labelStyle}>📎 Договор (PDF, DOC/DOCX, JPG, PNG — макс 20 MB)</label>
+                {!form.contract_url ? (
+                  <label
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '12px', border: '2px dashed var(--border)', borderRadius: 10,
+                      cursor: contractUploading ? 'wait' : 'pointer',
+                      background: 'var(--bg)', fontSize: 13, color: 'var(--muted)',
+                    }}
+                  >
+                    {contractUploading ? '⟳ Качване...' : '📎 Прикачи договор'}
+                    <input
+                      type="file"
+                      accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp"
+                      onChange={e => e.target.files?.[0] && uploadContract(e.target.files[0])}
+                      disabled={contractUploading}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                ) : (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                    background: '#d1fae5', border: '1px solid #6ee7b7', borderRadius: 10,
+                    fontSize: 13,
+                  }}>
+                    <span>✓</span>
+                    <span style={{ flex: 1, minWidth: 0, color: '#065f46', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {form.contract_filename || 'договор'}
+                    </span>
+                    <a
+                      href={form.contract_url} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 11, color: '#065f46', fontWeight: 600 }}
+                    >Виж</a>
+                    <button
+                      type="button"
+                      onClick={() => { setField('contract_url', ''); setField('contract_filename', '') }}
+                      style={{
+                        background: 'none', border: 'none', color: '#dc2626',
+                        cursor: 'pointer', fontSize: 14, padding: 0,
+                      }}
+                      aria-label="Премахни"
+                    >✕</button>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label style={labelStyle}>Бележки / Допълнителна информация (само за admin)</label>
+                <textarea
+                  value={form.notes}
+                  onChange={e => setField('notes', e.target.value)}
+                  placeholder="Договор №, контакти, специални условия, история на работа..."
+                  rows={4}
+                  style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit' }}
+                />
               </div>
 
               <div>

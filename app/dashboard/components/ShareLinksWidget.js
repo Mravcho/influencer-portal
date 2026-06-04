@@ -20,24 +20,75 @@ function buildShortcuts() {
 function MiniBars({ daily, color = '#1D9E75', height = 60 }) {
   const max = Math.max(...daily.map(d => d.count), 0) || 1
   const w = 100 / daily.length
+  const [hover, setHover] = useState(null)
+
   return (
-    <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" style={{ width: '100%', height, display: 'block' }}>
-      {daily.map((d, i) => {
-        const h = (d.count / max) * (height - 4)
-        return (
-          <rect
-            key={i}
-            x={i * w + w * 0.15}
-            y={height - h - 2}
-            width={w * 0.7}
-            height={h}
-            fill={color}
-            opacity={d.count > 0 ? 1 : 0.15}
-            rx="0.5"
-          />
-        )
-      })}
-    </svg>
+    <div style={{ position: 'relative' }}>
+      <svg
+        viewBox={`0 0 100 ${height}`}
+        preserveAspectRatio="none"
+        style={{ width: '100%', height, display: 'block', overflow: 'visible' }}
+      >
+        {daily.map((d, i) => {
+          const h = (d.count / max) * (height - 4)
+          const fmtDate = (() => {
+            try { return format(parseISO(d.date), 'd MMM yyyy', { locale: bg }) }
+            catch { return d.date }
+          })()
+          return (
+            <g
+              key={i}
+              onMouseEnter={() => setHover({ index: i, date: fmtDate, count: d.count, x: i * w + w / 2 })}
+              onMouseLeave={() => setHover(null)}
+              style={{ cursor: 'pointer' }}
+            >
+              {/* Прозрачна по-широка hit area за да се hover-ва лесно дори при 0 */}
+              <rect
+                x={i * w}
+                y={0}
+                width={w}
+                height={height}
+                fill="transparent"
+              />
+              <rect
+                x={i * w + w * 0.15}
+                y={height - h - 2}
+                width={w * 0.7}
+                height={h}
+                fill={color}
+                opacity={d.count > 0 ? (hover?.index === i ? 1 : 0.85) : 0.15}
+                rx="0.5"
+              />
+              <title>{`${fmtDate} — ${d.count} ${d.count === 1 ? 'клик' : 'клика'}`}</title>
+            </g>
+          )
+        })}
+      </svg>
+
+      {/* Tooltip над графиката */}
+      {hover && (
+        <div
+          style={{
+            position: 'absolute',
+            left: `${hover.x}%`,
+            bottom: '100%',
+            transform: 'translate(-50%, -6px)',
+            background: '#1a1a18',
+            color: '#fff',
+            padding: '6px 10px',
+            borderRadius: 6,
+            fontSize: 11,
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            boxShadow: '0 2px 8px rgba(0,0,0,.2)',
+            zIndex: 10,
+          }}
+        >
+          <div style={{ fontWeight: 600 }}>{hover.date}</div>
+          <div>{hover.count} {hover.count === 1 ? 'клик' : 'клика'}</div>
+        </div>
+      )}
+    </div>
   )
 }
 
