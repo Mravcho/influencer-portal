@@ -553,6 +553,30 @@ export default function AdminPage() {
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button className="btn btn-sm" onClick={() => router.push(`/admin/view/${inf.id}`)} title="Виж изгледа на инфлуенсъра">👁</button>
+                        {inf.profile_url ? (
+                          <a
+                            className="btn btn-sm"
+                            href={inf.profile_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Отвори профил в ${inf.platform || 'соц. мрежа'}`}
+                            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                          >{
+                            ({
+                              Instagram: '📷',
+                              TikTok:    '🎵',
+                              YouTube:   '▶',
+                              Facebook:  '👤',
+                            })[inf.platform] || '🔗'
+                          }</a>
+                        ) : (
+                          <button
+                            className="btn btn-sm"
+                            title="Няма зададен линк към профил"
+                            disabled
+                            style={{ opacity: 0.4, cursor: 'not-allowed' }}
+                          >🔗</button>
+                        )}
                         <button className="btn btn-sm" onClick={() => startEdit(inf)} title="Редактиране">✎</button>
                         <button
                           className="btn btn-sm"

@@ -1,7 +1,21 @@
 'use client'
-import { useEffect, useState, useMemo } from 'react'
-import { format, parseISO } from 'date-fns'
+import { useEffect, useState, useMemo, useCallback } from 'react'
+import { format, parseISO, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { bg } from 'date-fns/locale'
+
+const ymd = (d) => format(d, 'yyyy-MM-dd')
+function buildShortcuts() {
+  const now = new Date()
+  const thisMonth = startOfMonth(now)
+  const lastMonthDate = subMonths(now, 1)
+  return [
+    { key: '7',  label: '7 дни',       days: 7 },
+    { key: '30', label: '30 дни',      days: 30 },
+    { key: '90', label: '90 дни',      days: 90 },
+    { key: 'tm', label: 'Този месец',  from: ymd(thisMonth),            to: ymd(now) },
+    { key: 'lm', label: 'Минал месец', from: ymd(startOfMonth(lastMonthDate)), to: ymd(endOfMonth(lastMonthDate)) },
+  ]
+}
 
 function MiniBars({ daily, color = '#1D9E75', height = 60 }) {
   const max = Math.max(...daily.map(d => d.count), 0) || 1
@@ -28,11 +42,14 @@ function MiniBars({ daily, color = '#1D9E75', height = 60 }) {
 }
 
 export default function ShareLinksWidget({ viewId = null, baseUrl }) {
-  const [data, setData]       = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [data, setData]         = useState(null)
+  const [loading, setLoading]   = useState(true)
   const [copiedId, setCopiedId] = useState(null)
 
-  const linksUrl = viewId ? `/api/dashboard/links?viewId=${viewId}` : '/api/dashboard/links'
+  const shortcuts = useMemo(() => buildShortcuts(), [])
+  const [activeShortcut, setActiveShortcut] = useState('30')
+  const [from, setFrom] = useState('')
+  const [to, setTo]     = useState('')
 
   const portalBase = useMemo(() => {
     if (baseUrl) return baseUrl
@@ -40,16 +57,40 @@ export default function ShareLinksWidget({ viewId = null, baseUrl }) {
     return ''
   }, [baseUrl])
 
-  useEffect(() => {
+  const load = useCallback((params) => {
     setLoading(true)
-    fetch(linksUrl)
+    const qs = new URLSearchParams()
+    if (viewId) qs.set('viewId', viewId)
+    if (params?.from) qs.set('from', params.from)
+    if (params?.to)   qs.set('to', params.to)
+    if (params?.days && !params.from && !params.to) qs.set('days', String(params.days))
+    fetch(`/api/dashboard/links?${qs.toString()}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [linksUrl])
+  }, [viewId])
+
+  useEffect(() => { load({ days: 30 }) }, [load])
+
+  const applyShortcut = (sc) => {
+    setActiveShortcut(sc.key)
+    if (sc.days) {
+      setFrom(''); setTo('')
+      load({ days: sc.days })
+    } else {
+      setFrom(sc.from); setTo(sc.to)
+      load({ from: sc.from, to: sc.to })
+    }
+  }
+
+  const applyCustom = () => {
+    if (!from && !to) return
+    setActiveShortcut('custom')
+    load({ from, to })
+  }
 
   const links = data?.links || []
-  const stats = data ? { total: data.total, daily: data.daily, topReferrers: data.topReferrers } : null
+  const stats = data ? { total: data.total, lifetimeTotal: data.lifetimeTotal, daily: data.daily, topReferrers: data.topReferrers } : null
 
   const fullUrl = (code) => `${portalBase}/r/${code}`
 
@@ -63,19 +104,60 @@ export default function ShareLinksWidget({ viewId = null, baseUrl }) {
     }
   }
 
-  if (loading) return null
+  if (loading && !data) return null
 
-  const totalClicks = stats?.total || 0
+  const totalClicks    = stats?.total || 0
+  const lifetimeClicks = stats?.lifetimeTotal || 0
 
   return (
     <div className="card" style={{ marginBottom: '1rem' }}>
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
-          🔗 Твоят споделяем линк
+      {/* Заглавие + 2 числа: за периода и общо */}
+      <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
+            🔗 Твоят споделяем линк
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 700, marginTop: 2 }}>
+            {totalClicks} <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--muted)' }}>клика за избрания период</span>
+          </div>
         </div>
-        <div style={{ fontSize: 24, fontWeight: 700, marginTop: 2 }}>
-          {totalClicks} <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--muted)' }}>клика (90 дни)</span>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
+            Общо до сега
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent-dk)' }}>
+            {lifetimeClicks}
+          </div>
         </div>
+      </div>
+
+      {/* Date filters */}
+      <div className="filter-row" style={{ marginBottom: 12, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginRight: 4 }}>
+          Период:
+        </div>
+        {shortcuts.map(sc => (
+          <button
+            key={sc.key}
+            className={`chip ${activeShortcut === sc.key ? 'active' : ''}`}
+            onClick={() => applyShortcut(sc)}
+            disabled={loading}
+          >{sc.label}</button>
+        ))}
+        <input
+          type="date" value={from} onChange={e => setFrom(e.target.value)}
+          style={{ fontSize: 11, padding: '4px 6px', width: 'auto' }}
+        />
+        <span style={{ color: 'var(--muted)', fontSize: 11 }}>—</span>
+        <input
+          type="date" value={to} onChange={e => setTo(e.target.value)}
+          style={{ fontSize: 11, padding: '4px 6px', width: 'auto' }}
+        />
+        <button
+          className={`chip ${activeShortcut === 'custom' ? 'active' : ''}`}
+          onClick={applyCustom}
+          disabled={(!from && !to) || loading}
+        >Приложи</button>
       </div>
 
       {/* Mini chart на кликовете */}
@@ -83,10 +165,16 @@ export default function ShareLinksWidget({ viewId = null, baseUrl }) {
         <div style={{ marginBottom: 14 }}>
           <MiniBars daily={stats.daily} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>
-            <span>{format(parseISO(stats.daily[0].date), 'd MMM', { locale: bg })}</span>
-            <span>{format(parseISO(stats.daily[stats.daily.length - 1].date), 'd MMM', { locale: bg })}</span>
+            <span>{format(parseISO(stats.daily[0].date), 'd MMM yyyy', { locale: bg })}</span>
+            <span>{format(parseISO(stats.daily[stats.daily.length - 1].date), 'd MMM yyyy', { locale: bg })}</span>
           </div>
         </div>
+      )}
+
+      {totalClicks === 0 && lifetimeClicks > 0 && (
+        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+          Няма кликове в избрания период. Пробвай по-широк диапазон.
+        </p>
       )}
 
       {/* Списък с линкове */}

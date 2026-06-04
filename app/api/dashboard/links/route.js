@@ -5,15 +5,19 @@ import { buildShopifyDiscountUrl, ensureDefaultLink } from '@/lib/share-links'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const CLICK_WINDOW_DAYS = 90
+const DEFAULT_WINDOW_DAYS = 30
 
-// GET /api/dashboard/links → линкове + всички click статистики (от ЕДНА DB заявка)
-// Връща: links (с per-link брояч), total, daily, topReferrers
-// Всичко идва от един и същ snapshot на базата → броячите винаги съвпадат.
+// GET /api/dashboard/links → линкове + click статистики за избран период
+// Query: from, to (YYYY-MM-DD), или days (по подразбиране 30)
+// Връща: links (с per-link брояч за периода), total (за периода), lifetimeTotal (от началото),
+//        daily, topReferrers, rangeFrom, rangeTo
 export async function GET(request) {
   const userRole = request.headers.get('x-user-role')
   const { searchParams } = new URL(request.url)
   const viewId = searchParams.get('viewId')
+  const fromParam = searchParams.get('from')
+  const toParam   = searchParams.get('to')
+  const daysParam = parseInt(searchParams.get('days') || '')
 
   let influencerId = request.headers.get('x-user-id')
   if (userRole === 'admin' && viewId) influencerId = viewId
@@ -26,12 +30,21 @@ export async function GET(request) {
 
   if (inf) await ensureDefaultLink(inf)
 
-  const since = new Date()
-  since.setDate(since.getDate() - CLICK_WINDOW_DAYS)
-  since.setHours(0, 0, 0, 0)
+  // Определяме периода
+  let rangeFrom, rangeTo
+  if (fromParam || toParam) {
+    rangeFrom = fromParam ? new Date(fromParam + 'T00:00:00.000Z') : new Date('2020-01-01T00:00:00.000Z')
+    rangeTo   = toParam   ? new Date(toParam   + 'T23:59:59.999Z') : new Date()
+  } else {
+    const days = Number.isFinite(daysParam) && daysParam > 0 ? daysParam : DEFAULT_WINDOW_DAYS
+    rangeTo   = new Date()
+    rangeFrom = new Date()
+    rangeFrom.setDate(rangeFrom.getDate() - days)
+    rangeFrom.setHours(0, 0, 0, 0)
+  }
 
-  // Тегли links + clicks (с count) едновременно
-  const [linksResult, clicksResult] = await Promise.all([
+  // Тегли links + clicks (с count) за периода + lifetime count (отделна заявка)
+  const [linksResult, clicksResult, lifetimeResult] = await Promise.all([
     supabaseAdmin
       .from('share_links')
       .select('id, short_code, label, is_default, created_at')
@@ -43,14 +56,21 @@ export async function GET(request) {
       .from('link_clicks')
       .select('id, link_id, clicked_at, referrer', { count: 'exact' })
       .eq('influencer_id', influencerId)
-      .gte('clicked_at', since.toISOString())
+      .gte('clicked_at', rangeFrom.toISOString())
+      .lte('clicked_at', rangeTo.toISOString())
       .order('clicked_at', { ascending: false })
-      .limit(2000),
+      .limit(5000),
+
+    supabaseAdmin
+      .from('link_clicks')
+      .select('id', { count: 'exact', head: true })
+      .eq('influencer_id', influencerId),
   ])
 
-  const links     = linksResult.data || []
-  const clickList = clicksResult.data || []
-  const total     = clicksResult.count ?? clickList.length
+  const links         = linksResult.data || []
+  const clickList     = clicksResult.data || []
+  const total         = clicksResult.count ?? clickList.length
+  const lifetimeTotal = lifetimeResult.count ?? 0
 
   // Per-link брояч (от същия dataset)
   const clicksByLink = {}
@@ -59,11 +79,11 @@ export async function GET(request) {
     clicksByLink[c.link_id] = (clicksByLink[c.link_id] || 0) + 1
   })
 
-  // Дневна разбивка (включваме днешния ден)
+  // Дневна разбивка между rangeFrom и rangeTo (включително)
   const dailyMap = {}
-  for (let i = 0; i <= CLICK_WINDOW_DAYS; i++) {
-    const d = new Date(since)
-    d.setDate(d.getDate() + i)
+  const startDay = new Date(rangeFrom); startDay.setHours(0, 0, 0, 0)
+  const endDay   = new Date(rangeTo);   endDay.setHours(0, 0, 0, 0)
+  for (let d = new Date(startDay); d.getTime() <= endDay.getTime(); d.setDate(d.getDate() + 1)) {
     const key = d.toISOString().slice(0, 10)
     dailyMap[key] = { date: key, count: 0 }
   }
@@ -95,7 +115,10 @@ export async function GET(request) {
   return NextResponse.json({
     links:        enriched,
     total,
+    lifetimeTotal,
     daily:        Object.values(dailyMap),
     topReferrers,
+    rangeFrom:    rangeFrom.toISOString(),
+    rangeTo:      rangeTo.toISOString(),
   })
 }
