@@ -465,23 +465,19 @@ export default function AdminPage() {
 
         {tab === 'list' && (
           <div className="card table-wrap">
-            <table style={{ minWidth: 760 }}>
+            <table style={{ fontSize: 12 }}>
               <thead><tr>
                 <th>Инфлуенсър</th>
-                <th>Промокод</th>
-                <th>Кликове 90д</th>
-                <th>Поръчки</th>
-                <th>Приход</th>
-                <th>Ком. %</th>
-                <th>Дължимо</th>
-                <th>Мейл</th>
+                <th>Активност</th>
+                <th style={{ textAlign: 'right' }}>Финанси</th>
                 <th>Статус</th>
                 <th>Действия</th>
               </tr></thead>
               <tbody>
                 {influencers.map(inf => (
-                  <tr key={inf.id}>
-                    <td>
+                  <tr key={inf.id} style={{ verticalAlign: 'top' }}>
+                    {/* Инфлуенсър: avatar + name + username · platform + промокод + мейл icon */}
+                    <td style={{ padding: '8px 6px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         {inf.avatar_url ? (
                           <img
@@ -494,65 +490,78 @@ export default function AdminPage() {
                             width: 32, height: 32, borderRadius: '50%',
                             background: 'var(--accent-lt)', display: 'flex',
                             alignItems: 'center', justifyContent: 'center',
-                            fontSize: 12, fontWeight: 700, color: 'var(--accent-dk)', flexShrink: 0,
+                            fontSize: 11, fontWeight: 700, color: 'var(--accent-dk)', flexShrink: 0,
                           }}>
                             {inf.name?.slice(0, 2).toUpperCase()}
                           </div>
                         )}
-                        <div>
-                          <div style={{ fontWeight: 600 }}>{inf.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                            {inf.username} · {' '}
-                            {inf.profile_url ? (
-                              <a href={inf.profile_url} target="_blank" rel="noopener noreferrer"
-                                style={{ color: 'var(--accent)' }}>
-                                {inf.platform}
-                              </a>
-                            ) : inf.platform}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600 }}>
+                            {inf.name}
+                            {inf.email && (
+                              <span title={inf.email} style={{ marginLeft: 6, fontSize: 11 }}>
+                                {inf.email_notifications !== false ? '📧' : '🔕'}
+                              </span>
+                            )}
                           </div>
+                          <div style={{ fontSize: 10, color: 'var(--muted)' }}>
+                            {inf.username} · {inf.platform}
+                          </div>
+                          <code style={{
+                            background: 'var(--bg)', padding: '0 5px', borderRadius: 3,
+                            fontSize: 10, marginTop: 2, display: 'inline-block',
+                          }}>{inf.promo_code}</code>
                         </div>
                       </div>
                     </td>
-                    <td><code style={{ background: 'var(--bg)', padding: '2px 7px', borderRadius: 5, fontSize: 12 }}>{inf.promo_code}</code></td>
-                    <td style={{ fontWeight: 600, color: inf.clickCount > 0 ? 'var(--accent)' : 'var(--muted)' }}>
-                      {inf.clickCount || 0}
-                    </td>
-                    <td style={{ fontWeight: 600 }}>{inf.orderCount || 0}</td>
-                    <td>{fmtEur(inf.totalRevenue)}</td>
-                    <td>{inf.commission}%</td>
-                    <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{fmtEur(inf.totalCommission)}</td>
-                    <td>
-                      {inf.email ? (
-                        <span title={inf.email} style={{ fontSize: 13 }}>
-                          {inf.email_notifications !== false ? '📧' : '🔕'}
-                          {' '}
-                          <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                            {inf.email_notifications !== false ? 'вкл.' : 'изкл.'}
-                          </span>
+
+                    {/* Активност: кликове + поръчки stacked */}
+                    <td style={{ padding: '8px 6px' }}>
+                      <div>
+                        <span style={{ color: inf.clickCount > 0 ? 'var(--accent)' : 'var(--muted)', fontWeight: 600 }}>
+                          {inf.clickCount || 0}
                         </span>
-                      ) : (
-                        <span style={{ fontSize: 11, color: '#ccc' }}>—</span>
-                      )}
+                        <span style={{ color: 'var(--muted)', fontSize: 10 }}> кликa 90д</span>
+                      </div>
+                      <div>
+                        <span style={{ fontWeight: 600 }}>{inf.orderCount || 0}</span>
+                        <span style={{ color: 'var(--muted)', fontSize: 10 }}> поръчки</span>
+                      </div>
                     </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
-                        <span className={`badge ${inf.active ? 'badge-green' : 'badge-gray'}`}>
+
+                    {/* Финанси: Дължимо (голямо) + приход (малко) + ком % */}
+                    <td style={{ padding: '8px 6px', textAlign: 'right' }}>
+                      <div style={{ color: 'var(--accent)', fontWeight: 700 }}>{fmtEur(inf.totalCommission)}</div>
+                      <div style={{ fontSize: 10, color: 'var(--muted)' }}>
+                        приход {fmtEur(inf.totalRevenue)}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--muted)' }}>
+                        ком. {inf.commission}%
+                      </div>
+                    </td>
+
+                    {/* Статус */}
+                    <td style={{ padding: '8px 6px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                        <span className={`badge ${inf.active ? 'badge-green' : 'badge-gray'}`} style={{ fontSize: 10 }}>
                           {inf.active ? 'Активен' : 'Неактивен'}
                         </span>
                         {inf.exclude_from_leaderboard && (
                           <span
                             className="badge"
                             title="Не участва в класацията"
-                            style={{ background: '#fee2e2', color: '#991b1b', fontSize: 10 }}
+                            style={{ background: '#fee2e2', color: '#991b1b', fontSize: 9 }}
                           >
-                            🚫 Извън класация
+                            🚫 Извън клас.
                           </span>
                         )}
                       </div>
                     </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn btn-sm" onClick={() => router.push(`/admin/view/${inf.id}`)} title="Виж изгледа на инфлуенсъра">👁</button>
+
+                    {/* Действия: 6 бутона, по-компактни */}
+                    <td style={{ padding: '8px 6px' }}>
+                      <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                        <button className="btn btn-sm" onClick={() => router.push(`/admin/view/${inf.id}`)} title="Виж изгледа на инфлуенсъра" style={actionBtnStyle}>👁</button>
                         {inf.profile_url ? (
                           <a
                             className="btn btn-sm"
@@ -560,7 +569,7 @@ export default function AdminPage() {
                             target="_blank"
                             rel="noopener noreferrer"
                             title={`Отвори профил в ${inf.platform || 'соц. мрежа'}`}
-                            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                            style={{ ...actionBtnStyle, textDecoration: 'none' }}
                           >{
                             ({
                               Instagram: '📷',
@@ -574,31 +583,32 @@ export default function AdminPage() {
                             className="btn btn-sm"
                             title="Няма зададен линк към профил"
                             disabled
-                            style={{ opacity: 0.4, cursor: 'not-allowed' }}
+                            style={{ ...actionBtnStyle, opacity: 0.4, cursor: 'not-allowed' }}
                           >🔗</button>
                         )}
-                        <button className="btn btn-sm" onClick={() => startEdit(inf)} title="Редактиране">✎</button>
+                        <button className="btn btn-sm" onClick={() => startEdit(inf)} title="Редактиране" style={actionBtnStyle}>✎</button>
                         <button
                           className="btn btn-sm"
                           onClick={() => sendPasswordResetLink(inf)}
                           title="Прати линк за нова парола"
                           disabled={!inf.email}
-                          style={!inf.email ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+                          style={{ ...actionBtnStyle, ...(!inf.email ? { opacity: 0.4, cursor: 'not-allowed' } : {}) }}
                         >🔑</button>
-                        <button className="btn btn-sm btn-ghost" onClick={() => toggleActive(inf)} title={inf.active ? 'Деактивирай' : 'Активирай'}>
+                        <button className="btn btn-sm btn-ghost" onClick={() => toggleActive(inf)} title={inf.active ? 'Деактивирай' : 'Активирай'} style={actionBtnStyle}>
                           {inf.active ? '⏸' : '▶'}
                         </button>
                         <button
                           className="btn btn-sm btn-danger"
                           onClick={() => deleteInfluencer(inf)}
                           title="Изтрий инфлуенсъра (необратимо)"
+                          style={actionBtnStyle}
                         >🗑</button>
                       </div>
                     </td>
                   </tr>
                 ))}
                 {influencers.length === 0 && (
-                  <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--muted)', padding: '2rem' }}>
+                  <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--muted)', padding: '2rem' }}>
                     Няма добавени инфлуенсъри.{' '}
                     <button className="btn btn-sm" style={{ marginLeft: 8 }} onClick={() => setTab('form')}>Добави първия</button>
                   </td></tr>
@@ -882,3 +892,4 @@ export default function AdminPage() {
 }
 
 const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 5 }
+const actionBtnStyle = { padding: '4px 7px', fontSize: 13, minWidth: 0 }
