@@ -162,9 +162,6 @@ export async function PATCH(request) {
         country_code: 'BG',
       }
 
-      // Изцяло безплатна заявка → маркираме поръчката платена с 0-сума транзакция
-      const allFree = Number(req.paid_total) <= 0
-
       shopifyOrder = await createOrder({
         lineItems,
         note: noteLines.join('\n'),
@@ -175,7 +172,6 @@ export async function PATCH(request) {
           `shipping-${req.shipping_method || 'unknown'}`,
         ].filter(Boolean),
         shippingAddress,
-        markPaid: allFree,
       })
     } catch (err) {
       return NextResponse.json({
