@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { createDraftOrder } from '@/lib/shopify'
+import { createOrder } from '@/lib/shopify'
 
 export const dynamic = 'force-dynamic'
 
@@ -132,7 +132,7 @@ export async function PATCH(request) {
       address:       'Адрес',
     }[req.shipping_method] || req.shipping_method || '—'
 
-    let draftOrder
+    let shopifyOrder
     try {
       const noteLines = [
         `Заявка от инфлуенсър: ${req.influencer.name} (${req.influencer.promo_code})`,
@@ -162,16 +162,24 @@ export async function PATCH(request) {
         country_code: 'BG',
       }
 
-      draftOrder = await createDraftOrder({
+      // Изцяло безплатна заявка → маркираме поръчката платена с 0-сума транзакция
+      const allFree = Number(req.paid_total) <= 0
+
+      shopifyOrder = await createOrder({
         lineItems,
         note: noteLines.join('\n'),
         customerEmail: req.influencer.email || null,
-        tags: ['influencer-request', req.influencer.promo_code, `shipping-${req.shipping_method || 'unknown'}`],
+        tags: [
+          'influencer-request',
+          req.influencer.promo_code,
+          `shipping-${req.shipping_method || 'unknown'}`,
+        ].filter(Boolean),
         shippingAddress,
+        markPaid: allFree,
       })
     } catch (err) {
       return NextResponse.json({
-        error: `Shopify Draft Order error: ${err.message}`,
+        error: `Shopify Order error: ${err.message}`,
       }, { status: 502 })
     }
 
@@ -179,14 +187,17 @@ export async function PATCH(request) {
       .from('product_requests')
       .update({
         status:                  'sent_to_shopify',
-        shopify_draft_order_id:  String(draftOrder?.id || ''),
+        shopify_draft_order_id:  String(shopifyOrder?.id || ''),
       })
       .eq('id', id)
       .select()
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ ...data, draft_order_invoice_url: draftOrder?.invoice_url || null })
+    return NextResponse.json({
+      ...data,
+      shopify_order_number: shopifyOrder?.order_number ? `#${shopifyOrder.order_number}` : null,
+    })
   }
 
   return NextResponse.json({ error: 'Неизвестно действие' }, { status: 400 })

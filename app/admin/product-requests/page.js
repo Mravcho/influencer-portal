@@ -52,8 +52,11 @@ export default function ProductRequestsPage() {
     const data = await res.json()
     setBusy(b => { const n = { ...b }; delete n[id]; return n })
     if (!res.ok) { setMsg({ type: 'error', text: data.error }); return }
-    if (action === 'approve' && data.draft_order_invoice_url) {
-      setMsg({ type: 'success', text: 'Draft Order е създаден в Shopify. Отвори линка и довърши с адрес за доставка.' })
+    if (action === 'approve') {
+      const msg = data.shopify_order_number
+        ? `Поръчка ${data.shopify_order_number} е създадена директно в Shopify.`
+        : 'Поръчката е създадена в Shopify.'
+      setMsg({ type: 'success', text: msg })
     } else {
       setMsg({ type: 'success', text: 'Обновено.' })
     }
@@ -142,7 +145,7 @@ export default function ProductRequestsPage() {
                     </div>
                     {r.shopify_draft_order_id && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                        <span style={{ color: 'var(--muted)' }}>Shopify Draft</span>
+                        <span style={{ color: 'var(--muted)' }}>Shopify Order ID</span>
                         <span><code>{r.shopify_draft_order_id}</code></span>
                       </div>
                     )}
@@ -174,7 +177,7 @@ export default function ProductRequestsPage() {
                           onClick={() => act(r.id, 'approve')}
                           disabled={!!busy[r.id]}
                         >
-                          {busy[r.id] === 'approve' ? 'Създаване...' : '✓ Одобри (Draft Order)'}
+                          {busy[r.id] === 'approve' ? 'Създаване...' : '✓ Одобри (създай поръчка)'}
                         </button>
                         <button
                           className="btn btn-sm btn-danger"
