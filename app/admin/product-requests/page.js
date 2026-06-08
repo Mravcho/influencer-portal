@@ -57,6 +57,11 @@ export default function ProductRequestsPage() {
         ? `Поръчка ${data.shopify_order_number} е създадена директно в Shopify.`
         : 'Поръчката е създадена в Shopify.'
       setMsg({ type: 'success', text: msg })
+    } else if (action === 'recreate') {
+      setMsg({
+        type: 'success',
+        text: `Старата Shopify поръчка е анулирана и нова е създадена${data.shopify_order_number ? ` (${data.shopify_order_number})` : ''} с правилните цени.`,
+      })
     } else {
       setMsg({ type: 'success', text: 'Обновено.' })
     }
@@ -192,14 +197,29 @@ export default function ProductRequestsPage() {
                       </>
                     )}
                     {r.status === 'sent_to_shopify' && (
-                      <button
-                        className="btn btn-sm"
-                        style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7' }}
-                        onClick={() => act(r.id, 'fulfilled')}
-                        disabled={!!busy[r.id]}
-                      >
-                        {busy[r.id] === 'fulfilled' ? '...' : 'Маркирай като изпълнена'}
-                      </button>
+                      <>
+                        <button
+                          className="btn btn-sm"
+                          style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7' }}
+                          onClick={() => act(r.id, 'fulfilled')}
+                          disabled={!!busy[r.id]}
+                        >
+                          {busy[r.id] === 'fulfilled' ? '...' : 'Маркирай като изпълнена'}
+                        </button>
+                        <button
+                          className="btn btn-sm"
+                          style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' }}
+                          onClick={() => {
+                            if (confirm('Това ще АНУЛИРА сегашната Shopify поръчка и ще създаде нова със същите данни и правилни цени. Продължи?')) {
+                              act(r.id, 'recreate')
+                            }
+                          }}
+                          disabled={!!busy[r.id]}
+                          title="Анулирай старата и създай нова с правилни цени"
+                        >
+                          {busy[r.id] === 'recreate' ? 'Преправяне...' : '🔄 Преправи в Shopify'}
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
