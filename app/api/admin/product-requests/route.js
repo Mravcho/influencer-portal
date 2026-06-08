@@ -147,25 +147,44 @@ export async function PATCH(request) {
         `${req.shipping_method === 'address' ? 'Адрес' : 'Офис'}: ${req.shipping_location || '—'}`,
       ]
 
-      // shipping_address за Shopify Draft Order
+      // shipping_address за Shopify Order
+      // Shopify изисква city за BG поръчки; ако не я подадем — цялото address
+      // се отхвърля. Опитваме да я извлечем от shipping_location ("София, офис 87"
+      // → "София") или fallback-ваме на "София".
       const nameParts = (req.shipping_recipient || '').trim().split(/\s+/)
-      const firstName = nameParts[0] || req.influencer.name
-      const lastName  = nameParts.slice(1).join(' ') || ''
+      const firstName = nameParts[0] || req.influencer.name?.split(/\s+/)[0] || 'Получател'
+      const lastName  = nameParts.slice(1).join(' ') || '—'
+      const cityGuess = (() => {
+        if (req.shipping_method === 'address') return 'София'
+        const first = (req.shipping_location || '').split(/[,;–-]/)[0].trim()
+        return first || 'София'
+      })()
       const shippingAddress = {
+        first_name:   firstName,
+        last_name:    lastName,
+        phone:        req.shipping_phone || '',
+        address1:     req.shipping_method === 'address'
+                        ? (req.shipping_location || '')
+                        : `${methodLabel}: ${req.shipping_location || ''}`,
+        city:         cityGuess,
+        zip:          '0000',
+        country:      'Bulgaria',
+        country_code: 'BG',
+      }
+
+      // Explicit customer block — изпращачът да е инфлуенсърът (с името на получателя
+      // за да не се обвързва с произволен съществуващ customer record по имейл).
+      // НЕ подаваме email, за да избегнем object overlap с друг клиент в Shopify.
+      const customer = {
         first_name: firstName,
         last_name:  lastName,
         phone:      req.shipping_phone || '',
-        address1:   req.shipping_method === 'address'
-                      ? (req.shipping_location || '')
-                      : `${methodLabel}: ${req.shipping_location || ''}`,
-        country:    'Bulgaria',
-        country_code: 'BG',
       }
 
       shopifyOrder = await createOrder({
         lineItems,
         note: noteLines.join('\n'),
-        customerEmail: req.influencer.email || null,
+        customer,
         tags: [
           'influencer-request',
           req.influencer.promo_code,
