@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { createOrder, cancelOrder } from '@/lib/shopify'
+import { createOrder } from '@/lib/shopify'
 
 export const dynamic = 'force-dynamic'
 
@@ -87,28 +87,14 @@ export async function PATCH(request) {
     return NextResponse.json(data)
   }
 
-  if (action === 'approve' || action === 'recreate') {
-    if (action === 'approve' && req.status !== 'pending') {
+  if (action === 'approve') {
+    if (req.status !== 'pending') {
       return NextResponse.json({ error: 'Заявката не е в статус pending' }, { status: 400 })
-    }
-    if (action === 'recreate' && req.status !== 'sent_to_shopify') {
-      return NextResponse.json({ error: 'Може да преправяш само заявки в Shopify' }, { status: 400 })
     }
     if (!req.product?.shopify_variant_id) {
       return NextResponse.json({
         error: 'Продуктът няма Shopify variant ID — пусни „🔄 Refresh from Shopify" в каталога.',
       }, { status: 400 })
-    }
-
-    // При recreate — първо анулираме старата Shopify поръчка
-    if (action === 'recreate' && req.shopify_draft_order_id) {
-      try {
-        await cancelOrder(req.shopify_draft_order_id, { reason: 'other' })
-      } catch (err) {
-        return NextResponse.json({
-          error: `Не успях да анулирам старата Shopify поръчка: ${err.message}`,
-        }, { status: 502 })
-      }
     }
 
     // Подготвяме line_items с директни override-нати цени.
@@ -198,7 +184,6 @@ export async function PATCH(request) {
           'influencer-request',
           req.influencer.promo_code,
           `shipping-${req.shipping_method || 'unknown'}`,
-          ...(action === 'recreate' ? ['recreated'] : []),
         ].filter(Boolean),
         shippingAddress,
       })
