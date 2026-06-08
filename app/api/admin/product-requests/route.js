@@ -97,31 +97,26 @@ export async function PATCH(request) {
       }, { status: 400 })
     }
 
-    // Подготвяме line_items: отделни редове за безплатно и за платено,
-    // за да може admin-ът да види разбивката в Shopify Admin.
+    // Подготвяме line_items с директни override-нати цени.
+    // На реални Orders applied_discount НЕ работи (само на Draft Orders).
+    // Затова override-ваме price на всеки ред — 0 за безплатните, дисконтирана цена за платените.
+    const unitPrice = Number(req.product.price || 0)
+    const unitPaid  = unitPrice * (1 - Number(req.product.paid_discount_pct || 0) / 100)
     const lineItems = []
     if (req.free_quantity > 0) {
       lineItems.push({
-        variant_id:       Number(req.product.shopify_variant_id),
-        quantity:         req.free_quantity,
-        applied_discount: {
-          value_type:  'percentage',
-          value:       '100.0',
-          title:       'Influencer free',
-          description: `Безплатно за инфлуенсър ${req.influencer.name}`,
-        },
+        variant_id: Number(req.product.shopify_variant_id),
+        quantity:   req.free_quantity,
+        price:      '0.00',
+        title:      `${req.product.name} (безплатно — инфлуенсър)`,
       })
     }
     if (req.paid_quantity > 0) {
       lineItems.push({
-        variant_id:       Number(req.product.shopify_variant_id),
-        quantity:         req.paid_quantity,
-        applied_discount: {
-          value_type:  'percentage',
-          value:       String(req.product.paid_discount_pct),
-          title:       `Influencer -${req.product.paid_discount_pct}%`,
-          description: `Отстъпка за инфлуенсър ${req.influencer.name}`,
-        },
+        variant_id: Number(req.product.shopify_variant_id),
+        quantity:   req.paid_quantity,
+        price:      unitPaid.toFixed(2),
+        title:      `${req.product.name} (-${req.product.paid_discount_pct}% инфлуенсър)`,
       })
     }
 
