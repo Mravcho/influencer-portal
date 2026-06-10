@@ -21,29 +21,30 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Pre-fetch click counts за последните 90 дни (всички инфлуенсъри наведнъж)
+  // Per-influencer click count за последните 90 дни.
+  // Bulk-fetch с .select() се отрязва от Supabase default row limit (1000),
+  // а count: 'exact' дава точния брой без limit.
   const clickWindow = new Date()
   clickWindow.setDate(clickWindow.getDate() - 90)
   clickWindow.setHours(0, 0, 0, 0)
-  const { data: allClicks } = await supabaseAdmin
-    .from('link_clicks')
-    .select('influencer_id')
-    .gte('clicked_at', clickWindow.toISOString())
-  const clicksByInf = {}
-  ;(allClicks || []).forEach(c => {
-    if (!c.influencer_id) return
-    clicksByInf[c.influencer_id] = (clicksByInf[c.influencer_id] || 0) + 1
-  })
+  const clickWindowIso = clickWindow.toISOString()
 
-  // Добавяме order stats за всеки
+  // Добавяме order stats + click count за всеки
   const enriched = await Promise.all(influencers.map(async (inf) => {
-    const { data: orders } = await supabaseAdmin
-      .from('orders')
-      .select('total_price, commissionable_revenue, line_items, financial_status')
-      .eq('influencer_id', inf.id)
+    const [ordersRes, clickRes] = await Promise.all([
+      supabaseAdmin
+        .from('orders')
+        .select('total_price, commissionable_revenue, line_items, financial_status')
+        .eq('influencer_id', inf.id),
+      supabaseAdmin
+        .from('link_clicks')
+        .select('id', { count: 'exact', head: true })
+        .eq('influencer_id', inf.id)
+        .gte('clicked_at', clickWindowIso),
+    ])
 
     // Изключваме отказани/рефундирани поръчки от всички тотали
-    const activeOrders = (orders || []).filter(
+    const activeOrders = (ordersRes.data || []).filter(
       o => o.financial_status !== 'voided' && o.financial_status !== 'refunded'
     )
 
@@ -64,7 +65,7 @@ export async function GET() {
       orderCount:      activeOrders.length,
       totalRevenue:    Math.round(totalRevenue * 100) / 100,
       totalCommission: Math.round(totalCommissionable * inf.commission / 100 * 100) / 100,
-      clickCount:      clicksByInf[inf.id] || 0,
+      clickCount:      clickRes.count || 0,
     }
   }))
 
