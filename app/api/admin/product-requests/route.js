@@ -167,13 +167,13 @@ export async function PATCH(request) {
         country_code: 'BG',
       }
 
-      // Explicit customer block — изпращачът да е инфлуенсърът (с името на получателя
-      // за да не се обвързва с произволен съществуващ customer record по имейл).
-      // НЕ подаваме email, за да избегнем object overlap с друг клиент в Shopify.
+      // Explicit customer block — само име на получателя.
+      // НЕ подаваме email НИТО phone, защото Shopify ги ползва за customer matching
+      // и хвърля 422 ако вече съществува customer record с тях. Phone остава в
+      // shipping_address за куриера.
       const customer = {
         first_name: firstName,
         last_name:  lastName,
-        phone:      req.shipping_phone || '',
       }
 
       shopifyOrder = await createOrder({
