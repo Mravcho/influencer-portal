@@ -25,11 +25,13 @@ export async function GET(request, { params }) {
   const code = (params?.code || '').toLowerCase()
   if (!code) return NextResponse.redirect(SHOP_BASE_URL)
 
-  // 1. Намираме share_link → влъжваме инфлуенсъра
+  // 1. Намираме share_link → влъжваме инфлуенсъра.
+  // ilike (без wildcards) е case-insensitive equality — толерира стари записи
+  // където short_code е със смесен case.
   const { data: link } = await supabaseAdmin
     .from('share_links')
     .select('id, influencer_id')
-    .eq('short_code', code)
+    .ilike('short_code', code)
     .maybeSingle()
 
   let influencerId = link?.influencer_id || null
