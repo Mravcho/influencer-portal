@@ -194,23 +194,27 @@ function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme })
         height: '100vh',
       }}
     >
-      <div style={{ padding: '24px 22px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ padding: '24px 22px 12px', display: 'flex', alignItems: 'center', gap: 10, minHeight: 56 }}>
         {branding.logo_url ? (
-          <img src={branding.logo_url} alt="" style={{ height: 28 }} />
+          // Качено лого от admin — показва се само то, без wordmark
+          <img src={branding.logo_url} alt="RealFood" style={{ height: 32, maxWidth: 180, objectFit: 'contain' }} />
         ) : (
-          <div style={{
-            width: 32, height: 32, borderRadius: 10,
-            background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
-            boxShadow: '0 0 20px rgba(52,211,153,.3)',
-          }} aria-hidden />
+          // Fallback: gradient + wordmark
+          <>
+            <div style={{
+              width: 32, height: 32, borderRadius: 10,
+              background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
+              boxShadow: '0 0 20px rgba(52,211,153,.3)',
+            }} aria-hidden />
+            <div style={{
+              fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
+              background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>RealFood</div>
+          </>
         )}
-        <div style={{
-          fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
-          background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-        }}>RealFood</div>
       </div>
 
       <nav style={{ padding: '8px 10px', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 2 }} aria-label="Главна навигация">
@@ -506,18 +510,20 @@ function KpiCard({ label, value, Icon, accent, sparkData, theme }) {
         overflow: 'hidden',
       }}
     >
-      {/* Subtle accent corner glow */}
-      <div style={{
-        position: 'absolute',
-        top: -40,
-        right: -40,
-        width: 120,
-        height: 120,
-        borderRadius: '50%',
-        background: `${accent}10`,
-        filter: 'blur(30px)',
-        pointerEvents: 'none',
-      }} aria-hidden />
+      {/* Subtle accent corner glow — само в dark mode (на бяло гледа цапано) */}
+      {theme === 'dark' && (
+        <div style={{
+          position: 'absolute',
+          top: -40,
+          right: -40,
+          width: 120,
+          height: 120,
+          borderRadius: '50%',
+          background: `${accent}10`,
+          filter: 'blur(30px)',
+          pointerEvents: 'none',
+        }} aria-hidden />
+      )}
 
       <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{
@@ -533,16 +539,28 @@ function KpiCard({ label, value, Icon, accent, sparkData, theme }) {
       <div style={{ position: 'relative', marginTop: 14, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.18em', color: t.muted, fontWeight: 600 }}>{label}</div>
       <div style={{ position: 'relative', fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', color: t.text, marginTop: 2 }}>{value}</div>
       {sparkData && sparkData.length > 0 && (
-        <div style={{ position: 'relative', marginTop: 14, marginLeft: -8, marginRight: -8, height: 48 }}>
+        <div style={{ position: 'relative', marginTop: 14, marginLeft: -8, marginRight: -8, height: 40 }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={sparkData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-              <defs>
-                <linearGradient id={`s-${label}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={accent} stopOpacity={theme === 'light' ? 0.35 : 0.5} />
-                  <stop offset="100%" stopColor={accent} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Area type="monotone" dataKey="y" stroke={accent} strokeWidth={2} fill={`url(#s-${label})`} dot={false} isAnimationActive={false} />
+              {/* В light режим: само линията, без gradient fill (по-чисто).
+                  В dark: запазваме gradient за повече дълбочина. */}
+              {theme === 'dark' && (
+                <defs>
+                  <linearGradient id={`s-${label}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={accent} stopOpacity={0.45} />
+                    <stop offset="100%" stopColor={accent} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+              )}
+              <Area
+                type="monotone"
+                dataKey="y"
+                stroke={accent}
+                strokeWidth={2}
+                fill={theme === 'dark' ? `url(#s-${label})` : 'none'}
+                dot={false}
+                isAnimationActive={false}
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -785,17 +803,19 @@ export default function Dashboard() {
           >
             <div className="flex items-center gap-2">
               {branding.logo_url ? (
-                <img src={branding.logo_url} alt="" className="h-7" />
+                <img src={branding.logo_url} alt="RealFood" style={{ height: 28, maxWidth: 140, objectFit: 'contain' }} />
               ) : (
-                <div className="h-7 w-7 rounded-lg" style={{ background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)' }} aria-hidden />
+                <>
+                  <div className="h-7 w-7 rounded-lg" style={{ background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)' }} aria-hidden />
+                  <span style={{
+                    background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    fontWeight: 700, letterSpacing: '-0.02em',
+                  }}>RealFood</span>
+                </>
               )}
-              <span style={{
-                background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                fontWeight: 700, letterSpacing: '-0.02em',
-              }}>RealFood</span>
             </div>
             <div className="flex items-center gap-1">
               <button onClick={toggleTheme} aria-label={theme === 'dark' ? 'Светъл режим' : 'Тъмен режим'}
