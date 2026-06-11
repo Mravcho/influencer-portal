@@ -378,8 +378,8 @@ export default function Dashboard() {
   const [from, setFrom] = useState('')
   const [to, setTo]     = useState('')
 
-  // Тема: 'dark' (default) или 'light'. Запомня се в localStorage per-инфлуенсър.
-  const [theme, setTheme] = useState('dark')
+  // Тема: 'light' (default) или 'dark'. Запомня се в localStorage per-инфлуенсър.
+  const [theme, setTheme] = useState('light')
   useEffect(() => {
     try {
       const saved = localStorage.getItem('rf-portal-theme')
@@ -482,93 +482,99 @@ export default function Dashboard() {
 
   return (
     <div className={`dashboard-shell ${theme === 'dark' ? 'theme-dark' : ''}`} style={{ minHeight: '100vh' }}>
-      <div className="flex">
-        <Sidebar
-          active="top"
-          userInfo={{ ...userInfo, avatarUrl: data?.avatarUrl }}
-          branding={branding}
-          onLogout={logout}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-        />
+      <div className={theme === 'dark' ? 'flex' : ''}>
+        {/* Sidebar — само в DARK режим */}
+        {theme === 'dark' && (
+          <Sidebar
+            active="top"
+            userInfo={{ ...userInfo, avatarUrl: data?.avatarUrl }}
+            branding={branding}
+            onLogout={logout}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+          />
+        )}
 
-        <div className="flex-1 min-w-0">
-          {/* Mobile top bar */}
-          <div className="lg:hidden sticky top-0 z-30 bg-[#0F1218]/90 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {branding.logo_url ? (
-                <img src={branding.logo_url} alt="" className="h-7" />
-              ) : (
-                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-400 to-lime-400" aria-hidden />
-              )}
-              <span className="bg-gradient-to-r from-emerald-300 to-lime-300 bg-clip-text text-transparent font-bold tracking-tight">RealFood</span>
+        <div className={theme === 'dark' ? 'flex-1 min-w-0' : ''}>
+          {/* Mobile top bar — само в dark режим (light има обикновен header) */}
+          {theme === 'dark' && (
+            <div className="lg:hidden sticky top-0 z-30 bg-[#0F1218]/90 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {branding.logo_url ? (
+                  <img src={branding.logo_url} alt="" className="h-7" />
+                ) : (
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-400 to-lime-400" aria-hidden />
+                )}
+                <span className="bg-gradient-to-r from-emerald-300 to-lime-300 bg-clip-text text-transparent font-bold tracking-tight">RealFood</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={toggleTheme} aria-label="Светъл режим" className="p-2 rounded-full text-white/70 hover:text-white">
+                  <Sun size={18} />
+                </button>
+                <button onClick={logout} aria-label="Изход" className="p-2 rounded-full text-white/70 hover:text-rose-300">
+                  <LogOut size={18} />
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <button onClick={toggleTheme} aria-label={theme === 'dark' ? 'Светъл режим' : 'Тъмен режим'} className="p-2 rounded-full text-white/70 hover:text-white">
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
-              <button onClick={logout} aria-label="Изход" className="p-2 rounded-full text-white/70 hover:text-rose-300">
-                <LogOut size={18} />
-              </button>
-            </div>
-          </div>
+          )}
+
+          {/* Light-режим header — оригиналният magazine стил */}
+          {theme === 'light' && (
+            <header className="header-bar">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                {branding.logo_url ? (
+                  <img src={branding.logo_url} alt="Logo" style={{ height: 32, maxWidth: 120, objectFit: 'contain', flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--accent-lt)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 700, color: 'var(--accent-dk)', flexShrink: 0 }}>
+                    {userInfo.name?.slice(0, 2).toUpperCase() || '??'}
+                  </div>
+                )}
+                <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userInfo.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>Промокод: <strong>{userInfo.promoCode}</strong></div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button className="btn btn-sm btn-ghost" onClick={toggleTheme} title="Тъмен режим" aria-label="Тъмен режим" style={{ padding: '6px 10px' }}>
+                  <Moon size={16} />
+                </button>
+                <button className="btn btn-sm btn-ghost" onClick={logout}>Изход</button>
+              </div>
+            </header>
+          )}
 
           <main id="top" className="main-container pb-24 lg:pb-12">
-            {/* Hero + Payout Ring grid */}
-            <div className="grid grid-cols-12 gap-4 md:gap-6 mb-6">
-              <div className="col-span-12 lg:col-span-8">
-                <FintechHero
-                  userInfo={userInfo}
-                  currentMonth={currentMonth}
-                  countUpCommission={countUpCommission}
-                  avatarUrl={avatarUrl}
-                />
-              </div>
-              <div className="col-span-12 lg:col-span-4">
-                <PayoutRing balance={payoutBalance} onScrollToPayout={() => scrollToAnchor('payout')} />
-              </div>
-            </div>
+            {/* DARK-режим: премиум fintech блок отгоре */}
+            {theme === 'dark' && (
+              <>
+                <div className="grid grid-cols-12 gap-4 md:gap-6 mb-6">
+                  <div className="col-span-12 lg:col-span-8">
+                    <FintechHero
+                      userInfo={userInfo}
+                      currentMonth={currentMonth}
+                      countUpCommission={countUpCommission}
+                      avatarUrl={avatarUrl}
+                    />
+                  </div>
+                  <div className="col-span-12 lg:col-span-4">
+                    <PayoutRing balance={payoutBalance} onScrollToPayout={() => scrollToAnchor('payout')} />
+                  </div>
+                </div>
 
-            {/* KPI Row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
-              <KpiCard
-                label="Кликове · 90д"
-                value={String(stats.totalClicks || 0)}
-                Icon={MousePointerClick}
-                color="bg-sky-500/15 text-sky-300"
-                accent="#60A5FA"
-                sparkData={[]}
-              />
-              <KpiCard
-                label="Поръчки · общо"
-                value={String(stats.totalOrders || 0)}
-                Icon={ShoppingCart}
-                color="bg-emerald-500/15 text-emerald-300"
-                accent="#34D399"
-                sparkData={[]}
-              />
-              <KpiCard
-                label="Средна поръчка"
-                value={fmtCurr(stats.avgOrderValue || 0)}
-                Icon={Receipt}
-                color="bg-amber-500/15 text-amber-300"
-                accent="#FCD34D"
-                sparkData={[]}
-              />
-              <KpiCard
-                label="Спестено · клиенти"
-                value={fmtCurr(currentMonth.savings || 0)}
-                Icon={PiggyBank}
-                color="bg-violet-500/15 text-violet-300"
-                accent="#A78BFA"
-                sparkData={[]}
-              />
-            </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
+                  <KpiCard label="Кликове · 90д" value={String(stats.totalClicks || 0)} Icon={MousePointerClick} color="bg-sky-500/15 text-sky-300" accent="#60A5FA" sparkData={[]} />
+                  <KpiCard label="Поръчки · общо" value={String(stats.totalOrders || 0)} Icon={ShoppingCart} color="bg-emerald-500/15 text-emerald-300" accent="#34D399" sparkData={[]} />
+                  <KpiCard label="Средна поръчка" value={fmtCurr(stats.avgOrderValue || 0)} Icon={Receipt} color="bg-amber-500/15 text-amber-300" accent="#FCD34D" sparkData={[]} />
+                  <KpiCard label="Спестено · клиенти" value={fmtCurr(currentMonth.savings || 0)} Icon={PiggyBank} color="bg-violet-500/15 text-violet-300" accent="#A78BFA" sparkData={[]} />
+                </div>
 
-            {/* Earnings chart */}
-            <div className="mb-6">
-              <EarningsChart orders={data?.orders} commissionRate={userInfo.commission} />
-            </div>
+                <div className="mb-6">
+                  <EarningsChart orders={data?.orders} commissionRate={userInfo.commission} />
+                </div>
+              </>
+            )}
 
             {/* Деактивиран акаунт */}
             {userInfo.active === false && (
@@ -591,92 +597,8 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* Placeholder for removed magazine-cover hero block */}
-            <div style={{ display: 'none' }}>
-              <div className="hero-amount">{fmtEur(countUpCommission)}</div>
-              <div className="hero-meta-row">
-                {targetCommission >= 100 ? (
-                  <span className="pill-glass">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    Праг за теглене постигнат
-                  </span>
-                ) : (
-                  <span className="pill-glass">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                    Още {fmtEur(Math.max(0, 100 - targetCommission))} до прага за теглене
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* 3 stat pill-а */}
-            <div className="hero-stats">
-              <div className="hero-stat">
-                <div className="hero-stat-icon">📦</div>
-                <div className="hero-stat-body">
-                  <div className="hero-stat-value">{currentMonth.orders || 0}</div>
-                  <div className="hero-stat-label">{currentMonth.orders === 1 ? 'поръчка' : 'поръчки'}</div>
-                </div>
-              </div>
-              <div className="hero-stat">
-                <div className="hero-stat-icon">%</div>
-                <div className="hero-stat-body">
-                  <div className="hero-stat-value">{userInfo.commission}%</div>
-                  <div className="hero-stat-label">комисионна</div>
-                </div>
-              </div>
-              <div className="hero-stat">
-                <div className="hero-stat-icon">💚</div>
-                <div className="hero-stat-body">
-                  <div className="hero-stat-value">{fmtEur(currentMonth.savings || 0).replace(' €', '')}</div>
-                  <div className="hero-stat-label">спестено от клиентите</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Деактивиран акаунт — оскъден изглед, само досегашна статистика */}
-        {userInfo.active === false && (
-          <>
-            <div style={{
-              background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 12,
-              padding: '14px 18px', marginBottom: '1.5rem',
-              display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-            }}>
-              <div style={{ fontSize: 22 }}>⏸</div>
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: '#78350f' }}>
-                  Акаунтът ти е временно деактивиран
-                </div>
-                <div style={{ fontSize: 12, color: '#92400e', marginTop: 2 }}>
-                  Можеш да видиш досегашната си статистика. За реактивация — свържи се с екипа на RealFood.
-                </div>
-              </div>
-            </div>
-
-            <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
-              <div className="metric">
-                <div className="metric-label">Общо поръчки</div>
-                <div className="metric-value">{stats.totalOrders || 0}</div>
-                <div className="metric-sub">с код {userInfo.promoCode}</div>
-              </div>
-              <div className="metric">
-                <div className="metric-label">Натрупана комисионна</div>
-                <div className="metric-value">{fmtEur(stats.totalCommission || 0)}</div>
-                <div className="metric-sub">{userInfo.commission}% от пълната цена</div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Активни инфлуенсъри — пълен изглед */}
-        {userInfo.active !== false && (<>
+            {/* Активни инфлуенсъри — пълен изглед */}
+            {userInfo.active !== false && (<>
         {/* Payouts — веднага под главната карта */}
         <div id="payout"><PayoutWidget /></div>
 
@@ -861,7 +783,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <MobileTabBar active="top" />
+      {theme === 'dark' && <MobileTabBar active="top" />}
     </div>
   )
 }
