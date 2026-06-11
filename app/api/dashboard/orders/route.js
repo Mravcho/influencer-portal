@@ -45,23 +45,20 @@ export async function GET(request) {
 
   // Admin може да разглежда поръчките на всеки инфлуенсър чрез ?viewId=
   let influencerId = request.headers.get('x-user-id')
-  let commission   = parseFloat(request.headers.get('x-commission') || '0')
-
   if (userRole === 'admin' && viewId) {
     influencerId = viewId
-    const { data: inf } = await supabaseAdmin
-      .from('influencers')
-      .select('commission')
-      .eq('id', viewId)
-      .single()
-    commission = parseFloat(inf?.commission || 0)
   }
 
-  // Тегли banner_url + avatar_url + name на инфлуенсъра + default banner (fallback)
+  // Винаги взимаме commission директно от базата (НЕ от JWT хедъра),
+  // за да отрази веднага промени от admin без да изисква re-login.
+  // commission ще бъде заредена заедно с profile-а няколко реда по-долу.
+  let commission = 0
+
+  // Тегли banner_url + avatar_url + name + commission на инфлуенсъра + default banner (fallback)
   const [{ data: profile }, { data: brandingRow }] = await Promise.all([
     supabaseAdmin
       .from('influencers')
-      .select('name, banner_url, avatar_url, platform, promo_code')
+      .select('name, banner_url, avatar_url, platform, promo_code, commission')
       .eq('id', influencerId)
       .single(),
     supabaseAdmin
@@ -72,6 +69,7 @@ export async function GET(request) {
   ])
 
   const effectiveBanner = profile?.banner_url || brandingRow?.default_banner_url || null
+  commission = parseFloat(profile?.commission || 0)
 
   let query = supabaseAdmin
     .from('orders')

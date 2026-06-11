@@ -28,23 +28,28 @@ export async function GET() {
     }
   }
 
-  // За инфлуенсъри връщаме и текущия active статус от базата
-  // (за да виждаме незабавно ако admin е реактивирал/деактивирал акаунта)
+  // За инфлуенсъри връщаме fresh active + commission от базата
+  // (за да виждаме незабавно ако admin е реактивирал/деактивирал акаунта
+  //  или е променил commission-а, без да изисква re-login).
   let active = true
+  let commission = parseFloat(payload.commission || 0)
   if (payload.role === 'influencer' && payload.id) {
     const { data: inf } = await supabaseAdmin
       .from('influencers')
-      .select('active')
+      .select('active, commission')
       .eq('id', payload.id)
       .maybeSingle()
-    active = inf?.active !== false
+    if (inf) {
+      active     = inf.active !== false
+      commission = parseFloat(inf.commission || 0)
+    }
   }
 
   return NextResponse.json({
     name:       payload.name || '',
     username:   payload.username || '',
     promoCode:  payload.promoCode || '',
-    commission: payload.commission || 0,
+    commission,
     role:       payload.role,
     active,
   })
