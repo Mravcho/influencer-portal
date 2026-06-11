@@ -224,6 +224,29 @@ export default function AdminPage() {
     load()
   }
 
+  const seedDemo = async () => {
+    if (!confirm(
+      'Това ще ПРЕСЪЗДАДЕ демо акаунта (изтрива стария + всичките му данни и сипва нови fake поръчки/кликове/payouts).\n\n' +
+      'Логин данните остават същите. Продължи?'
+    )) return
+    const res = await fetch('/api/admin/seed-demo', { method: 'POST' })
+    const data = await res.json()
+    if (!res.ok) {
+      alert('Грешка: ' + (data.error || 'неизвестна'))
+      return
+    }
+    const { credentials, stats } = data
+    alert(
+      'Demo акаунт е готов!\n\n' +
+      `Username: ${credentials.username}\n` +
+      `Парола:   ${credentials.password}\n` +
+      `Промокод: ${credentials.promo_code}\n` +
+      `Login:    ${window.location.origin}${credentials.login_url}\n\n` +
+      `Заредени: ${stats.orders} поръчки · ${stats.clicks} клика · ` +
+      `${stats.payouts} payouts · ${stats.product_requests} заявки за продукт`
+    )
+  }
+
   const sendPasswordResetLink = async (inf) => {
     if (!inf.email) {
       alert(`${inf.name} няма записан имейл. Добави първо.`)
@@ -373,6 +396,12 @@ export default function AdminPage() {
           <button className="btn btn-sm" onClick={() => router.push('/admin/request-products')} title="Каталог за заявки">🎁 Каталог</button>
           <button className="btn btn-sm" onClick={() => router.push('/admin/sessions')} title="История на влизанията">👤 Сесии</button>
           <button className="btn btn-sm" onClick={() => router.push('/admin/settings')} title="Брандинг настройки">⚙ Настройки</button>
+          <button
+            className="btn btn-sm"
+            style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' }}
+            onClick={seedDemo}
+            title="Пресъздай demo акаунт за показване на партньори"
+          >🎭 Demo акаунт</button>
           <button className="btn btn-sm btn-ghost" onClick={logout}>Изход</button>
         </div>
 
@@ -438,8 +467,17 @@ export default function AdminPage() {
 
             <button
               className="mobile-drawer-item"
+              onClick={() => { setMobileMenuOpen(false); seedDemo() }}
+              style={{ marginTop: 12, background: '#fef3c7', color: '#92400e' }}
+            >
+              <span className="icon">🎭</span>
+              <span>Demo акаунт</span>
+            </button>
+
+            <button
+              className="mobile-drawer-item"
               onClick={() => { setMobileMenuOpen(false); logout() }}
-              style={{ marginTop: 12, color: '#dc2626' }}
+              style={{ marginTop: 4, color: '#dc2626' }}
             >
               <span className="icon">↪</span>
               <span>Изход</span>
