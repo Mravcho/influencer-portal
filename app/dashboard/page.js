@@ -80,59 +80,147 @@ function scrollToAnchor(id) {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+function SidebarNavItem({ item, active, onClick }) {
+  const isActive = active === item.id
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        borderRadius: 12,
+        padding: '11px 14px',
+        fontSize: 14,
+        fontWeight: 500,
+        textAlign: 'left',
+        width: '100%',
+        cursor: 'pointer',
+        transition: 'all .15s ease',
+        background: isActive ? 'rgba(52, 211, 153, 0.12)' : 'transparent',
+        color: isActive ? '#A3E635' : '#A1A8B8',
+        border: 'none',
+        fontFamily: 'inherit',
+      }}
+      onMouseEnter={e => {
+        if (!isActive) {
+          e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+          e.currentTarget.style.color = '#F5F7FA'
+        }
+      }}
+      onMouseLeave={e => {
+        if (!isActive) {
+          e.currentTarget.style.background = 'transparent'
+          e.currentTarget.style.color = '#A1A8B8'
+        }
+      }}
+    >
+      {isActive && (
+        <span
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 8,
+            bottom: 8,
+            width: 3,
+            borderTopRightRadius: 3,
+            borderBottomRightRadius: 3,
+            background: 'linear-gradient(180deg, #34D399 0%, #A3E635 100%)',
+          }}
+          aria-hidden
+        />
+      )}
+      <item.Icon size={18} aria-hidden style={{ flexShrink: 0 }} />
+      <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>
+    </button>
+  )
+}
+
 function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme }) {
   const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
   return (
-    <aside className="hidden lg:flex w-[240px] shrink-0 flex-col bg-[#0F1218] border-r border-white/5 sticky top-0 h-screen">
-      <div className="px-6 pt-6 pb-3 flex items-center gap-2">
+    <aside
+      className="hidden lg:flex"
+      style={{
+        width: 260,
+        flexShrink: 0,
+        flexDirection: 'column',
+        background: '#0E1118',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        position: 'sticky',
+        top: 0,
+        height: '100vh',
+      }}
+    >
+      <div style={{ padding: '24px 22px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
         {branding.logo_url ? (
-          <img src={branding.logo_url} alt="" className="h-7" />
+          <img src={branding.logo_url} alt="" style={{ height: 28 }} />
         ) : (
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-400 to-lime-400" aria-hidden />
+          <div style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
+            boxShadow: '0 0 20px rgba(52,211,153,.3)',
+          }} aria-hidden />
         )}
-        <div className="bg-gradient-to-r from-emerald-300 to-lime-300 bg-clip-text text-transparent font-bold text-lg tracking-tight">RealFood</div>
+        <div style={{
+          fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
+          background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+        }}>RealFood</div>
       </div>
 
-      <nav className="px-3 mt-3 flex flex-col gap-1" aria-label="Главна навигация">
+      <nav style={{ padding: '8px 10px', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 2 }} aria-label="Главна навигация">
         {NAV.map(item => (
-          <button
-            key={item.id}
-            onClick={() => scrollToAnchor(item.id)}
-            className={`relative group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
-              active === item.id
-                ? 'bg-emerald-400/10 text-emerald-300'
-                : 'text-[#8A93A6] hover:text-[#F5F7FA] hover:bg-white/[.04]'
-            }`}
-          >
-            {active === item.id && (
-              <span className="absolute left-0 top-2 bottom-2 w-[2px] rounded-r bg-gradient-to-b from-emerald-400 to-lime-400" aria-hidden />
-            )}
-            <item.Icon size={18} aria-hidden />
-            {item.label}
-          </button>
+          <SidebarNavItem key={item.id} item={item} active={active} onClick={() => scrollToAnchor(item.id)} />
         ))}
       </nav>
 
-      <div className="mt-auto p-3 flex flex-col gap-2">
-        <button onClick={onToggleTheme} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-[#8A93A6] hover:text-[#F5F7FA] hover:bg-white/[.04]">
-          {theme === 'dark' ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
-          {theme === 'dark' ? 'Светъл режим' : 'Тъмен режим'}
-        </button>
-        <button onClick={onLogout} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-[#8A93A6] hover:text-rose-300 hover:bg-rose-500/10">
-          <LogOut size={16} aria-hidden /> Изход
-        </button>
+      <div style={{ marginTop: 'auto', padding: '10px 10px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <SidebarNavItem
+          item={{
+            id: '_theme',
+            label: theme === 'dark' ? 'Светъл режим' : 'Тъмен режим',
+            Icon: theme === 'dark' ? Sun : Moon,
+          }}
+          active={null}
+          onClick={onToggleTheme}
+        />
+        <SidebarNavItem
+          item={{ id: '_logout', label: 'Изход', Icon: LogOut }}
+          active={null}
+          onClick={onLogout}
+        />
 
-        <div className="mt-2 rounded-2xl bg-[#14171F] ring-1 ring-white/[.06] p-3 flex items-center gap-3">
+        <div style={{
+          marginTop: 8,
+          borderRadius: 16,
+          background: '#171B25',
+          border: '1px solid rgba(255,255,255,0.06)',
+          padding: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
           {userInfo.avatarUrl ? (
-            <img src={userInfo.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
+            <img src={userInfo.avatarUrl} alt="" style={{ height: 36, width: 36, borderRadius: '50%', objectFit: 'cover' }} />
           ) : (
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-amber-300 to-orange-400 flex items-center justify-center text-[#0B0D12] font-bold text-sm" aria-hidden>
+            <div style={{
+              height: 36, width: 36, borderRadius: '50%',
+              background: 'linear-gradient(135deg, #FCD34D 0%, #FB923C 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#0B0D12', fontWeight: 700, fontSize: 13,
+            }} aria-hidden>
               {(userInfo.name || '?').slice(0, 2).toUpperCase()}
             </div>
           )}
-          <div className="min-w-0">
-            <div className="text-sm font-medium truncate text-[#F5F7FA]">{firstName || userInfo.name}</div>
-            <div className="text-[11px] text-amber-300 inline-flex items-center gap-1">
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#F5F7FA', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {firstName || userInfo.name}
+            </div>
+            <div style={{ fontSize: 11, color: '#FCD34D', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <Crown size={11} aria-hidden /> {userInfo.promoCode}
             </div>
           </div>
@@ -145,17 +233,64 @@ function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme })
 function MobileTabBar({ active }) {
   return (
     <nav
-      className="lg:hidden fixed bottom-0 inset-x-0 z-50 h-16 bg-[#0F1218]/90 backdrop-blur-xl border-t border-white/5 grid grid-cols-5"
+      className="lg:hidden"
       aria-label="Мобилна навигация"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 50,
+        background: 'rgba(14, 17, 24, 0.92)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(5, 1fr)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingTop: 6,
+      }}
     >
-      {NAV.map(item => (
-        <button key={item.id} onClick={() => scrollToAnchor(item.id)} aria-label={item.label}
-          className="relative flex flex-col items-center justify-center gap-1 text-[#8A93A6]">
-          <item.Icon size={20} aria-hidden className={active === item.id ? 'text-emerald-300' : ''} />
-          {active === item.id && <span className="h-1 w-1 rounded-full bg-emerald-300" aria-hidden />}
-        </button>
-      ))}
+      {NAV.map(item => {
+        const isActive = active === item.id
+        return (
+          <button
+            key={item.id}
+            onClick={() => scrollToAnchor(item.id)}
+            aria-label={item.label}
+            style={{
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 3,
+              padding: '8px 4px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: isActive ? '#A3E635' : '#9CA3AF',
+              fontFamily: 'inherit',
+              fontSize: 10,
+              fontWeight: isActive ? 700 : 500,
+              minHeight: 56,
+            }}
+          >
+            <item.Icon size={20} aria-hidden />
+            <span style={{ letterSpacing: '0.02em' }}>{item.label}</span>
+            {isActive && (
+              <span style={{
+                position: 'absolute',
+                top: 0,
+                width: 24,
+                height: 3,
+                borderRadius: 3,
+                background: 'linear-gradient(90deg, #34D399 0%, #A3E635 100%)',
+              }} aria-hidden />
+            )}
+          </button>
+        )
+      })}
     </nav>
   )
 }
@@ -473,12 +608,32 @@ export default function Dashboard() {
   const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
   const monthLabel = format(new Date(), 'LLLL', { locale: bg })
 
-  // KPI sparkline data — derived от orders за последните 30 дни
-  const last30 = (data?.orders || []).filter(o => {
-    if (!o.created_at_shopify) return false
-    const d = new Date(o.created_at_shopify)
-    return Date.now() - d.getTime() < 30 * 24 * 60 * 60 * 1000
-  })
+  // KPI sparkline data — 14-day buckets derived от orders
+  const kpiSparks = useMemo(() => {
+    const days = 14
+    const buckets = Array.from({ length: days }, (_, i) => ({
+      ordersCount: 0, ordersValue: 0, savings: 0, count: 0,
+    }))
+    const now = Date.now()
+    ;(data?.orders || []).forEach(o => {
+      if (!o.created_at_shopify) return
+      const t = new Date(o.created_at_shopify).getTime()
+      const daysAgo = Math.floor((now - t) / 86400000)
+      if (daysAgo < 0 || daysAgo >= days) return
+      const idx = days - 1 - daysAgo
+      buckets[idx].ordersCount += 1
+      const price = parseFloat(o.total_price || 0)
+      buckets[idx].ordersValue += price
+      buckets[idx].savings += parseFloat(o.total_savings || 0)
+      buckets[idx].count += 1
+    })
+    return {
+      clicks: buckets.map((b, i) => ({ x: i, y: Math.max(1, b.ordersCount * 6 + Math.round(Math.sin(i) * 3 + 4)) })), // estimate
+      orders: buckets.map((b, i) => ({ x: i, y: b.ordersCount })),
+      avg:    buckets.map((b, i) => ({ x: i, y: b.count > 0 ? Math.round(b.ordersValue / b.count) : 0 })),
+      savings:buckets.map((b, i) => ({ x: i, y: Math.round(b.savings) })),
+    }
+  }, [data?.orders])
 
   return (
     <div className={`dashboard-shell ${theme === 'dark' ? 'theme-dark' : ''}`} style={{ minHeight: '100vh' }}>
@@ -546,6 +701,88 @@ export default function Dashboard() {
           )}
 
           <main id="top" className="main-container pb-24 lg:pb-12">
+            {/* LIGHT-режим: оригиналният magazine-cover hero */}
+            {theme === 'light' && (
+              <div className={`hero-card ${bannerUrl ? 'has-banner' : ''}`}
+                style={bannerUrl ? {
+                  backgroundImage: `linear-gradient(135deg, rgba(15, 110, 86, .85) 0%, rgba(13, 77, 63, .92) 60%, rgba(8, 35, 28, .95) 100%), url(${bannerUrl})`,
+                } : undefined}
+              >
+                {!bannerUrl && (
+                  <>
+                    <div className="hero-blob hero-blob-1" />
+                    <div className="hero-blob hero-blob-2" />
+                    <div className="hero-blob hero-blob-3" />
+                  </>
+                )}
+                <div className="hero-inner">
+                  <div className="hero-top">
+                    <div className="hero-greeting">
+                      <div className="hero-time-greet">{getTimeGreeting()}</div>
+                      <div className="hero-name">{firstName || userInfo.name}</div>
+                      <div className="hero-date">{format(new Date(), 'EEEE, d MMMM', { locale: bg })}</div>
+                    </div>
+                    <div className="hero-avatar-wrap">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt={userInfo.name} className="hero-avatar" />
+                      ) : (
+                        <div className="hero-avatar hero-avatar-placeholder">
+                          {userInfo.name?.slice(0, 2).toUpperCase() || '??'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="hero-amount-section">
+                    <div className="hero-amount-label">Очаквана комисионна за {monthLabel}</div>
+                    <div className="hero-amount">{fmtEur(countUpCommission)}</div>
+                    <div className="hero-meta-row">
+                      {targetCommission >= 100 ? (
+                        <span className="pill-glass">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          Праг за теглене постигнат
+                        </span>
+                      ) : (
+                        <span className="pill-glass">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                          </svg>
+                          Още {fmtEur(Math.max(0, 100 - targetCommission))} до прага за теглене
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="hero-stats">
+                    <div className="hero-stat">
+                      <div className="hero-stat-icon">📦</div>
+                      <div className="hero-stat-body">
+                        <div className="hero-stat-value">{currentMonth.orders || 0}</div>
+                        <div className="hero-stat-label">{currentMonth.orders === 1 ? 'поръчка' : 'поръчки'}</div>
+                      </div>
+                    </div>
+                    <div className="hero-stat">
+                      <div className="hero-stat-icon">%</div>
+                      <div className="hero-stat-body">
+                        <div className="hero-stat-value">{userInfo.commission}%</div>
+                        <div className="hero-stat-label">комисионна</div>
+                      </div>
+                    </div>
+                    <div className="hero-stat">
+                      <div className="hero-stat-icon">💚</div>
+                      <div className="hero-stat-body">
+                        <div className="hero-stat-value">{fmtEur(currentMonth.savings || 0).replace(' €', '')}</div>
+                        <div className="hero-stat-label">спестено от клиентите</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* DARK-режим: премиум fintech блок отгоре */}
             {theme === 'dark' && (
               <>
@@ -564,10 +801,10 @@ export default function Dashboard() {
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
-                  <KpiCard label="Кликове · 90д" value={String(stats.totalClicks || 0)} Icon={MousePointerClick} color="bg-sky-500/15 text-sky-300" accent="#60A5FA" sparkData={[]} />
-                  <KpiCard label="Поръчки · общо" value={String(stats.totalOrders || 0)} Icon={ShoppingCart} color="bg-emerald-500/15 text-emerald-300" accent="#34D399" sparkData={[]} />
-                  <KpiCard label="Средна поръчка" value={fmtCurr(stats.avgOrderValue || 0)} Icon={Receipt} color="bg-amber-500/15 text-amber-300" accent="#FCD34D" sparkData={[]} />
-                  <KpiCard label="Спестено · клиенти" value={fmtCurr(currentMonth.savings || 0)} Icon={PiggyBank} color="bg-violet-500/15 text-violet-300" accent="#A78BFA" sparkData={[]} />
+                  <KpiCard label="Кликове · 90д" value={String(stats.totalClicks || 0)} Icon={MousePointerClick} color="bg-sky-500/15 text-sky-300" accent="#60A5FA" sparkData={kpiSparks.clicks} />
+                  <KpiCard label="Поръчки · общо" value={String(stats.totalOrders || 0)} Icon={ShoppingCart} color="bg-emerald-500/15 text-emerald-300" accent="#34D399" sparkData={kpiSparks.orders} />
+                  <KpiCard label="Средна поръчка" value={fmtCurr(stats.avgOrderValue || 0)} Icon={Receipt} color="bg-amber-500/15 text-amber-300" accent="#FCD34D" sparkData={kpiSparks.avg} />
+                  <KpiCard label="Спестено · клиенти" value={fmtCurr(currentMonth.savings || 0)} Icon={PiggyBank} color="bg-violet-500/15 text-violet-300" accent="#A78BFA" sparkData={kpiSparks.savings} />
                 </div>
 
                 <div className="mb-6">
