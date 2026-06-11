@@ -585,7 +585,7 @@ tbody tr:hover td { background: var(--bg); }
   font-weight: 700;
   flex-shrink: 0;
 }
-.hero-stat-body { min-width: 0; }
+.hero-stat-body { min-width: 0; flex: 1; }
 .hero-stat-value {
   font-size: 17px;
   font-weight: 800;
@@ -600,9 +600,13 @@ tbody tr:hover td { background: var(--bg); }
   font-size: 10px;
   opacity: .8;
   letter-spacing: .3px;
-  white-space: nowrap;
+  line-height: 1.25;
+  margin-top: 2px;
+  /* Позволяваме wrap до 2 реда вместо да отрязваме текста */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ═══ Mobile ═══ */
@@ -616,16 +620,30 @@ tbody tr:hover td { background: var(--bg); }
   .hero-avatar-placeholder { font-size: 22px; }
   .hero-amount { font-size: 44px; }
   .hero-amount-label { font-size: 10px; letter-spacing: 1px; }
+
+  /* Стат пилите — стак вертикално (icon отгоре, value+label отдолу).
+     Тогава label-ът има цялата ширина за обвиване на 2 реда. */
   .hero-stats { gap: 6px; }
-  .hero-stat { padding: 8px 10px; gap: 8px; border-radius: 12px; }
-  .hero-stat-icon { width: 28px; height: 28px; font-size: 14px; border-radius: 8px; }
-  .hero-stat-value { font-size: 14px; }
-  .hero-stat-label { font-size: 9px; }
+  .hero-stat {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px;
+    gap: 6px;
+    border-radius: 12px;
+    text-align: left;
+  }
+  .hero-stat-icon { width: 26px; height: 26px; font-size: 13px; border-radius: 8px; }
+  .hero-stat-body { width: 100%; }
+  .hero-stat-value { font-size: 16px; }
+  .hero-stat-label { font-size: 10px; opacity: .85; line-height: 1.2; }
 }
 @media (max-width: 380px) {
   .hero-name { font-size: 22px; }
   .hero-amount { font-size: 38px; }
   .hero-avatar { width: 64px; height: 64px; }
+  .hero-stat { padding: 8px; }
+  .hero-stat-value { font-size: 14px; }
+  .hero-stat-label { font-size: 9px; }
 }
 
 /* Chip wrap helper */

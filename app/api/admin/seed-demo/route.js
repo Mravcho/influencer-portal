@@ -150,6 +150,12 @@ export async function POST() {
   }
   await supabaseAdmin.from('orders').insert(orders)
 
+  // Изчисляваме total commission, за да разпределим payout-ите така че да остане
+  // позитивен баланс (демо да изглежда здраво за партньори, не „-377.60 €").
+  const commissionRate    = 10 // %
+  const totalCommissionable = orders.reduce((s, o) => s + Number(o.commissionable_revenue || 0), 0)
+  const totalCommission     = totalCommissionable * commissionRate / 100
+
   // 5. ~80 кликa разпределени през последните 45 дни (повече в делнични дни)
   const clicks = []
   for (let i = 0; i < 80; i++) {
@@ -177,11 +183,18 @@ export async function POST() {
   }
   await supabaseAdmin.from('link_clicks').insert(clicks)
 
-  // 6. Payout заявки — 2 платени + 1 чакаща
+  // 6. Payout заявки — разпределени така че да консумират ~60% от commission-а.
+  // Останалите ~40% са „налично за теглене", за да изглежда здраво в demo-то.
+  // Минимум payout-и: 100, 80, 60 EUR (ако commission е малък).
+  const payoutBudget = totalCommission * 0.6
+  const p1 = Math.max(100, Math.round(payoutBudget * 0.40 * 100) / 100) // най-голям, преди 55 дни
+  const p2 = Math.max(80,  Math.round(payoutBudget * 0.35 * 100) / 100) // среден, преди 28 дни
+  const p3 = Math.max(60,  Math.round(payoutBudget * 0.25 * 100) / 100) // pending, преди 2 дни
+
   const payouts = [
     {
       influencer_id:        inf.id,
-      amount:               265.40,
+      amount:               p1,
       status:               'paid',
       requested_at:         new Date(now.getTime() - 55 * 86400000).toISOString(),
       processed_at:         new Date(now.getTime() - 50 * 86400000).toISOString(),
@@ -190,7 +203,7 @@ export async function POST() {
     },
     {
       influencer_id:        inf.id,
-      amount:               189.20,
+      amount:               p2,
       status:               'paid',
       requested_at:         new Date(now.getTime() - 28 * 86400000).toISOString(),
       processed_at:         new Date(now.getTime() - 24 * 86400000).toISOString(),
@@ -199,7 +212,7 @@ export async function POST() {
     },
     {
       influencer_id:        inf.id,
-      amount:               142.80,
+      amount:               p3,
       status:               'pending',
       requested_at:         new Date(now.getTime() - 2 * 86400000).toISOString(),
       processed_at:         null,

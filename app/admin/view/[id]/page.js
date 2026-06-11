@@ -152,7 +152,7 @@ export default function AdminInfluencerView() {
         {/* Hero — magazine-cover (същия като в инфлуенсърския dashboard) */}
         <div className={`hero-card ${heroBanner ? 'has-banner' : ''}`}
           style={heroBanner ? {
-            backgroundImage: `linear-gradient(180deg, rgba(15, 110, 86, .1) 0%, rgba(15, 30, 45, .85) 100%), url(${heroBanner})`,
+            backgroundImage: `linear-gradient(135deg, rgba(15, 110, 86, .85) 0%, rgba(13, 77, 63, .92) 60%, rgba(8, 35, 28, .95) 100%), url(${heroBanner})`,
           } : undefined}
         >
           {!heroBanner && (

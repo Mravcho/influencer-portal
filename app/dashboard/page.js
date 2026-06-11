@@ -133,7 +133,7 @@ export default function Dashboard() {
         {/* Hero — magazine-cover */}
         <div className={`hero-card ${bannerUrl ? 'has-banner' : ''}`}
           style={bannerUrl ? {
-            backgroundImage: `linear-gradient(180deg, rgba(15, 110, 86, .1) 0%, rgba(15, 30, 45, .85) 100%), url(${bannerUrl})`,
+            backgroundImage: `linear-gradient(135deg, rgba(15, 110, 86, .85) 0%, rgba(13, 77, 63, .92) 60%, rgba(8, 35, 28, .95) 100%), url(${bannerUrl})`,
           } : undefined}
         >
           {/* Декоративни blob-ове за gradient версия */}
