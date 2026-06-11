@@ -127,8 +127,13 @@ export default function Dashboard() {
   }
   const fmtEur = (n) => `${Number(n || 0).toFixed(2)} €`
 
+  // ВАЖНО: hooks трябва да се извикват в един и същ ред на всеки render.
+  // Затова useCountUp е ТУК (преди early return-а), а не след него.
+  const targetCommission = Number(data?.currentMonth?.commission || 0)
+  const countUpCommission = useCountUp(targetCommission)
+
   if (loading && !data) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="dashboard-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ color: 'var(--muted)' }}>Зареждане...</p>
     </div>
   )
@@ -136,8 +141,6 @@ export default function Dashboard() {
   const { orders = [], stats = {}, topProducts = [], bannerUrl = null, avatarUrl = null, currentMonth = {} } = data || {}
   const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
   const monthLabel = format(new Date(), 'LLLL', { locale: bg })
-  const targetCommission = Number(currentMonth.commission || 0)
-  const countUpCommission = useCountUp(targetCommission)
 
   return (
     <div className="dashboard-shell">
