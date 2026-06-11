@@ -1,7 +1,19 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; min-width: 0; }
 
 html, body { max-width: 100%; overflow-x: hidden; }
+html { -webkit-text-size-adjust: 100%; } /* iOS Safari да не променя текста на ротация */
+body {
+  /* Safe area за iPhone notch */
+  padding-left:  env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
 img, svg, video { max-width: 100%; height: auto; }
+
+/* Премахваме default 300ms tap delay на мобилен и highlight оранжев тап */
+button, a, [role="button"], input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
 
 :root {
   --bg:        #f8f7f4;
@@ -43,20 +55,28 @@ a:hover { text-decoration: underline; }
 
 /* Buttons */
 .btn {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 8px 16px; border-radius: 8px; font-size: 13px;
   font-weight: 500; cursor: pointer; transition: all .15s;
   border: 1px solid var(--border); background: var(--surface);
   color: var(--text); font-family: inherit;
+  min-height: 38px; /* tap target */
 }
 .btn:hover { background: var(--bg); }
+.btn:active { transform: scale(0.98); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent-dk); border-color: var(--accent-dk); }
-.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-sm { padding: 5px 12px; font-size: 12px; min-height: 32px; }
 .btn-ghost { border-color: transparent; background: transparent; }
 .btn-ghost:hover { background: var(--bg); }
 .btn-danger { border-color: #fcc; color: var(--danger); background: #fff8f6; }
 .btn-danger:hover { background: #fff0ec; }
+
+/* На мобилен — по-щедри tap targets за по-лесно тап-ване */
+@media (max-width: 560px) {
+  .btn    { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  .btn-sm { min-height: 36px; padding: 7px 12px; font-size: 12px; }
+}
 
 /* Inputs */
 input, select, textarea {
@@ -65,8 +85,20 @@ input, select, textarea {
   background: var(--surface); color: var(--text);
   font-family: inherit; transition: border-color .15s;
   outline: none;
+  min-height: 38px; /* tap target */
 }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { min-height: 80px; }
+
+/* iOS Safari зум-ва ако font-size < 16px на focus → форсираме 16px на мобилен.
+   На по-широки екрани остава 14px за визуална компактност. */
+@media (max-width: 560px) {
+  input, select, textarea {
+    font-size: 16px;
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+}
 
 /* Table */
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -136,7 +168,7 @@ tbody tr:hover td { background: var(--bg); }
   .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
 }
 
-/* Header bar — wrap-ва на тесни екрани */
+/* Header bar — wrap-ва на тесни екрани, sticky на мобилен (винаги достъпно меню) */
 .header-bar {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -146,10 +178,15 @@ tbody tr:hover td { background: var(--bg); }
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 @media (max-width: 560px) {
   .header-bar {
     padding: 10px 1rem;
+    /* iPhone notch */
+    padding-top: max(10px, env(safe-area-inset-top));
   }
   .header-bar > * {
     min-width: 0;
@@ -260,7 +297,11 @@ tbody tr:hover td { background: var(--bg); }
   padding: 1.5rem;
 }
 @media (max-width: 560px) {
-  .main-container { padding: 1rem; }
+  .main-container {
+    padding: 1rem;
+    /* iPhone notch */
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
 }
 
 /* Tables — стандартен overflow + по-малко padding на мобилен */
@@ -346,9 +387,14 @@ tbody tr:hover td { background: var(--bg); }
 
 /* Card padding по-малко на мобилен */
 @media (max-width: 560px) {
-  .card { padding: 1rem; }
+  .card { padding: 14px; margin-bottom: 12px !important; }
   .metric { padding: 12px; }
-  .metric-value { font-size: 20px; }
+  .metric-value { font-size: 22px; }
+  .metric-label { font-size: 10px; }
+  .metric-sub { font-size: 10px; }
+
+  /* На мобилен — header section на карти по-компактен */
+  .card > div:first-child[style*="textTransform"] { font-size: 10px !important; }
 }
 
 /* Chip-овете да не са твърде големи на мобилен */
@@ -377,8 +423,11 @@ tbody tr:hover td { background: var(--bg); }
 
 /* Hero card — smaller font на mobile */
 @media (max-width: 560px) {
-  .hero-amount { font-size: 30px !important; }
+  .hero-amount { font-size: 28px !important; }
   .hero-sub    { font-size: 11px !important; line-height: 1.4; }
+}
+@media (max-width: 400px) {
+  .hero-amount { font-size: 24px !important; }
 }
 
 /* Chip wrap helper */

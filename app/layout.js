@@ -5,6 +5,14 @@ export const metadata = {
   description: 'Проследявай своите поръчки и комисионни',
 }
 
+export const viewport = {
+  width:              'device-width',
+  initialScale:       1,
+  maximumScale:       5,
+  viewportFit:        'cover', // поддръжка на iPhone notch / safe areas
+  themeColor:         '#1D9E75',
+}
+
 export default function RootLayout({ children }) {
   return (
     <html lang="bg">
