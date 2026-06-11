@@ -55,8 +55,8 @@ export async function POST() {
       name:                     'Демо Профил',
       username:                 DEMO_USERNAME,
       password_hash:            passwordHash,
-      promo_code:               'DEMO10',
-      commission:               10,
+      promo_code:               'DEMO5',   // 5% отстъпка за клиента в Shopify
+      commission:               10,        // 10% комисионна за инфлуенсъра
       platform:                 'Instagram',
       email:                    'demo@example.com',
       email_notifications:      false,
@@ -70,13 +70,13 @@ export async function POST() {
 
   if (infErr) return NextResponse.json({ error: infErr.message }, { status: 500 })
 
-  // 3. Default share link
+  // 3. Default share link (short_code = промокода lowercase)
   await supabaseAdmin
     .from('share_links')
     .insert({
       influencer_id: inf.id,
-      short_code:    'demo10',
-      target_url:    'https://realfood.bg/discount/DEMO10',
+      short_code:    'demo5',
+      target_url:    'https://realfood.bg/discount/DEMO5',
       label:         'Кратък линк за споделяне в соц. мрежи',
       is_default:    true,
     })
@@ -108,7 +108,7 @@ export async function POST() {
       const p = pickRandom(DEMO_PRODUCTS)
       const qty = 1 + Math.floor(Math.random() * 2)
       const fullPrice = p.price * qty
-      const discount  = fullPrice * 0.10 // 10% от промокода
+      const discount  = fullPrice * 0.05 // 5% отстъпка от промокода DEMO5
       revenue += fullPrice
       savings += discount
       items.push({
@@ -245,7 +245,7 @@ export async function POST() {
     credentials: {
       username:    DEMO_USERNAME,
       password:    DEMO_PASSWORD,
-      promo_code:  'DEMO10',
+      promo_code:  'DEMO5',
       login_url:   '/login',
     },
     stats: {
