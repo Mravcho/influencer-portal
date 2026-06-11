@@ -598,20 +598,11 @@ export default function Dashboard() {
   // Mobile drawer state
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
-  if (loading && !data) return (
-    <div className="dashboard-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: 'var(--muted)' }}>Зареждане...</p>
-    </div>
-  )
-
-  const { orders = [], stats = {}, topProducts = [], bannerUrl = null, avatarUrl = null, currentMonth = {} } = data || {}
-  const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
-  const monthLabel = format(new Date(), 'LLLL', { locale: bg })
-
-  // KPI sparkline data — 14-day buckets derived от orders
+  // KPI sparkline data — 14-day buckets derived от orders.
+  // ВАЖНО: useMemo трябва да е ПРЕДИ early return-а (Rules of Hooks).
   const kpiSparks = useMemo(() => {
     const days = 14
-    const buckets = Array.from({ length: days }, (_, i) => ({
+    const buckets = Array.from({ length: days }, () => ({
       ordersCount: 0, ordersValue: 0, savings: 0, count: 0,
     }))
     const now = Date.now()
@@ -628,12 +619,22 @@ export default function Dashboard() {
       buckets[idx].count += 1
     })
     return {
-      clicks: buckets.map((b, i) => ({ x: i, y: Math.max(1, b.ordersCount * 6 + Math.round(Math.sin(i) * 3 + 4)) })), // estimate
+      clicks: buckets.map((b, i) => ({ x: i, y: Math.max(1, b.ordersCount * 6 + Math.round(Math.sin(i) * 3 + 4)) })),
       orders: buckets.map((b, i) => ({ x: i, y: b.ordersCount })),
       avg:    buckets.map((b, i) => ({ x: i, y: b.count > 0 ? Math.round(b.ordersValue / b.count) : 0 })),
       savings:buckets.map((b, i) => ({ x: i, y: Math.round(b.savings) })),
     }
   }, [data?.orders])
+
+  if (loading && !data) return (
+    <div className="dashboard-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ color: 'var(--muted)' }}>Зареждане...</p>
+    </div>
+  )
+
+  const { orders = [], stats = {}, topProducts = [], bannerUrl = null, avatarUrl = null, currentMonth = {} } = data || {}
+  const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
+  const monthLabel = format(new Date(), 'LLLL', { locale: bg })
 
   return (
     <div className={`dashboard-shell ${theme === 'dark' ? 'theme-dark' : ''}`} style={{ minHeight: '100vh' }}>
