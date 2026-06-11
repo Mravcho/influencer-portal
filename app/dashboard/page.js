@@ -66,6 +66,46 @@ function buildShortcuts() {
   ]
 }
 
+/* ───────────────── Theme tokens (light + dark) ───────────────── */
+const TOKENS = {
+  light: {
+    sidebarBg:   '#FAFAFC',
+    sidebarBorder: '#E5E5EA',
+    cardBg:      '#FFFFFF',
+    cardBorder:  '#E5E5EA',
+    text:        '#1D1D1F',
+    muted:       '#6E6E73',
+    iconMuted:   '#86868B',
+    activeBg:    'rgba(52, 211, 153, 0.12)',
+    activeText:  '#0F6E56',
+    hoverBg:     'rgba(0, 0, 0, 0.04)',
+    hoverText:   '#1D1D1F',
+    barBg:       'rgba(255,255,255,0.92)',
+    chartGrid:   'rgba(0,0,0,0.06)',
+    tooltipBg:   '#FFFFFF',
+    tooltipBorder: '#E5E5EA',
+    ringTrack:   'rgba(0,0,0,0.08)',
+  },
+  dark: {
+    sidebarBg:   '#0E1118',
+    sidebarBorder: 'rgba(255,255,255,0.06)',
+    cardBg:      '#14171F',
+    cardBorder:  'rgba(255,255,255,0.06)',
+    text:        '#F5F7FA',
+    muted:       '#A1A8B8',
+    iconMuted:   '#A1A8B8',
+    activeBg:    'rgba(52, 211, 153, 0.12)',
+    activeText:  '#A3E635',
+    hoverBg:     'rgba(255,255,255,0.05)',
+    hoverText:   '#F5F7FA',
+    barBg:       'rgba(14, 17, 24, 0.92)',
+    chartGrid:   'rgba(255,255,255,0.06)',
+    tooltipBg:   '#14171F',
+    tooltipBorder: 'rgba(255,255,255,0.08)',
+    ringTrack:   'rgba(255,255,255,0.08)',
+  },
+}
+
 /* ───────────────── Sidebar / Mobile tab bar nav ───────────────── */
 const NAV = [
   { id: 'top',       label: 'Преглед',  Icon: Home },
@@ -80,7 +120,7 @@ function scrollToAnchor(id) {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-function SidebarNavItem({ item, active, onClick }) {
+function SidebarNavItem({ item, active, onClick, t }) {
   const isActive = active === item.id
   return (
     <button
@@ -98,21 +138,21 @@ function SidebarNavItem({ item, active, onClick }) {
         width: '100%',
         cursor: 'pointer',
         transition: 'all .15s ease',
-        background: isActive ? 'rgba(52, 211, 153, 0.12)' : 'transparent',
-        color: isActive ? '#A3E635' : '#A1A8B8',
+        background: isActive ? t.activeBg : 'transparent',
+        color: isActive ? t.activeText : t.iconMuted,
         border: 'none',
         fontFamily: 'inherit',
       }}
       onMouseEnter={e => {
         if (!isActive) {
-          e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
-          e.currentTarget.style.color = '#F5F7FA'
+          e.currentTarget.style.background = t.hoverBg
+          e.currentTarget.style.color = t.hoverText
         }
       }}
       onMouseLeave={e => {
         if (!isActive) {
           e.currentTarget.style.background = 'transparent'
-          e.currentTarget.style.color = '#A1A8B8'
+          e.currentTarget.style.color = t.iconMuted
         }
       }}
     >
@@ -139,6 +179,7 @@ function SidebarNavItem({ item, active, onClick }) {
 
 function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme }) {
   const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
+  const t = TOKENS[theme] || TOKENS.dark
   return (
     <aside
       className="hidden lg:flex"
@@ -146,8 +187,8 @@ function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme })
         width: 260,
         flexShrink: 0,
         flexDirection: 'column',
-        background: '#0E1118',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        background: t.sidebarBg,
+        borderRight: `1px solid ${t.sidebarBorder}`,
         position: 'sticky',
         top: 0,
         height: '100vh',
@@ -174,7 +215,7 @@ function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme })
 
       <nav style={{ padding: '8px 10px', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 2 }} aria-label="Главна навигация">
         {NAV.map(item => (
-          <SidebarNavItem key={item.id} item={item} active={active} onClick={() => scrollToAnchor(item.id)} />
+          <SidebarNavItem key={item.id} item={item} active={active} onClick={() => scrollToAnchor(item.id)} t={t} />
         ))}
       </nav>
 
@@ -187,18 +228,20 @@ function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme })
           }}
           active={null}
           onClick={onToggleTheme}
+          t={t}
         />
         <SidebarNavItem
           item={{ id: '_logout', label: 'Изход', Icon: LogOut }}
           active={null}
           onClick={onLogout}
+          t={t}
         />
 
         <div style={{
           marginTop: 8,
           borderRadius: 16,
-          background: '#171B25',
-          border: '1px solid rgba(255,255,255,0.06)',
+          background: t.cardBg,
+          border: `1px solid ${t.cardBorder}`,
           padding: 12,
           display: 'flex',
           alignItems: 'center',
@@ -217,10 +260,10 @@ function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme })
             </div>
           )}
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#F5F7FA', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {firstName || userInfo.name}
             </div>
-            <div style={{ fontSize: 11, color: '#FCD34D', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ fontSize: 11, color: theme === 'dark' ? '#FCD34D' : '#B45309', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <Crown size={11} aria-hidden /> {userInfo.promoCode}
             </div>
           </div>
@@ -230,7 +273,8 @@ function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme })
   )
 }
 
-function MobileTabBar({ active }) {
+function MobileTabBar({ active, theme }) {
+  const t = TOKENS[theme] || TOKENS.dark
   return (
     <nav
       className="lg:hidden"
@@ -241,10 +285,10 @@ function MobileTabBar({ active }) {
         left: 0,
         right: 0,
         zIndex: 50,
-        background: 'rgba(14, 17, 24, 0.92)',
+        background: t.barBg,
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
+        borderTop: `1px solid ${t.sidebarBorder}`,
         display: 'grid',
         gridTemplateColumns: 'repeat(5, 1fr)',
         paddingBottom: 'env(safe-area-inset-bottom)',
@@ -269,7 +313,7 @@ function MobileTabBar({ active }) {
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
-              color: isActive ? '#A3E635' : '#9CA3AF',
+              color: isActive ? t.activeText : t.iconMuted,
               fontFamily: 'inherit',
               fontSize: 10,
               fontWeight: isActive ? 700 : 500,
@@ -296,17 +340,23 @@ function MobileTabBar({ active }) {
 }
 
 /* ───────────────── Hero earnings card ───────────────── */
-function FintechHero({ userInfo, currentMonth, countUpCommission, avatarUrl }) {
+function FintechHero({ userInfo, currentMonth, countUpCommission, avatarUrl, theme }) {
   const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
   const monthLabel = format(new Date(), 'LLLL', { locale: bg })
+  // Light: brand-green gradient (нашата традиционна). Dark: navy fintech.
+  const heroBg = theme === 'dark'
+    ? 'linear-gradient(135deg, #0F2A24 0%, #163A4A 50%, #0F2438 100%)'
+    : 'linear-gradient(135deg, #1D9E75 0%, #0F6E56 55%, #0d4d3f 100%)'
   return (
     <motion.section
       whileHover={{ y: -2 }}
       transition={{ duration: 0.2 }}
       className="relative overflow-hidden rounded-3xl p-7 md:p-8 text-white"
       style={{
-        background: 'linear-gradient(135deg, #0F2A24 0%, #163A4A 50%, #0F2438 100%)',
-        boxShadow: '0 20px 60px -20px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)',
+        background: heroBg,
+        boxShadow: theme === 'dark'
+          ? '0 20px 60px -20px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)'
+          : '0 10px 40px -10px rgba(15, 110, 86, 0.45), inset 0 0 0 1px rgba(255,255,255,.12)',
       }}
     >
       <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.04]" aria-hidden>
@@ -359,7 +409,8 @@ function FintechHero({ userInfo, currentMonth, countUpCommission, avatarUrl }) {
 }
 
 /* ───────────────── Payout progress ring ───────────────── */
-function PayoutRing({ balance, onScrollToPayout }) {
+function PayoutRing({ balance, onScrollToPayout, theme }) {
+  const t = TOKENS[theme] || TOKENS.dark
   const reduce = useReducedMotion()
   const available = Number(balance?.available || 0)
   const minPayout = Number(balance?.minPayout || 100)
@@ -370,10 +421,22 @@ function PayoutRing({ balance, onScrollToPayout }) {
 
   return (
     <motion.section whileHover={{ y: -2 }} transition={{ duration: 0.2 }}
-      className="rounded-3xl bg-[#14171F] p-6 ring-1 ring-white/[.06] flex flex-col items-center"
-      style={{ boxShadow: '0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5)' }}
+      style={{
+        borderRadius: 24,
+        background: t.cardBg,
+        border: `1px solid ${t.cardBorder}`,
+        padding: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        boxShadow: theme === 'dark'
+          ? '0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5)'
+          : '0 1px 3px rgba(0,0,0,.04), 0 8px 24px -8px rgba(0,0,0,.08)',
+      }}
     >
-      <div className="w-full text-[11px] uppercase tracking-[.18em] text-[#8A93A6]">Налично за теглене</div>
+      <div style={{ width: '100%', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.18em', color: t.muted }}>
+        Налично за теглене
+      </div>
       <div className="relative my-4 grid place-items-center" style={{ width: 170, height: 170 }}>
         <svg width="170" height="170" viewBox="0 0 170 170" className="-rotate-90" aria-hidden>
           <defs>
@@ -382,7 +445,7 @@ function PayoutRing({ balance, onScrollToPayout }) {
               <stop offset="100%" stopColor="#A3E635" />
             </linearGradient>
           </defs>
-          <circle cx="85" cy="85" r={radius} stroke="rgba(255,255,255,.08)" strokeWidth="14" fill="none" />
+          <circle cx="85" cy="85" r={radius} stroke={t.ringTrack} strokeWidth="14" fill="none" />
           <motion.circle
             cx="85" cy="85" r={radius} stroke="url(#ringG)" strokeWidth="14" fill="none" strokeLinecap="round"
             strokeDasharray={circ}
@@ -392,22 +455,31 @@ function PayoutRing({ balance, onScrollToPayout }) {
           />
         </svg>
         <div className="absolute flex flex-col items-center">
-          <div className="text-3xl font-semibold tabular-nums text-[#F5F7FA]">{pct}%</div>
-          <div className="mt-1 text-[10px] tabular-nums text-[#8A93A6]">{fmtCurr(available)} / {fmtCurr(minPayout)}</div>
+          <div style={{ fontSize: 30, fontWeight: 600, color: t.text, fontVariantNumeric: 'tabular-nums' }}>{pct}%</div>
+          <div style={{ marginTop: 4, fontSize: 10, color: t.muted, fontVariantNumeric: 'tabular-nums' }}>
+            {fmtCurr(available)} / {fmtCurr(minPayout)}
+          </div>
         </div>
       </div>
       <button
         onClick={onScrollToPayout}
         disabled={!ready}
-        className={`w-full rounded-2xl text-[#0B0D12] font-semibold py-2.5 transition ${
-          ready
-            ? 'bg-gradient-to-r from-emerald-400 to-lime-400 hover:brightness-110'
-            : 'bg-gradient-to-r from-emerald-400 to-lime-400 opacity-40 cursor-not-allowed'
-        } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400`}
+        style={{
+          width: '100%',
+          borderRadius: 16,
+          background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
+          color: '#0B0D12',
+          fontWeight: 700,
+          padding: '10px 16px',
+          border: 'none',
+          cursor: ready ? 'pointer' : 'not-allowed',
+          opacity: ready ? 1 : 0.4,
+          fontFamily: 'inherit',
+        }}
       >
         Заяви изплащане
       </button>
-      <p className="mt-2 text-center text-[11px] text-[#8A93A6]">
+      <p style={{ marginTop: 8, textAlign: 'center', fontSize: 11, color: t.muted }}>
         {ready ? 'Достигна прага — можеш да заявиш' : `Останаха ${fmtCurr(Math.max(0, minPayout - available))}`}
       </p>
     </motion.section>
@@ -415,17 +487,30 @@ function PayoutRing({ balance, onScrollToPayout }) {
 }
 
 /* ───────────────── KPI card ───────────────── */
-function KpiCard({ label, value, Icon, color, sparkData, accent }) {
+function KpiCard({ label, value, Icon, accent, sparkData, theme }) {
+  const t = TOKENS[theme] || TOKENS.dark
   return (
     <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.2 }}
-      className="rounded-2xl bg-[#14171F] p-5 ring-1 ring-white/[.06]"
-      style={{ boxShadow: '0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5)' }}
+      style={{
+        borderRadius: 20,
+        background: t.cardBg,
+        border: `1px solid ${t.cardBorder}`,
+        padding: 18,
+        boxShadow: theme === 'dark'
+          ? '0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5)'
+          : '0 1px 3px rgba(0,0,0,.04), 0 4px 12px -4px rgba(0,0,0,.06)',
+      }}
     >
-      <div className={`grid h-10 w-10 place-items-center rounded-xl ${color}`}>
+      <div style={{
+        display: 'grid', placeItems: 'center',
+        height: 40, width: 40, borderRadius: 12,
+        background: `${accent}26`,
+        color: accent,
+      }}>
         <Icon size={18} aria-hidden />
       </div>
-      <div className="mt-4 text-[10px] uppercase tracking-[.18em] text-[#8A93A6]">{label}</div>
-      <div className="text-2xl font-semibold tabular-nums text-[#F5F7FA]">{value}</div>
+      <div style={{ marginTop: 14, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.18em', color: t.muted }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: t.text }}>{value}</div>
       {sparkData && sparkData.length > 0 && (
         <div className="mt-3 -mx-2 h-[44px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -446,7 +531,8 @@ function KpiCard({ label, value, Icon, color, sparkData, accent }) {
 }
 
 /* ───────────────── Earnings area chart (30d derived from orders) ───────────────── */
-function EarningsChart({ orders, commissionRate }) {
+function EarningsChart({ orders, commissionRate, theme }) {
+  const t = TOKENS[theme] || TOKENS.dark
   const data = useMemo(() => {
     const now = new Date()
     const start = new Date(now); start.setDate(start.getDate() - 29); start.setHours(0,0,0,0)
@@ -467,13 +553,20 @@ function EarningsChart({ orders, commissionRate }) {
 
   return (
     <motion.section whileHover={{ y: -2 }} transition={{ duration: 0.2 }}
-      className="rounded-3xl bg-[#14171F] p-6 ring-1 ring-white/[.06]"
-      style={{ boxShadow: '0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5)' }}
+      style={{
+        borderRadius: 24,
+        background: t.cardBg,
+        border: `1px solid ${t.cardBorder}`,
+        padding: 24,
+        boxShadow: theme === 'dark'
+          ? '0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5)'
+          : '0 1px 3px rgba(0,0,0,.04), 0 8px 24px -8px rgba(0,0,0,.08)',
+      }}
     >
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-lg font-semibold text-[#F5F7FA]">Очакван приход</h2>
-          <div className="text-xs text-[#8A93A6]">Дневна комисионна за последните 30 дни</div>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: t.text }}>Очакван приход</h2>
+          <div style={{ fontSize: 12, color: t.muted }}>Дневна комисионна за последните 30 дни</div>
         </div>
       </div>
       <div className="mt-4 h-[240px] -mx-2">
@@ -485,13 +578,13 @@ function EarningsChart({ orders, commissionRate }) {
                 <stop offset="100%" stopColor="#34D399" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#ffffff10" strokeDasharray="2 6" vertical={false} />
-            <XAxis dataKey="d" stroke="#8A93A6" tickLine={false} axisLine={false} fontSize={10} interval={4} />
-            <YAxis stroke="#8A93A6" tickLine={false} axisLine={false} fontSize={11} tickFormatter={v => `€${v}`} width={42} />
+            <CartesianGrid stroke={t.chartGrid} strokeDasharray="2 6" vertical={false} />
+            <XAxis dataKey="d" stroke={t.muted} tickLine={false} axisLine={false} fontSize={10} interval={4} />
+            <YAxis stroke={t.muted} tickLine={false} axisLine={false} fontSize={11} tickFormatter={v => `€${v}`} width={42} />
             <Tooltip
               cursor={{ stroke: '#34D39955', strokeDasharray: '3 3' }}
-              contentStyle={{ background: '#14171F', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12 }}
-              labelStyle={{ color: '#8A93A6', fontSize: 11 }}
+              contentStyle={{ background: t.tooltipBg, border: `1px solid ${t.tooltipBorder}`, borderRadius: 12 }}
+              labelStyle={{ color: t.muted, fontSize: 11 }}
               formatter={(v) => [fmtCurr(v), '']}
             />
             <Area type="monotone" dataKey="v" stroke="#34D399" strokeWidth={2.5} fill="url(#earnArea2)" />
@@ -636,183 +729,83 @@ export default function Dashboard() {
   const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
   const monthLabel = format(new Date(), 'LLLL', { locale: bg })
 
+  const t = TOKENS[theme] || TOKENS.dark
   return (
-    <div className={`dashboard-shell ${theme === 'dark' ? 'theme-dark' : ''}`} style={{ minHeight: '100vh' }}>
-      <div className={theme === 'dark' ? 'flex' : ''}>
-        {/* Sidebar — само в DARK режим */}
-        {theme === 'dark' && (
-          <Sidebar
-            active="top"
-            userInfo={{ ...userInfo, avatarUrl: data?.avatarUrl }}
-            branding={branding}
-            onLogout={logout}
-            theme={theme}
-            onToggleTheme={toggleTheme}
-          />
-        )}
+    <div className={`dashboard-shell ${theme === 'dark' ? 'theme-dark' : ''}`} style={{ minHeight: '100vh', background: t.cardBg === '#FFFFFF' ? '#F5F5F7' : '#0B0D12' }}>
+      <div className="flex">
+        <Sidebar
+          active="top"
+          userInfo={{ ...userInfo, avatarUrl: data?.avatarUrl }}
+          branding={branding}
+          onLogout={logout}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
 
-        <div className={theme === 'dark' ? 'flex-1 min-w-0' : ''}>
-          {/* Mobile top bar — само в dark режим (light има обикновен header) */}
-          {theme === 'dark' && (
-            <div className="lg:hidden sticky top-0 z-30 bg-[#0F1218]/90 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {branding.logo_url ? (
-                  <img src={branding.logo_url} alt="" className="h-7" />
-                ) : (
-                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-400 to-lime-400" aria-hidden />
-                )}
-                <span className="bg-gradient-to-r from-emerald-300 to-lime-300 bg-clip-text text-transparent font-bold tracking-tight">RealFood</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button onClick={toggleTheme} aria-label="Светъл режим" className="p-2 rounded-full text-white/70 hover:text-white">
-                  <Sun size={18} />
-                </button>
-                <button onClick={logout} aria-label="Изход" className="p-2 rounded-full text-white/70 hover:text-rose-300">
-                  <LogOut size={18} />
-                </button>
-              </div>
+        <div className="flex-1 min-w-0">
+          {/* Mobile top bar — theme-aware */}
+          <div
+            className="lg:hidden sticky top-0 z-30 px-4 py-3 flex items-center justify-between"
+            style={{
+              background: t.barBg,
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              borderBottom: `1px solid ${t.sidebarBorder}`,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              {branding.logo_url ? (
+                <img src={branding.logo_url} alt="" className="h-7" />
+              ) : (
+                <div className="h-7 w-7 rounded-lg" style={{ background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)' }} aria-hidden />
+              )}
+              <span style={{
+                background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                fontWeight: 700, letterSpacing: '-0.02em',
+              }}>RealFood</span>
             </div>
-          )}
-
-          {/* Light-режим header — оригиналният magazine стил */}
-          {theme === 'light' && (
-            <header className="header-bar">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                {branding.logo_url ? (
-                  <img src={branding.logo_url} alt="Logo" style={{ height: 32, maxWidth: 120, objectFit: 'contain', flexShrink: 0 }} />
-                ) : (
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--accent-lt)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, fontWeight: 700, color: 'var(--accent-dk)', flexShrink: 0 }}>
-                    {userInfo.name?.slice(0, 2).toUpperCase() || '??'}
-                  </div>
-                )}
-                <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userInfo.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>Промокод: <strong>{userInfo.promoCode}</strong></div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <button className="btn btn-sm btn-ghost" onClick={toggleTheme} title="Тъмен режим" aria-label="Тъмен режим" style={{ padding: '6px 10px' }}>
-                  <Moon size={16} />
-                </button>
-                <button className="btn btn-sm btn-ghost" onClick={logout}>Изход</button>
-              </div>
-            </header>
-          )}
+            <div className="flex items-center gap-1">
+              <button onClick={toggleTheme} aria-label={theme === 'dark' ? 'Светъл режим' : 'Тъмен режим'}
+                style={{ padding: 8, borderRadius: 999, color: t.muted, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+              <button onClick={logout} aria-label="Изход"
+                style={{ padding: 8, borderRadius: 999, color: t.muted, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                <LogOut size={18} />
+              </button>
+            </div>
+          </div>
 
           <main id="top" className="main-container pb-24 lg:pb-12">
-            {/* LIGHT-режим: оригиналният magazine-cover hero */}
-            {theme === 'light' && (
-              <div className={`hero-card ${bannerUrl ? 'has-banner' : ''}`}
-                style={bannerUrl ? {
-                  backgroundImage: `linear-gradient(135deg, rgba(15, 110, 86, .85) 0%, rgba(13, 77, 63, .92) 60%, rgba(8, 35, 28, .95) 100%), url(${bannerUrl})`,
-                } : undefined}
-              >
-                {!bannerUrl && (
-                  <>
-                    <div className="hero-blob hero-blob-1" />
-                    <div className="hero-blob hero-blob-2" />
-                    <div className="hero-blob hero-blob-3" />
-                  </>
-                )}
-                <div className="hero-inner">
-                  <div className="hero-top">
-                    <div className="hero-greeting">
-                      <div className="hero-time-greet">{getTimeGreeting()}</div>
-                      <div className="hero-name">{firstName || userInfo.name}</div>
-                      <div className="hero-date">{format(new Date(), 'EEEE, d MMMM', { locale: bg })}</div>
-                    </div>
-                    <div className="hero-avatar-wrap">
-                      {avatarUrl ? (
-                        <img src={avatarUrl} alt={userInfo.name} className="hero-avatar" />
-                      ) : (
-                        <div className="hero-avatar hero-avatar-placeholder">
-                          {userInfo.name?.slice(0, 2).toUpperCase() || '??'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="hero-amount-section">
-                    <div className="hero-amount-label">Очаквана комисионна за {monthLabel}</div>
-                    <div className="hero-amount">{fmtEur(countUpCommission)}</div>
-                    <div className="hero-meta-row">
-                      {targetCommission >= 100 ? (
-                        <span className="pill-glass">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          Праг за теглене постигнат
-                        </span>
-                      ) : (
-                        <span className="pill-glass">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10" />
-                            <polyline points="12 6 12 12 16 14" />
-                          </svg>
-                          Още {fmtEur(Math.max(0, 100 - targetCommission))} до прага за теглене
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="hero-stats">
-                    <div className="hero-stat">
-                      <div className="hero-stat-icon">📦</div>
-                      <div className="hero-stat-body">
-                        <div className="hero-stat-value">{currentMonth.orders || 0}</div>
-                        <div className="hero-stat-label">{currentMonth.orders === 1 ? 'поръчка' : 'поръчки'}</div>
-                      </div>
-                    </div>
-                    <div className="hero-stat">
-                      <div className="hero-stat-icon">%</div>
-                      <div className="hero-stat-body">
-                        <div className="hero-stat-value">{userInfo.commission}%</div>
-                        <div className="hero-stat-label">комисионна</div>
-                      </div>
-                    </div>
-                    <div className="hero-stat">
-                      <div className="hero-stat-icon">💚</div>
-                      <div className="hero-stat-body">
-                        <div className="hero-stat-value">{fmtEur(currentMonth.savings || 0).replace(' €', '')}</div>
-                        <div className="hero-stat-label">спестено от клиентите</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            {/* Hero + Payout Ring grid — render-ват се в двата режима, тоkens се сменят */}
+            <div className="grid grid-cols-12 gap-4 md:gap-6 mb-6">
+              <div className="col-span-12 lg:col-span-8">
+                <FintechHero
+                  userInfo={userInfo}
+                  currentMonth={currentMonth}
+                  countUpCommission={countUpCommission}
+                  avatarUrl={avatarUrl}
+                  theme={theme}
+                />
               </div>
-            )}
+              <div className="col-span-12 lg:col-span-4">
+                <PayoutRing balance={payoutBalance} onScrollToPayout={() => scrollToAnchor('payout')} theme={theme} />
+              </div>
+            </div>
 
-            {/* DARK-режим: премиум fintech блок отгоре */}
-            {theme === 'dark' && (
-              <>
-                <div className="grid grid-cols-12 gap-4 md:gap-6 mb-6">
-                  <div className="col-span-12 lg:col-span-8">
-                    <FintechHero
-                      userInfo={userInfo}
-                      currentMonth={currentMonth}
-                      countUpCommission={countUpCommission}
-                      avatarUrl={avatarUrl}
-                    />
-                  </div>
-                  <div className="col-span-12 lg:col-span-4">
-                    <PayoutRing balance={payoutBalance} onScrollToPayout={() => scrollToAnchor('payout')} />
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
+              <KpiCard label="Кликове · 90д" value={String(stats.totalClicks || 0)} Icon={MousePointerClick} accent="#0066CC" sparkData={kpiSparks.clicks} theme={theme} />
+              <KpiCard label="Поръчки · общо" value={String(stats.totalOrders || 0)} Icon={ShoppingCart} accent="#34C759" sparkData={kpiSparks.orders} theme={theme} />
+              <KpiCard label="Средна поръчка" value={fmtCurr(stats.avgOrderValue || 0)} Icon={Receipt} accent="#FF9500" sparkData={kpiSparks.avg} theme={theme} />
+              <KpiCard label="Спестено · клиенти" value={fmtCurr(currentMonth.savings || 0)} Icon={PiggyBank} accent="#A78BFA" sparkData={kpiSparks.savings} theme={theme} />
+            </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
-                  <KpiCard label="Кликове · 90д" value={String(stats.totalClicks || 0)} Icon={MousePointerClick} color="bg-sky-500/15 text-sky-300" accent="#60A5FA" sparkData={kpiSparks.clicks} />
-                  <KpiCard label="Поръчки · общо" value={String(stats.totalOrders || 0)} Icon={ShoppingCart} color="bg-emerald-500/15 text-emerald-300" accent="#34D399" sparkData={kpiSparks.orders} />
-                  <KpiCard label="Средна поръчка" value={fmtCurr(stats.avgOrderValue || 0)} Icon={Receipt} color="bg-amber-500/15 text-amber-300" accent="#FCD34D" sparkData={kpiSparks.avg} />
-                  <KpiCard label="Спестено · клиенти" value={fmtCurr(currentMonth.savings || 0)} Icon={PiggyBank} color="bg-violet-500/15 text-violet-300" accent="#A78BFA" sparkData={kpiSparks.savings} />
-                </div>
-
-                <div className="mb-6">
-                  <EarningsChart orders={data?.orders} commissionRate={userInfo.commission} />
-                </div>
-              </>
-            )}
+            <div className="mb-6">
+              <EarningsChart orders={data?.orders} commissionRate={userInfo.commission} theme={theme} />
+            </div>
 
             {/* Деактивиран акаунт */}
             {userInfo.active === false && (
@@ -1021,7 +1014,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {theme === 'dark' && <MobileTabBar active="top" />}
+      <MobileTabBar active="top" theme={theme} />
     </div>
   )
 }
