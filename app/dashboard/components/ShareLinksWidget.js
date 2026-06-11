@@ -247,7 +247,8 @@ export default function ShareLinksWidget({ viewId = null, baseUrl }) {
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
               <code style={{
                 flex: 1, minWidth: 0, fontSize: 13, padding: '8px 12px',
-                background: '#fff', border: '1px solid var(--border)', borderRadius: 6,
+                background: 'var(--surface)', color: 'var(--text)',
+                border: '1px solid var(--border)', borderRadius: 6,
                 fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden',
                 textOverflow: 'ellipsis',
               }}>{fullUrl(l.short_code)}</code>
