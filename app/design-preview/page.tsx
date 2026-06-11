@@ -733,5 +733,3 @@ export default function DesignPreviewPage() {
     </div>
   )
 }
-</content>
-</invoke>

@@ -1,8 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: 'class',
-  // Включваме @tailwind base само на routes, които изрично го искат — НЕ глобално.
-  // Затова corePlugins.preflight е false, за да не счупим съществуващите .js страници.
+  // Preflight is OFF — нашите съществуващи .js страници имат свой reset
+  // в globals.css. Tailwind utilities работят без preflight.
   corePlugins: { preflight: false },
   content: ['./app/**/*.{js,jsx,ts,tsx,mdx}'],
   theme: {
@@ -46,5 +46,3 @@ module.exports = {
   },
   plugins: [],
 }
-</content>
-</invoke>
