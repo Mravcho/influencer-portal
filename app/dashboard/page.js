@@ -489,8 +489,11 @@ function PayoutRing({ balance, onScrollToPayout, theme }) {
 /* ───────────────── KPI card ───────────────── */
 function KpiCard({ label, value, Icon, accent, sparkData, theme }) {
   const t = TOKENS[theme] || TOKENS.dark
+  // По-наситен icon tile в light режим (тъмен текст върху pastel), по-светъл в dark
+  const iconBg  = theme === 'dark' ? `${accent}26` : `${accent}1F`
+  const iconClr = accent
   return (
-    <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.2 }}
+    <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.2 }}
       style={{
         borderRadius: 20,
         background: t.cardBg,
@@ -498,30 +501,48 @@ function KpiCard({ label, value, Icon, accent, sparkData, theme }) {
         padding: 18,
         boxShadow: theme === 'dark'
           ? '0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5)'
-          : '0 1px 3px rgba(0,0,0,.04), 0 4px 12px -4px rgba(0,0,0,.06)',
+          : '0 1px 2px rgba(0,0,0,.04), 0 12px 28px -12px rgba(0,0,0,.12)',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
+      {/* Subtle accent corner glow */}
       <div style={{
-        display: 'grid', placeItems: 'center',
-        height: 40, width: 40, borderRadius: 12,
-        background: `${accent}26`,
-        color: accent,
-      }}>
-        <Icon size={18} aria-hidden />
+        position: 'absolute',
+        top: -40,
+        right: -40,
+        width: 120,
+        height: 120,
+        borderRadius: '50%',
+        background: `${accent}10`,
+        filter: 'blur(30px)',
+        pointerEvents: 'none',
+      }} aria-hidden />
+
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div style={{
+          display: 'grid', placeItems: 'center',
+          height: 40, width: 40, borderRadius: 12,
+          background: iconBg,
+          color: iconClr,
+        }}>
+          <Icon size={18} aria-hidden />
+        </div>
       </div>
-      <div style={{ marginTop: 14, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.18em', color: t.muted }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: t.text }}>{value}</div>
+
+      <div style={{ position: 'relative', marginTop: 14, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.18em', color: t.muted, fontWeight: 600 }}>{label}</div>
+      <div style={{ position: 'relative', fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', color: t.text, marginTop: 2 }}>{value}</div>
       {sparkData && sparkData.length > 0 && (
-        <div className="mt-3 -mx-2 h-[44px]">
+        <div style={{ position: 'relative', marginTop: 14, marginLeft: -8, marginRight: -8, height: 48 }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={sparkData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
               <defs>
                 <linearGradient id={`s-${label}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={accent} stopOpacity={0.5} />
+                  <stop offset="0%" stopColor={accent} stopOpacity={theme === 'light' ? 0.35 : 0.5} />
                   <stop offset="100%" stopColor={accent} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <Area type="monotone" dataKey="y" stroke={accent} strokeWidth={1.5} fill={`url(#s-${label})`} dot={false} isAnimationActive={false} />
+              <Area type="monotone" dataKey="y" stroke={accent} strokeWidth={2} fill={`url(#s-${label})`} dot={false} isAnimationActive={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -688,6 +709,15 @@ export default function Dashboard() {
       .catch(() => {})
   }, [])
 
+  // Lifetime click count за KPI картата (отделен endpoint — /api/dashboard/links)
+  const [lifetimeClicks, setLifetimeClicks] = useState(0)
+  useEffect(() => {
+    fetch('/api/dashboard/links?days=90')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setLifetimeClicks(d.lifetimeTotal || 0))
+      .catch(() => {})
+  }, [])
+
   // Mobile drawer state
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
@@ -797,7 +827,7 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
-              <KpiCard label="Кликове · 90д" value={String(stats.totalClicks || 0)} Icon={MousePointerClick} accent="#0066CC" sparkData={kpiSparks.clicks} theme={theme} />
+              <KpiCard label="Кликове · общо" value={String(lifetimeClicks)} Icon={MousePointerClick} accent="#0066CC" sparkData={kpiSparks.clicks} theme={theme} />
               <KpiCard label="Поръчки · общо" value={String(stats.totalOrders || 0)} Icon={ShoppingCart} accent="#34C759" sparkData={kpiSparks.orders} theme={theme} />
               <KpiCard label="Средна поръчка" value={fmtCurr(stats.avgOrderValue || 0)} Icon={Receipt} accent="#FF9500" sparkData={kpiSparks.avg} theme={theme} />
               <KpiCard label="Спестено · клиенти" value={fmtCurr(currentMonth.savings || 0)} Icon={PiggyBank} accent="#A78BFA" sparkData={kpiSparks.savings} theme={theme} />
