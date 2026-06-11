@@ -513,8 +513,8 @@ export default function Dashboard() {
   const [from, setFrom] = useState('')
   const [to, setTo]     = useState('')
 
-  // Тема: 'dark' (default за нова fintech визия) или 'light'.
-  const [theme, setTheme] = useState('dark')
+  // Тема: 'light' (default) или 'dark'. Запомня се в localStorage.
+  const [theme, setTheme] = useState('light')
   useEffect(() => {
     try {
       const saved = localStorage.getItem('rf-portal-theme')
