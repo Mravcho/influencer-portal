@@ -9,6 +9,14 @@ import ShareLinksWidget from '@/app/dashboard/components/ShareLinksWidget'
 
 function ymd(d) { return format(d, 'yyyy-MM-dd') }
 
+function getTimeGreeting() {
+  const h = new Date().getHours()
+  if (h >= 5  && h < 12) return 'Добро утро,'
+  if (h >= 12 && h < 18) return 'Добър ден,'
+  if (h >= 18 && h < 23) return 'Добър вечер,'
+  return 'Здравей,'
+}
+
 function buildShortcuts() {
   const now = new Date()
   const thisMonthStart = startOfMonth(now)
@@ -141,66 +149,66 @@ export default function AdminInfluencerView() {
       </header>
 
       <main className="main-container">
-        {/* Hero — banner или gradient */}
-        <div style={{
-          borderRadius: 16, marginBottom: '1.5rem',
-          color: '#fff', position: 'relative', overflow: 'hidden',
-          minHeight: heroBanner ? 260 : 'auto',
-          background: heroBanner
-            ? `linear-gradient(180deg, rgba(0,0,0,.15) 30%, rgba(0,0,0,.7) 100%), url(${heroBanner}) center/cover`
-            : 'linear-gradient(135deg, var(--accent) 0%, var(--accent-dk) 100%)',
-        }}>
+        {/* Hero — magazine-cover (същия като в инфлуенсърския dashboard) */}
+        <div className={`hero-card ${heroBanner ? 'has-banner' : ''}`}
+          style={heroBanner ? {
+            backgroundImage: `linear-gradient(180deg, rgba(15, 110, 86, .1) 0%, rgba(15, 30, 45, .85) 100%), url(${heroBanner})`,
+          } : undefined}
+        >
           {!heroBanner && (
-            <div style={{ position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,.1)' }} />
+            <>
+              <div className="hero-blob hero-blob-1" />
+              <div className="hero-blob hero-blob-2" />
+              <div className="hero-blob hero-blob-3" />
+            </>
           )}
-          <div style={{ position: 'relative', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: heroBanner ? 260 : 'auto' }}>
-            {/* Голяма профилна снимка горе вляво */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-              {influencer.avatar_url ? (
-                <img
-                  src={influencer.avatar_url}
-                  alt={influencer.name}
-                  style={{
-                    width: 96, height: 96, borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '4px solid rgba(255,255,255,.95)',
-                    boxShadow: '0 4px 16px rgba(0,0,0,.25)',
-                    flexShrink: 0,
-                  }}
-                />
-              ) : (
-                <div style={{
-                  width: 96, height: 96, borderRadius: '50%',
-                  background: 'rgba(255,255,255,.95)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 32, fontWeight: 700, color: 'var(--accent-dk)',
-                  border: '4px solid rgba(255,255,255,.95)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,.25)',
-                  flexShrink: 0,
-                }}>{influencer.name?.slice(0, 2).toUpperCase()}</div>
-              )}
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, opacity: .85, fontWeight: 500, textShadow: heroBanner ? '0 1px 4px rgba(0,0,0,.5)' : 'none' }}>
-                  Здравей,
-                </div>
-                <div style={{
-                  fontSize: 28, fontWeight: 700, lineHeight: 1.1,
-                  textShadow: heroBanner ? '0 2px 8px rgba(0,0,0,.5)' : 'none',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                }}>
-                  {(influencer.name || '').split(/\s+/)[0]} 👋
-                </div>
+
+          <div className="hero-inner">
+            <div className="hero-top">
+              <div className="hero-greeting">
+                <div className="hero-time-greet">{getTimeGreeting()}</div>
+                <div className="hero-name">{(influencer.name || '').split(/\s+/)[0]}</div>
+                <div className="hero-date">{format(new Date(), 'EEEE, d MMMM', { locale: bg })}</div>
+              </div>
+
+              <div className="hero-avatar-wrap">
+                {influencer.avatar_url ? (
+                  <img src={influencer.avatar_url} alt={influencer.name} className="hero-avatar" />
+                ) : (
+                  <div className="hero-avatar hero-avatar-placeholder">
+                    {influencer.name?.slice(0, 2).toUpperCase() || '??'}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div style={{ fontSize: 11, opacity: .85, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px' }}>
-              Очаквана комисионна за {monthLabel}
+            <div className="hero-amount-section">
+              <div className="hero-amount-label">Очаквана комисионна за {monthLabel}</div>
+              <div className="hero-amount">{fmtEur(currentMonth.commission || 0)}</div>
             </div>
-            <div className="hero-amount" style={{ fontSize: 38, fontWeight: 700, margin: '2px 0', textShadow: heroBanner ? '0 2px 8px rgba(0,0,0,.5)' : 'none' }}>
-              {fmtEur(currentMonth.commission || 0)}
-            </div>
-            <div className="hero-sub" style={{ fontSize: 13, opacity: .95, textShadow: heroBanner ? '0 1px 4px rgba(0,0,0,.5)' : 'none' }}>
-              {currentMonth.orders || 0} поръчки · {commission}% комисионна · клиентите спестиха <strong>{fmtEur(currentMonth.savings || 0)}</strong>
+
+            <div className="hero-stats">
+              <div className="hero-stat">
+                <div className="hero-stat-icon">📦</div>
+                <div className="hero-stat-body">
+                  <div className="hero-stat-value">{currentMonth.orders || 0}</div>
+                  <div className="hero-stat-label">{currentMonth.orders === 1 ? 'поръчка' : 'поръчки'}</div>
+                </div>
+              </div>
+              <div className="hero-stat">
+                <div className="hero-stat-icon">%</div>
+                <div className="hero-stat-body">
+                  <div className="hero-stat-value">{commission}%</div>
+                  <div className="hero-stat-label">комисионна</div>
+                </div>
+              </div>
+              <div className="hero-stat">
+                <div className="hero-stat-icon">💚</div>
+                <div className="hero-stat-body">
+                  <div className="hero-stat-value">{fmtEur(currentMonth.savings || 0).replace(' €', '')}</div>
+                  <div className="hero-stat-label">спестено от клиентите</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
