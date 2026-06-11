@@ -430,6 +430,19 @@ tbody tr:hover td { background: var(--bg); }
    ════════════════════════════════════════════ */
 
 .dashboard-shell {
+  /* В light mode (default) shell-ът ползва глобалните CSS variables.
+     Money gradient + violet/amber акценти остават достъпни в двата режима. */
+  --money-gradient: linear-gradient(135deg, #34D399 0%, #A3E635 100%);
+  --violet:       #A78BFA;
+  --amber:        #FBBF24;
+
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* === DARK тема (когато .theme-dark е добавен) === */
+.dashboard-shell.theme-dark {
   --bg:           #0B0D12;
   --surface:      #151821;
   --elevated:    #1E2130;
@@ -437,34 +450,27 @@ tbody tr:hover td { background: var(--bg); }
   --muted:        #9CA3AF;
   --border:       rgba(255, 255, 255, 0.08);
   --border-strong:rgba(255, 255, 255, 0.14);
-  --accent:       #34D399;  /* emerald-400 */
+  --accent:       #34D399;
   --accent-dk:    #10B981;
   --accent-lt:    rgba(52, 211, 153, 0.14);
-  --accent-2:     #A3E635;  /* lime-400 */
-  --violet:       #A78BFA;
-  --amber:        #FBBF24;
-  --money-gradient: linear-gradient(135deg, #34D399 0%, #A3E635 100%);
+  --accent-2:     #A3E635;
   --info-lt:      rgba(167, 139, 250, 0.14);
   --info-dk:      #C4B5FD;
   --warn-lt:      rgba(251, 191, 36, 0.14);
   --warn-dk:      #FCD34D;
-
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
 }
 
-/* Контейнерите вътре в shell-а отразяват dark вариантите */
-.dashboard-shell .card {
+/* Долните стилове действат САМО когато theme-dark е активна — light остава както досега */
+.dashboard-shell.theme-dark .card {
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.04) inset,
     0 10px 30px -10px rgba(0, 0, 0, 0.5);
 }
-.dashboard-shell .card:hover { box-shadow: 0 14px 40px -14px rgba(0, 0, 0, 0.6); }
+.dashboard-shell.theme-dark .card:hover { box-shadow: 0 14px 40px -14px rgba(0, 0, 0, 0.6); }
 
-.dashboard-shell .header-bar {
+.dashboard-shell.theme-dark .header-bar {
   background: rgba(11, 13, 18, 0.85);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -472,67 +478,67 @@ tbody tr:hover td { background: var(--bg); }
   color: var(--text);
 }
 
-.dashboard-shell input,
-.dashboard-shell select,
-.dashboard-shell textarea {
+.dashboard-shell.theme-dark input,
+.dashboard-shell.theme-dark select,
+.dashboard-shell.theme-dark textarea {
   background: var(--elevated);
   color: var(--text);
   border-color: var(--border);
 }
-.dashboard-shell input:focus,
-.dashboard-shell select:focus,
-.dashboard-shell textarea:focus { border-color: var(--accent); }
+.dashboard-shell.theme-dark input:focus,
+.dashboard-shell.theme-dark select:focus,
+.dashboard-shell.theme-dark textarea:focus { border-color: var(--accent); }
 
-.dashboard-shell .btn {
+.dashboard-shell.theme-dark .btn {
   background: var(--elevated);
   color: var(--text);
   border-color: var(--border);
 }
-.dashboard-shell .btn:hover { background: rgba(255,255,255,0.06); }
-.dashboard-shell .btn-primary {
+.dashboard-shell.theme-dark .btn:hover { background: rgba(255,255,255,0.06); }
+.dashboard-shell.theme-dark .btn-primary {
   background: var(--money-gradient);
   border-color: transparent;
   color: #0B0D12;
   font-weight: 700;
 }
-.dashboard-shell .btn-primary:hover { filter: brightness(1.08); }
-.dashboard-shell .btn-ghost { background: transparent; }
-.dashboard-shell .btn-ghost:hover { background: rgba(255,255,255,0.06); }
+.dashboard-shell.theme-dark .btn-primary:hover { filter: brightness(1.08); }
+.dashboard-shell.theme-dark .btn-ghost { background: transparent; }
+.dashboard-shell.theme-dark .btn-ghost:hover { background: rgba(255,255,255,0.06); }
 
-.dashboard-shell .chip {
+.dashboard-shell.theme-dark .chip {
   background: var(--elevated);
   color: var(--muted);
   border-color: var(--border);
 }
-.dashboard-shell .chip:hover { color: var(--text); }
-.dashboard-shell .chip.active {
+.dashboard-shell.theme-dark .chip:hover { color: var(--text); }
+.dashboard-shell.theme-dark .chip.active {
   background: var(--money-gradient);
   color: #0B0D12;
   border-color: transparent;
   font-weight: 700;
 }
 
-.dashboard-shell .badge-green {
+.dashboard-shell.theme-dark .badge-green {
   background: var(--accent-lt);
   color: var(--accent);
   box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.25);
 }
-.dashboard-shell .badge-blue {
+.dashboard-shell.theme-dark .badge-blue {
   background: var(--info-lt);
   color: var(--info-dk);
   box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.25);
 }
-.dashboard-shell .badge-amber {
+.dashboard-shell.theme-dark .badge-amber {
   background: var(--warn-lt);
   color: var(--warn-dk);
   box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.25);
 }
-.dashboard-shell .badge-gray {
+.dashboard-shell.theme-dark .badge-gray {
   background: rgba(156, 163, 175, 0.12);
   color: var(--muted);
 }
 
-.dashboard-shell .metric {
+.dashboard-shell.theme-dark .metric {
   background: var(--elevated);
   border: 1px solid var(--border);
 }
@@ -557,12 +563,26 @@ tbody tr:hover td { background: var(--bg); }
    HERO CARD — magazine cover за influencer dashboard
    ════════════════════════════════════════════ */
 
+/* Default (light) hero — brand green magazine cover */
 .hero-card {
   position: relative;
   overflow: hidden;
-  border-radius: 24px;
+  border-radius: 20px;
   margin-bottom: 1.25rem;
-  color: #F7F8FA;
+  color: #fff;
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(255,255,255,.08) 0%, transparent 50%),
+    radial-gradient(80% 60% at 0% 100%, rgba(0,0,0,.12) 0%, transparent 60%),
+    linear-gradient(135deg, #1D9E75 0%, #0F6E56 55%, #0d4d3f 100%);
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 10px 40px -10px rgba(15, 110, 86, 0.45), 0 4px 12px rgba(0,0,0,.06);
+  animation: heroFadeIn .5s cubic-bezier(0.21, 1.02, 0.73, 1) both;
+}
+
+/* Dark fintech hero (когато theme-dark е активна) */
+.dashboard-shell.theme-dark .hero-card {
+  border-radius: 24px;
   background:
     radial-gradient(120% 80% at 100% 0%, rgba(52, 211, 153, .18) 0%, transparent 55%),
     radial-gradient(60% 50% at 20% 100%, rgba(167, 139, 250, .10) 0%, transparent 60%),
@@ -573,7 +593,6 @@ tbody tr:hover td { background: var(--bg); }
     0 1px 0 rgba(255, 255, 255, 0.06) inset,
     0 10px 60px -20px rgba(52, 211, 153, 0.35),
     0 20px 60px -20px rgba(0, 0, 0, 0.6);
-  animation: heroFadeIn .6s cubic-bezier(0.21, 1.02, 0.73, 1) both;
 }
 
 .hero-card.has-banner {
@@ -587,16 +606,21 @@ tbody tr:hover td { background: var(--bg); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Декоративни blob-ове (мек emerald glow) */
+/* Декоративни blob-ове — бели в light, emerald/violet в dark */
 .hero-blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(60px);
+  filter: blur(40px);
   pointer-events: none;
 }
-.hero-blob-1 { top: -80px;   right: -60px;  width: 280px; height: 280px; background: rgba(52, 211, 153, 0.22); }
-.hero-blob-2 { bottom: -100px; right: 100px; width: 200px; height: 200px; background: rgba(167, 139, 250, 0.14); }
-.hero-blob-3 { top: 40%;     left: -50px;   width: 180px; height: 180px; background: rgba(52, 211, 153, 0.08); }
+.hero-blob-1 { top: -60px;   right: -50px;  width: 220px; height: 220px; background: rgba(255,255,255,.15); }
+.hero-blob-2 { bottom: -80px; right: 60px;  width: 180px; height: 180px; background: rgba(255,255,255,.08); }
+.hero-blob-3 { top: 40%;      left: -40px;  width: 160px; height: 160px; background: rgba(255,255,255,.06); }
+
+.dashboard-shell.theme-dark .hero-blob { filter: blur(60px); }
+.dashboard-shell.theme-dark .hero-blob-1 { width: 280px; height: 280px; background: rgba(52, 211, 153, 0.22); }
+.dashboard-shell.theme-dark .hero-blob-2 { width: 200px; height: 200px; background: rgba(167, 139, 250, 0.14); }
+.dashboard-shell.theme-dark .hero-blob-3 { width: 180px; height: 180px; background: rgba(52, 211, 153, 0.08); }
 
 .hero-inner {
   position: relative;
@@ -679,15 +703,24 @@ tbody tr:hover td { background: var(--bg); }
   margin-bottom: 4px;
 }
 .hero-amount {
-  font-size: 60px;
+  font-size: 56px;
   font-weight: 800;
   line-height: 1;
-  letter-spacing: -.035em;
+  letter-spacing: -.03em;
   font-variant-numeric: tabular-nums;
+  color: #fff;
+  text-shadow: 0 4px 24px rgba(0,0,0,.25);
+}
+
+/* Dark mode → money gradient на числото */
+.dashboard-shell.theme-dark .hero-amount {
+  font-size: 60px;
+  letter-spacing: -.035em;
   background: var(--money-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  text-shadow: none;
   filter: drop-shadow(0 4px 24px rgba(52, 211, 153, 0.3));
 }
 

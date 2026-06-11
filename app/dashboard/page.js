@@ -72,6 +72,20 @@ export default function Dashboard() {
   const [from, setFrom] = useState('')
   const [to, setTo]     = useState('')
 
+  // Тема: 'light' (default) или 'dark'. Запомня се в localStorage per-инфлуенсър.
+  const [theme, setTheme] = useState('light')
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('rf-portal-theme')
+      if (saved === 'dark' || saved === 'light') setTheme(saved)
+    } catch {}
+  }, [])
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    try { localStorage.setItem('rf-portal-theme', next) } catch {}
+  }
+
   const shortcuts = useMemo(() => buildShortcuts(), [])
 
   const load = useCallback(async ({ days, from, to }) => {
@@ -93,12 +107,12 @@ export default function Dashboard() {
     load({ days: 0 })
   }, [load])
 
-  // Body фонът се синхронизира с dark shell-а (за да няма бял overscroll на iOS)
+  // Body фонът се синхронизира със shell темата (light fallback или dark)
   useEffect(() => {
     const prev = document.body.style.backgroundColor
-    document.body.style.backgroundColor = '#0B0D12'
+    document.body.style.backgroundColor = theme === 'dark' ? '#0B0D12' : ''
     return () => { document.body.style.backgroundColor = prev }
-  }, [])
+  }, [theme])
 
   const applyShortcut = (sc) => {
     setActiveShortcut(sc.key)
@@ -143,7 +157,7 @@ export default function Dashboard() {
   const monthLabel = format(new Date(), 'LLLL', { locale: bg })
 
   return (
-    <div className="dashboard-shell">
+    <div className={`dashboard-shell ${theme === 'dark' ? 'theme-dark' : ''}`}>
       {/* Header */}
       <header className="header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
@@ -163,7 +177,29 @@ export default function Dashboard() {
             <div style={{ fontSize: 11, color: 'var(--muted)' }}>Промокод: <strong>{userInfo.promoCode}</strong></div>
           </div>
         </div>
-        <button className="btn btn-sm btn-ghost" onClick={logout}>Изход</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            className="btn btn-sm btn-ghost"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Светъл режим' : 'Тъмен режим'}
+            aria-label={theme === 'dark' ? 'Светъл режим' : 'Тъмен режим'}
+            style={{ padding: '6px 10px' }}
+          >
+            {theme === 'dark' ? (
+              /* Слънце */
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+              </svg>
+            ) : (
+              /* Луна */
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
+          </button>
+          <button className="btn btn-sm btn-ghost" onClick={logout}>Изход</button>
+        </div>
       </header>
 
       <main className="main-container">
