@@ -21,6 +21,31 @@ function getTimeGreeting() {
   return 'Здравей,'
 }
 
+// Count-up hook за hero amount (ease-out cubic, ~900ms)
+function useCountUp(target, duration = 900) {
+  const [value, setValue] = useState(0)
+  useEffect(() => {
+    if (typeof window === 'undefined') { setValue(target); return }
+    // Reduced motion → пропускаме анимацията
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    if (mq.matches) { setValue(target); return }
+
+    let raf, start
+    const tick = (now) => {
+      if (!start) start = now
+      const elapsed = now - start
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setValue(target * eased)
+      if (progress < 1) raf = requestAnimationFrame(tick)
+      else setValue(target)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+  return value
+}
+
 function buildShortcuts() {
   const now = new Date()
   const thisMonthStart = startOfMonth(now)
@@ -68,6 +93,13 @@ export default function Dashboard() {
     load({ days: 0 })
   }, [load])
 
+  // Body фонът се синхронизира с dark shell-а (за да няма бял overscroll на iOS)
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor
+    document.body.style.backgroundColor = '#0B0D12'
+    return () => { document.body.style.backgroundColor = prev }
+  }, [])
+
   const applyShortcut = (sc) => {
     setActiveShortcut(sc.key)
     if (sc.days) {
@@ -104,9 +136,11 @@ export default function Dashboard() {
   const { orders = [], stats = {}, topProducts = [], bannerUrl = null, avatarUrl = null, currentMonth = {} } = data || {}
   const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
   const monthLabel = format(new Date(), 'LLLL', { locale: bg })
+  const targetCommission = Number(currentMonth.commission || 0)
+  const countUpCommission = useCountUp(targetCommission)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+    <div className="dashboard-shell">
       {/* Header */}
       <header className="header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
@@ -168,7 +202,25 @@ export default function Dashboard() {
             {/* Главно число */}
             <div className="hero-amount-section">
               <div className="hero-amount-label">Очаквана комисионна за {monthLabel}</div>
-              <div className="hero-amount">{fmtEur(currentMonth.commission || 0)}</div>
+              <div className="hero-amount">{fmtEur(countUpCommission)}</div>
+              <div className="hero-meta-row">
+                {targetCommission >= 100 ? (
+                  <span className="pill-glass">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Праг за теглене постигнат
+                  </span>
+                ) : (
+                  <span className="pill-glass">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    Още {fmtEur(Math.max(0, 100 - targetCommission))} до прага за теглене
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* 3 stat pill-а */}
