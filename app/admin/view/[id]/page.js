@@ -6,6 +6,7 @@ import { bg } from 'date-fns/locale'
 import InfluencerLeaderboard from '@/app/dashboard/components/InfluencerLeaderboard'
 import PayoutWidget from '@/app/dashboard/components/PayoutWidget'
 import ShareLinksWidget from '@/app/dashboard/components/ShareLinksWidget'
+import AdminShell from '../../components/AdminShell'
 
 function ymd(d) { return format(d, 'yyyy-MM-dd') }
 
@@ -114,22 +115,35 @@ export default function AdminInfluencerView() {
   const monthLabel = format(new Date(), 'LLLL', { locale: bg })
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <header className="header-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
-          <button className="btn btn-sm btn-ghost" onClick={() => router.push('/admin')}>← Назад</button>
+    <AdminShell>
+      <div className="main-container">
+        {/* Малък контекстен ред: на кой инфлуенсър гледаш + back бутон + Admin badge */}
+        <div style={{
+          marginBottom: 16, paddingTop: 8,
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+        }}>
+          <button
+            onClick={() => router.push('/admin/influencers')}
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: 'var(--muted)', fontSize: 13, padding: '4px 8px', borderRadius: 8,
+              fontFamily: 'inherit',
+            }}
+          >← Към инфлуенсърите</button>
+          <span style={{ color: 'var(--muted)', fontSize: 13 }}>/</span>
           {influencer.avatar_url ? (
             <img src={influencer.avatar_url} alt={influencer.name}
-              style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
           ) : (
             <div style={{
-              width: 32, height: 32, borderRadius: 8, background: 'var(--accent-lt)',
+              width: 28, height: 28, borderRadius: '50%',
+              background: 'linear-gradient(135deg, #FCD34D 0%, #FB923C 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontWeight: 700, color: 'var(--accent-dk)', flexShrink: 0,
+              fontSize: 11, fontWeight: 700, color: '#0B0D12', flexShrink: 0,
             }}>{influencer.name?.slice(0, 2).toUpperCase()}</div>
           )}
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{influencer.name}</div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{influencer.name}</div>
             <div style={{ fontSize: 11, color: 'var(--muted)' }}>
               <strong>{influencer.promo_code}</strong>
               {' · '}
@@ -141,14 +155,19 @@ export default function AdminInfluencerView() {
             </div>
           </div>
           <span style={{
-            fontSize: 10, fontWeight: 600, padding: '2px 8px',
-            background: '#fef3c7', color: '#92400e', borderRadius: 20,
-            border: '1px solid #fcd34d', whiteSpace: 'nowrap',
-          }}>👁 Admin</span>
+            marginLeft: 'auto',
+            fontSize: 10, fontWeight: 700, padding: '3px 10px',
+            background: 'rgba(251, 191, 36, 0.15)',
+            color: '#B45309',
+            borderRadius: 999,
+            border: '1px solid rgba(251, 191, 36, 0.35)',
+            whiteSpace: 'nowrap',
+            textTransform: 'uppercase',
+            letterSpacing: '.08em',
+          }}>👁 Admin изглед</span>
         </div>
-      </header>
 
-      <main className="main-container">
+        <section>
         {/* Hero — magazine-cover (същия като в инфлуенсърския dashboard) */}
         <div className={`hero-card ${heroBanner ? 'has-banner' : ''}`}
           style={heroBanner ? {
@@ -537,8 +556,9 @@ export default function AdminInfluencerView() {
             </tbody>
           </table>
         </div>
-      </main>
-    </div>
+        </section>
+      </div>
+    </AdminShell>
   )
 }
 
