@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Home, FileText, Wallet, Gift, Package, Users, Settings, MailOpen,
-  Sun, Moon, LogOut, Crown,
+  Sun, Moon, LogOut, Crown, ChevronRight,
 } from 'lucide-react'
 
 const TOKENS = {
@@ -146,6 +146,24 @@ export default function AdminShell({ children }) {
     return () => clearInterval(id)
   }, [])
 
+  // Branding (за лого) — заменя default placeholder-а
+  const [branding, setBranding] = useState({ logo_url: null })
+  useEffect(() => {
+    fetch('/api/public/branding')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setBranding(d))
+      .catch(() => {})
+  }, [])
+
+  // Influencers list за sidebar
+  const [influencers, setInfluencers] = useState([])
+  useEffect(() => {
+    fetch('/api/admin/influencers')
+      .then(r => r.ok ? r.json() : [])
+      .then(d => Array.isArray(d) && setInfluencers(d.filter(i => i.active !== false)))
+      .catch(() => {})
+  }, [])
+
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/login')
@@ -163,8 +181,14 @@ export default function AdminShell({ children }) {
     return 0
   }
 
+  // pathname-базиран check за активен инфлуенсър
+  const activeInfId = pathname.startsWith('/admin/view/') ? pathname.split('/')[3] : null
+
   return (
-    <div style={{ minHeight: '100vh', background: t.pageBg, color: t.text, display: 'flex' }}>
+    <div
+      className={`dashboard-shell ${theme === 'dark' ? 'theme-dark' : ''}`}
+      style={{ minHeight: '100vh', background: t.pageBg, color: t.text, display: 'flex' }}
+    >
       {/* Desktop sidebar */}
       <aside
         className="hidden lg:flex"
@@ -179,19 +203,29 @@ export default function AdminShell({ children }) {
           height: '100vh',
         }}
       >
-        <div style={{ padding: '24px 20px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 10,
-            background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
-            boxShadow: theme === 'dark' ? '0 0 20px rgba(52,211,153,.3)' : 'none',
-          }} aria-hidden />
-          <div style={{
-            fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em',
-            background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}>RealFood</div>
+        <div style={{ padding: '20px 18px 10px', display: 'flex', alignItems: 'center', gap: 10, minHeight: 60 }}>
+          {branding.logo_url ? (
+            <img
+              src={branding.logo_url}
+              alt="Logo"
+              style={{ height: 32, maxWidth: 160, objectFit: 'contain' }}
+            />
+          ) : (
+            <>
+              <div style={{
+                width: 32, height: 32, borderRadius: 10,
+                background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
+                boxShadow: theme === 'dark' ? '0 0 20px rgba(52,211,153,.3)' : 'none',
+              }} aria-hidden />
+              <div style={{
+                fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em',
+                background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}>RealFood</div>
+            </>
+          )}
           <span style={{
             marginLeft: 'auto',
             fontSize: 10, fontWeight: 700, padding: '2px 7px',
@@ -203,7 +237,7 @@ export default function AdminShell({ children }) {
           }}>Admin</span>
         </div>
 
-        <nav style={{ padding: '8px 10px', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }} aria-label="Админ навигация">
+        <nav style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2 }} aria-label="Админ навигация">
           {NAV.map(item => {
             const count = countFor(item.id)
             return (
@@ -229,7 +263,71 @@ export default function AdminShell({ children }) {
           })}
         </nav>
 
-        <div style={{ marginTop: 'auto', padding: '10px 10px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {/* Инфлуенсъри — scrollable list */}
+        <div style={{
+          padding: '14px 18px 6px',
+          fontSize: 10, fontWeight: 700, color: t.muted,
+          textTransform: 'uppercase', letterSpacing: '.18em',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <span>Инфлуенсъри</span>
+          <span style={{ fontSize: 10, color: t.muted }}>{influencers.length}</span>
+        </div>
+        <div style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          padding: '0 10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+        }}>
+          {influencers.map(inf => {
+            const isActive = activeInfId === inf.id
+            return (
+              <button
+                key={inf.id}
+                onClick={() => router.push(`/admin/view/${inf.id}`)}
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '7px 10px',
+                  borderRadius: 10,
+                  background: isActive ? t.activeBg : 'transparent',
+                  color: isActive ? t.activeText : t.text,
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontFamily: 'inherit',
+                  transition: 'all .15s ease',
+                }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = t.hoverBg }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+              >
+                {inf.avatar_url ? (
+                  <img src={inf.avatar_url} alt="" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                ) : (
+                  <div style={{
+                    width: 26, height: 26, borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #FCD34D 0%, #FB923C 100%)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 700, color: '#0B0D12',
+                    flexShrink: 0,
+                  }}>{(inf.name || '?').slice(0, 2).toUpperCase()}</div>
+                )}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{inf.name}</div>
+                  <div style={{ fontSize: 10, color: t.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{inf.promo_code || '—'}</div>
+                </div>
+                <ChevronRight size={14} style={{ color: t.muted, opacity: isActive ? 1 : 0.5, flexShrink: 0 }} aria-hidden />
+              </button>
+            )
+          })}
+        </div>
+
+        <div style={{ padding: '10px 10px 16px', display: 'flex', flexDirection: 'column', gap: 4, borderTop: `1px solid ${t.sidebarBorder}` }}>
           <NavBtn
             item={{ id: '_theme', label: theme === 'dark' ? 'Светъл режим' : 'Тъмен режим', Icon: theme === 'dark' ? Sun : Moon }}
             isActive={false}

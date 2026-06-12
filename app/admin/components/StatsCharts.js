@@ -89,7 +89,7 @@ function BarChart({ data, valueKey, labelKey, formatLabel, formatValue, color, h
 
 export default function StatsCharts() {
   const [stats, setStats]     = useState(null)
-  const [period, setPeriod]   = useState(30)
+  const [period, setPeriod]   = useState(1) // default = днес
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -132,6 +132,7 @@ export default function StatsCharts() {
             onChange={e => setPeriod(Number(e.target.value))}
             style={{ width: 'auto', fontSize: 11, padding: '4px 8px' }}
           >
+            <option value={1}>Днес</option>
             <option value={7}>7 дни</option>
             <option value={30}>30 дни</option>
             <option value={90}>90 дни</option>
