@@ -10,6 +10,7 @@ export async function POST(request) {
   if (!identifier) return NextResponse.json({ error: 'Липсват данни' }, { status: 400 })
 
   const ident = String(identifier).toLowerCase().trim()
+  console.log(`request-reset: looking up ident="${ident}" (len=${ident.length})`)
 
   // 1) Опитваме по username (exact, lowercase)
   let { data: inf } = await supabaseAdmin
@@ -18,14 +19,36 @@ export async function POST(request) {
     .eq('username', ident)
     .maybeSingle()
 
+  if (inf) console.log(`request-reset: matched by username → influencer ${inf.id}, email="${inf.email}"`)
+
   // 2) Ако не намерим и прилича на email → case-insensitive търсене по email
   if (!inf && ident.includes('@')) {
+    // Първо опит с .ilike (трябва да работи в нормални случаи)
     const r = await supabaseAdmin
       .from('influencers')
       .select('id, name, email')
       .ilike('email', ident)
       .maybeSingle()
     inf = r.data
+    if (inf) console.log(`request-reset: matched by email (ilike) → influencer ${inf.id}, stored email="${inf.email}"`)
+
+    // 3) Fallback: ако ilike не намери (възможно поради whitespace или странни знаци)
+    //    → теглим всички и сравняваме в JS с trim().toLowerCase()
+    if (!inf) {
+      const { data: all } = await supabaseAdmin
+        .from('influencers')
+        .select('id, name, email')
+        .not('email', 'is', null)
+      const match = (all || []).find(i =>
+        (i.email || '').trim().toLowerCase() === ident
+      )
+      if (match) {
+        inf = match
+        console.log(`request-reset: matched by email (JS scan fallback) → influencer ${inf.id}, stored email="${inf.email}" (len=${(inf.email || '').length})`)
+      } else {
+        console.log(`request-reset: NO email match. Searched against ${(all || []).length} influencer emails.`)
+      }
+    }
   }
 
   // За сигурност винаги връщаме ok (за да не разкриваме кой акаунт съществува)
