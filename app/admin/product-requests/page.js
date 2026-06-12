@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { bg } from 'date-fns/locale'
+import AdminShell from '../components/AdminShell'
 
 const STATUS_LABEL = {
   pending:         'Чакаща',
@@ -64,24 +65,18 @@ export default function ProductRequestsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <header className="header-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button className="btn btn-sm btn-ghost" onClick={() => router.push('/admin')}>← Назад</button>
+    <AdminShell>
+      <div className="main-container">
+        <div style={{ marginBottom: 20, paddingTop: 8, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>🎁 Заявки за продукти</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Одобрение и изпращане към Shopify</div>
+            <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>🎁 Заявки за продукти</h1>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>Одобрение и изпращане към Shopify</div>
           </div>
-        </div>
-        <div className="header-actions">
           <select value={filter} onChange={e => setFilter(e.target.value)} style={{ width: 'auto', fontSize: 12 }}>
             <option value="open">Активни (pending + изпратени)</option>
             <option value="all">Всички</option>
           </select>
         </div>
-      </header>
-
-      <main className="main-container">
         {msg.text && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
 
         {requests.length === 0 && (
@@ -207,7 +202,7 @@ export default function ProductRequestsPage() {
             )
           })}
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminShell>
   )
 }

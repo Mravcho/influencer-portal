@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { bg } from 'date-fns/locale'
+import AdminShell from '../components/AdminShell'
 
 const fmtEur = (n) => `${Number(n || 0).toFixed(2)} €`
 
@@ -68,20 +69,14 @@ export default function AdminPayouts() {
     .reduce((s, p) => s + parseFloat(p.amount), 0)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <header className="header-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <button className="btn btn-sm btn-ghost" onClick={() => router.push('/admin')}>← Назад</button>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>Заявки за изплащане</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-              {counts.pending} в очакване · общо {fmtEur(totalPending)}
-            </div>
+    <AdminShell>
+      <div className="main-container">
+        <div style={{ marginBottom: 20, paddingTop: 8 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Заявки за изплащане</h1>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
+            {counts.pending} в очакване · общо {fmtEur(totalPending)}
           </div>
         </div>
-      </header>
-
-      <main className="main-container">
         <div className="chip-row" style={{ marginBottom: 14 }}>
           {[
             { key: 'all',      label: `Всички (${payouts.length})` },
@@ -202,7 +197,7 @@ export default function AdminPayouts() {
             </table>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </AdminShell>
   )
 }

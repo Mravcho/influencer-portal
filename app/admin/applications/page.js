@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { bg } from 'date-fns/locale'
+import AdminShell from '../components/AdminShell'
 
 const STATUS = {
   pending:  { label: 'Чакаща',   badge: 'badge-amber' },
@@ -141,18 +142,12 @@ export default function AdminApplications() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <header className="header-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <button className="btn btn-sm btn-ghost" onClick={() => router.push('/admin')}>← Назад</button>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>Заявки за инфлуенсъри</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)' }}>{counts.pending} чакащи</div>
-          </div>
+    <AdminShell>
+      <div className="main-container">
+        <div style={{ marginBottom: 20, paddingTop: 8 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Заявки за инфлуенсъри</h1>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>{counts.pending} чакащи</div>
         </div>
-      </header>
-
-      <main className="main-container">
         <div className="chip-row" style={{ marginBottom: 14 }}>
           {[
             { key: 'pending',  label: `⏳ Чакащи (${counts.pending})` },
@@ -368,6 +363,7 @@ export default function AdminApplications() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AdminShell>
   )
 }

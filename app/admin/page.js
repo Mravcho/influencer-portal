@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import AdminShell from './components/AdminShell'
 import StatsCharts from './components/StatsCharts'
 import MonthlyLeaderboard from './components/MonthlyLeaderboard'
 
@@ -294,7 +295,10 @@ export default function AdminPage() {
   const totComm   = influencers.reduce((s, i) => s + (i.totalCommission || 0), 0)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+    <AdminShell>
+      <div className="main-container">
+      {/* Старият header + mobile drawer са заменени от AdminShell — скриваме ги */}
+      {false && (<>
       <header className="header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <div style={{
@@ -485,8 +489,14 @@ export default function AdminPage() {
           </div>
         </>
       )}
+      </>)}{/* ← край на скрития блок */}
 
-      <main className="main-container">
+      <div style={{ marginBottom: 20, paddingTop: 8 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Admin панел</h1>
+        <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>Управление на инфлуенсъри</div>
+      </div>
+
+      <section>
         {/* Monthly leaderboard — най-отгоре */}
         <MonthlyLeaderboard />
 
@@ -1018,8 +1028,9 @@ export default function AdminPage() {
             </form>
           </div>
         )}
-      </main>
-    </div>
+      </section>
+      </div>
+    </AdminShell>
   )
 }
 

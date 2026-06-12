@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { bg } from 'date-fns/locale'
+import AdminShell from '../components/AdminShell'
 
 export default function AdminOrdersPage() {
   const router = useRouter()
@@ -46,18 +47,14 @@ export default function AdminOrdersPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <header className="header-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button className="btn btn-sm btn-ghost" onClick={() => router.push('/admin')}>← Назад</button>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>📋 Поръчки</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Всички поръчки през промокод от всички инфлуенсъри</div>
+    <AdminShell>
+      <div className="main-container">
+        <div style={{ marginBottom: 20, paddingTop: 8 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>📋 Поръчки</h1>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
+            Всички поръчки през промокод от всички инфлуенсъри
           </div>
         </div>
-      </header>
-
-      <main className="main-container">
         {/* Filters */}
         <div className="card" style={{ marginBottom: '1rem', padding: '14px' }}>
           <form onSubmit={onSearchSubmit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -222,8 +219,8 @@ export default function AdminOrdersPage() {
             </table>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminShell>
   )
 }
 

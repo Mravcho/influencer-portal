@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import AdminShell from '../components/AdminShell'
 import { format, formatDistanceToNow } from 'date-fns'
 import { bg } from 'date-fns/locale'
 
@@ -75,28 +76,24 @@ export default function SessionsPage() {
   const failedCount = sessions.filter(s => s.success === false).length
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <header className="header-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <button className="btn btn-sm btn-ghost" onClick={() => router.push('/admin')}>← Назад</button>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>Сесии</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)' }}>История на влизанията</div>
+    <AdminShell>
+      <div className="main-container">
+        <div style={{ marginBottom: 20, paddingTop: 8, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Сесии</h1>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>История на влизанията</div>
           </div>
+          <select
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            style={{ width: 'auto', fontSize: 12, padding: '5px 10px', maxWidth: 220 }}
+          >
+            <option value="">Всички инфлуенсъри</option>
+            {influencers.map(i => (
+              <option key={i.id} value={i.id}>{i.name}</option>
+            ))}
+          </select>
         </div>
-        <select
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-          style={{ width: 'auto', fontSize: 12, padding: '5px 10px', maxWidth: 220 }}
-        >
-          <option value="">Всички инфлуенсъри</option>
-          {influencers.map(i => (
-            <option key={i.id} value={i.id}>{i.name}</option>
-          ))}
-        </select>
-      </header>
-
-      <main className="main-container">
         {/* Филтър успешни / неуспешни */}
         <div className="chip-row" style={{ marginBottom: 14 }}>
           {[
@@ -208,7 +205,7 @@ export default function SessionsPage() {
             </table>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </AdminShell>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import AdminShell from '../components/AdminShell'
 
 const emptyForm = {
   shopify_product_id:    '',
@@ -89,18 +90,12 @@ export default function RequestProductsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <header className="header-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button className="btn btn-sm btn-ghost" onClick={() => router.push('/admin')}>← Назад</button>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>🎁 Каталог за заявки</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Продукти, които инфлуенсърите могат да заявяват</div>
-          </div>
+    <AdminShell>
+      <div className="main-container">
+        <div style={{ marginBottom: 20, paddingTop: 8 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>🎁 Каталог за заявки</h1>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>Продукти, които инфлуенсърите могат да заявяват</div>
         </div>
-      </header>
-
-      <main className="main-container">
         {msg.text && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
 
         {/* Форма за добавяне */}
@@ -237,8 +232,8 @@ export default function RequestProductsPage() {
             </tbody>
           </table>
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminShell>
   )
 }
 
