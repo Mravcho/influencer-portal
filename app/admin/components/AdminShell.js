@@ -40,18 +40,18 @@ const TOKENS = {
 }
 
 const NAV = [
-  { id: '/admin',                  label: 'Инфлуенсъри',     Icon: Users,    short: 'Инфл.' },
+  { id: '/admin',                  label: 'Начало',          Icon: Home,     short: 'Начало' },
+  { id: '/admin/influencers',      label: 'Инфлуенсъри',     Icon: Users,    short: 'Инфл.' },
   { id: '/admin/applications',     label: 'Кандидатствания', Icon: MailOpen, short: 'Заявки' },
   { id: '/admin/orders',           label: 'Поръчки',         Icon: FileText, short: 'Поръчки' },
   { id: '/admin/payouts',          label: 'Изплащане',       Icon: Wallet,   short: 'Изпл.' },
   { id: '/admin/product-requests', label: 'Заявки за продукт',Icon: Gift,    short: 'Прод.' },
   { id: '/admin/request-products', label: 'Каталог',         Icon: Package,  short: 'Каталог' },
-  { id: '/admin/sessions',         label: 'Сесии',           Icon: Home,     short: 'Сесии' },
   { id: '/admin/settings',         label: 'Настройки',       Icon: Settings, short: 'Настр.' },
 ]
 
 const MOBILE_NAV = [
-  NAV[0], NAV[2], NAV[3], NAV[4], NAV[5],
+  NAV[0], NAV[1], NAV[3], NAV[4], NAV[5],
 ]
 
 function NavBtn({ item, isActive, onClick, t }) {
