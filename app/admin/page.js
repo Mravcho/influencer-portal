@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminShell from './components/AdminShell'
 import StatsCharts from './components/StatsCharts'
-import MonthlyLeaderboard from './components/MonthlyLeaderboard'
+import TopInfluencersByOrders from './components/TopInfluencersByOrders'
 
 const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Facebook', 'Друга']
 
@@ -497,10 +497,7 @@ export default function AdminPage() {
       </div>
 
       <section>
-        {/* Monthly leaderboard — най-отгоре */}
-        <MonthlyLeaderboard />
-
-        {/* Summary metrics */}
+        {/* Summary metrics — най-отгоре */}
         <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
           {[
             { label: 'Инфлуенсъри', value: influencers.length },
@@ -516,6 +513,9 @@ export default function AdminPage() {
 
         {/* Charts */}
         <StatsCharts />
+
+        {/* Топ инфлуенсъри по поръчки за месеца */}
+        <TopInfluencersByOrders />
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', marginBottom: '1.5rem' }}>

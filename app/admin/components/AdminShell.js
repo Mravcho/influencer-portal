@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Home, FileText, Wallet, Gift, Package, Users, Settings, MailOpen,
-  Sun, Moon, LogOut, Crown, ChevronRight,
+  Sun, Moon, LogOut, Crown,
 } from 'lucide-react'
 
 const TOKENS = {
@@ -40,14 +40,14 @@ const TOKENS = {
 }
 
 const NAV = [
-  { id: '/admin',                  label: 'Преглед',     Icon: Home,     short: 'Начало' },
-  { id: '/admin/applications',     label: 'Кандидатствания',Icon: MailOpen, short: 'Заявки' },
-  { id: '/admin/orders',           label: 'Поръчки',     Icon: FileText, short: 'Поръчки' },
-  { id: '/admin/payouts',          label: 'Изплащане',   Icon: Wallet,   short: 'Изпл.' },
-  { id: '/admin/product-requests', label: 'Заявки за продукт',Icon: Gift, short: 'Заявки' },
-  { id: '/admin/request-products', label: 'Каталог',     Icon: Package,  short: 'Каталог' },
-  { id: '/admin/sessions',         label: 'Сесии',       Icon: Users,    short: 'Сесии' },
-  { id: '/admin/settings',         label: 'Настройки',   Icon: Settings, short: 'Настр.' },
+  { id: '/admin',                  label: 'Инфлуенсъри',     Icon: Users,    short: 'Инфл.' },
+  { id: '/admin/applications',     label: 'Кандидатствания', Icon: MailOpen, short: 'Заявки' },
+  { id: '/admin/orders',           label: 'Поръчки',         Icon: FileText, short: 'Поръчки' },
+  { id: '/admin/payouts',          label: 'Изплащане',       Icon: Wallet,   short: 'Изпл.' },
+  { id: '/admin/product-requests', label: 'Заявки за продукт',Icon: Gift,    short: 'Прод.' },
+  { id: '/admin/request-products', label: 'Каталог',         Icon: Package,  short: 'Каталог' },
+  { id: '/admin/sessions',         label: 'Сесии',           Icon: Home,     short: 'Сесии' },
+  { id: '/admin/settings',         label: 'Настройки',       Icon: Settings, short: 'Настр.' },
 ]
 
 const MOBILE_NAV = [
@@ -155,14 +155,6 @@ export default function AdminShell({ children }) {
       .catch(() => {})
   }, [])
 
-  // Influencers list за sidebar
-  const [influencers, setInfluencers] = useState([])
-  useEffect(() => {
-    fetch('/api/admin/influencers')
-      .then(r => r.ok ? r.json() : [])
-      .then(d => Array.isArray(d) && setInfluencers(d.filter(i => i.active !== false)))
-      .catch(() => {})
-  }, [])
 
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -180,9 +172,6 @@ export default function AdminShell({ children }) {
     if (id === '/admin/product-requests') return pending.productRequests
     return 0
   }
-
-  // pathname-базиран check за активен инфлуенсър
-  const activeInfId = pathname.startsWith('/admin/view/') ? pathname.split('/')[3] : null
 
   return (
     <div
@@ -263,71 +252,7 @@ export default function AdminShell({ children }) {
           })}
         </nav>
 
-        {/* Инфлуенсъри — scrollable list */}
-        <div style={{
-          padding: '14px 18px 6px',
-          fontSize: 10, fontWeight: 700, color: t.muted,
-          textTransform: 'uppercase', letterSpacing: '.18em',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <span>Инфлуенсъри</span>
-          <span style={{ fontSize: 10, color: t.muted }}>{influencers.length}</span>
-        </div>
-        <div style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto',
-          padding: '0 10px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-        }}>
-          {influencers.map(inf => {
-            const isActive = activeInfId === inf.id
-            return (
-              <button
-                key={inf.id}
-                onClick={() => router.push(`/admin/view/${inf.id}`)}
-                style={{
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '7px 10px',
-                  borderRadius: 10,
-                  background: isActive ? t.activeBg : 'transparent',
-                  color: isActive ? t.activeText : t.text,
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontFamily: 'inherit',
-                  transition: 'all .15s ease',
-                }}
-                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = t.hoverBg }}
-                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
-              >
-                {inf.avatar_url ? (
-                  <img src={inf.avatar_url} alt="" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                ) : (
-                  <div style={{
-                    width: 26, height: 26, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #FCD34D 0%, #FB923C 100%)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, fontWeight: 700, color: '#0B0D12',
-                    flexShrink: 0,
-                  }}>{(inf.name || '?').slice(0, 2).toUpperCase()}</div>
-                )}
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{inf.name}</div>
-                  <div style={{ fontSize: 10, color: t.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{inf.promo_code || '—'}</div>
-                </div>
-                <ChevronRight size={14} style={{ color: t.muted, opacity: isActive ? 1 : 0.5, flexShrink: 0 }} aria-hidden />
-              </button>
-            )
-          })}
-        </div>
-
-        <div style={{ padding: '10px 10px 16px', display: 'flex', flexDirection: 'column', gap: 4, borderTop: `1px solid ${t.sidebarBorder}` }}>
+        <div style={{ marginTop: 'auto', padding: '10px 10px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <NavBtn
             item={{ id: '_theme', label: theme === 'dark' ? 'Светъл режим' : 'Тъмен режим', Icon: theme === 'dark' ? Sun : Moon }}
             isActive={false}
@@ -391,17 +316,23 @@ export default function AdminShell({ children }) {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
-            }} aria-hidden />
-            <span style={{
-              fontWeight: 700, letterSpacing: '-0.02em',
-              background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}>RealFood</span>
+            {branding.logo_url ? (
+              <img src={branding.logo_url} alt="Logo" style={{ height: 28, maxWidth: 140, objectFit: 'contain' }} />
+            ) : (
+              <>
+                <div style={{
+                  width: 28, height: 28, borderRadius: 8,
+                  background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
+                }} aria-hidden />
+                <span style={{
+                  fontWeight: 700, letterSpacing: '-0.02em',
+                  background: 'linear-gradient(135deg, #34D399 0%, #A3E635 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}>RealFood</span>
+              </>
+            )}
             <span style={{
               fontSize: 9, fontWeight: 700, padding: '2px 6px',
               borderRadius: 5,
