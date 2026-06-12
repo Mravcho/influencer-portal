@@ -254,7 +254,6 @@ export default function AdminApplications() {
             })}
           </div>
         )}
-      </main>
 
       {/* Approve modal */}
       {approveApp && (
