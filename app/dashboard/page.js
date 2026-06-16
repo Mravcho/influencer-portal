@@ -709,6 +709,15 @@ export default function Dashboard() {
     router.push('/login')
   }
 
+  // Приемане на общите условия (блокиращ pop-up за съществуващи инфлуенсъри)
+  const [acceptingTerms, setAcceptingTerms] = useState(false)
+  const acceptTerms = async () => {
+    setAcceptingTerms(true)
+    const res = await fetch('/api/auth/accept-terms', { method: 'POST' })
+    setAcceptingTerms(false)
+    if (res.ok) setUserInfo(u => ({ ...u, termsRequired: false }))
+  }
+
   const fmtDate = (iso) => {
     try { return format(new Date(iso), 'd MMM yyyy', { locale: bg }) } catch { return iso }
   }
@@ -780,6 +789,66 @@ export default function Dashboard() {
   const t = TOKENS[theme] || TOKENS.dark
   return (
     <div className={`dashboard-shell ${theme === 'dark' ? 'theme-dark' : ''}`} style={{ minHeight: '100vh', background: t.cardBg === '#FFFFFF' ? '#F5F5F7' : '#0B0D12' }}>
+      {userInfo.termsRequired && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <div style={{
+            width: '100%', maxWidth: 440,
+            background: t.cardBg, color: t.text,
+            border: `1px solid ${t.cardBorder}`,
+            borderRadius: 18, padding: 28,
+            boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
+          }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Общи условия</h2>
+            <p style={{ fontSize: 14, color: t.muted, lineHeight: 1.5, marginBottom: 18 }}>
+              За да продължиш да ползваш портала, трябва да се запознаеш и да приемеш
+              нашите Общи условия.
+            </p>
+
+            {userInfo.termsUrl && (
+              <a
+                href={userInfo.termsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn"
+                style={{ width: '100%', justifyContent: 'center', padding: '11px', marginBottom: 12 }}
+              >
+                📄 Отвори и прочети Общите условия
+              </a>
+            )}
+
+            <button
+              onClick={acceptTerms}
+              disabled={acceptingTerms}
+              className="btn btn-primary"
+              style={{ width: '100%', justifyContent: 'center', padding: '12px' }}
+            >
+              {acceptingTerms ? 'Запазване...' : 'Приемам Общите условия'}
+            </button>
+
+            <button
+              onClick={logout}
+              style={{
+                width: '100%', marginTop: 10, padding: 8,
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: t.muted, fontSize: 12, fontFamily: 'inherit', textDecoration: 'underline',
+              }}
+            >
+              Изход
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex">
         <Sidebar
           active="top"

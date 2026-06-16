@@ -5,10 +5,10 @@ import AdminShell from '../components/AdminShell'
 
 export default function AdminSettings() {
   const router = useRouter()
-  const [branding, setBranding] = useState({ logo_url: '', login_bg_url: '', default_banner_url: '' })
+  const [branding, setBranding] = useState({ logo_url: '', login_bg_url: '', default_banner_url: '', terms_url: '' })
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
-  const [uploading, setUploading] = useState({ logo: false, bg: false, banner: false })
+  const [uploading, setUploading] = useState({ logo: false, bg: false, banner: false, terms: false })
   const [msg, setMsg]           = useState({ type: '', text: '' })
 
   useEffect(() => {
@@ -22,6 +22,7 @@ export default function AdminSettings() {
           logo_url:           d.logo_url           || '',
           login_bg_url:       d.login_bg_url       || '',
           default_banner_url: d.default_banner_url || '',
+          terms_url:          d.terms_url          || '',
         })
       })
       .finally(() => setLoading(false))
@@ -30,7 +31,7 @@ export default function AdminSettings() {
   const setField = (k, v) => setBranding(b => ({ ...b, [k]: v }))
 
   const uploadFile = async (file, kind) => {
-    const stateKey = kind === 'logo' ? 'logo' : kind === 'banner' ? 'banner' : 'bg'
+    const stateKey = kind === 'logo' ? 'logo' : kind === 'banner' ? 'banner' : kind === 'terms' ? 'terms' : 'bg'
     setUploading(u => ({ ...u, [stateKey]: true }))
     setMsg({})
 
@@ -49,6 +50,7 @@ export default function AdminSettings() {
 
     if (kind === 'logo')   setField('logo_url', data.url)
     else if (kind === 'banner') setField('default_banner_url', data.url)
+    else if (kind === 'terms')  setField('terms_url', data.url)
     else setField('login_bg_url', data.url)
   }
 
@@ -62,6 +64,7 @@ export default function AdminSettings() {
         logo_url:           branding.logo_url || null,
         login_bg_url:       branding.login_bg_url || null,
         default_banner_url: branding.default_banner_url || null,
+        terms_url:          branding.terms_url || null,
       }),
     })
     const data = await res.json()
@@ -243,6 +246,62 @@ export default function AdminSettings() {
           />
           <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
             Препоръчителни размери: 1600×500 px. Макс 5 MB.
+          </p>
+        </div>
+
+        {/* Общи условия (Word / PDF) */}
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Общи условия</h2>
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+            Качи Word (.doc/.docx) или PDF файл. Той се показва като линк при кандидатстване
+            (с задължителен чекбокс за съгласие). <strong>Важно:</strong> при ново качване всеки
+            съществуващ инфлуенсър ще трябва да приеме новата версия при следващото си влизане.
+          </p>
+
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: 14, borderRadius: 12,
+            background: 'var(--bg)', border: '1px solid var(--border)',
+            marginBottom: 12,
+          }}>
+            <span style={{ fontSize: 28, lineHeight: 1 }}>📄</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {branding.terms_url ? (
+                <a
+                  href={branding.terms_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--accent)', textDecoration: 'underline', fontSize: 13, wordBreak: 'break-all' }}
+                >
+                  Виж качения файл
+                </a>
+              ) : (
+                <span style={{ fontSize: 13, color: 'var(--muted)' }}>Няма качен файл</span>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <label className="btn btn-sm" style={{ cursor: 'pointer', display: 'inline-flex' }}>
+              {uploading.terms ? '⟳ Качване...' : '📤 Качи файл'}
+              <input
+                type="file"
+                accept=".doc,.docx,.pdf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0], 'terms')}
+                disabled={uploading.terms}
+                style={{ display: 'none' }}
+              />
+            </label>
+            {branding.terms_url && (
+              <button
+                className="btn btn-sm btn-ghost"
+                style={{ color: 'var(--danger)' }}
+                onClick={() => setField('terms_url', '')}
+              >Премахни</button>
+            )}
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
+            Word или PDF, макс 20 MB. Не забравяй да натиснеш „Запази настройките“ долу.
           </p>
         </div>
 

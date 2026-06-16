@@ -8,7 +8,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
-  const [branding, setBranding] = useState({ logo_url: null, login_bg_url: null })
+  const [branding, setBranding] = useState({ logo_url: null, login_bg_url: null, terms_url: null })
   const [forgotMode, setForgotMode]   = useState(false)
   const [forgotIdent, setForgotIdent] = useState('')
   const [forgotSent, setForgotSent]   = useState(false)
@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [applyForm, setApplyForm] = useState({
     full_name: '', email: '', phone: '',
     instagram_url: '', tiktok_url: '', facebook_url: '', youtube_url: '', other_url: '',
-    motivation: '',
+    motivation: '', terms_accepted: false,
   })
   const setApplyField = (k, v) => setApplyForm(f => ({ ...f, [k]: v }))
 
@@ -46,6 +46,10 @@ export default function LoginPage() {
     setError('')
     if (!applyForm.instagram_url && !applyForm.tiktok_url && !applyForm.facebook_url && !applyForm.youtube_url && !applyForm.other_url) {
       setError('Моля въведи поне един линк към соц. мрежа')
+      return
+    }
+    if (branding.terms_url && !applyForm.terms_accepted) {
+      setError('Моля приеми Общите условия')
       return
     }
     setLoading(true)
@@ -274,6 +278,32 @@ export default function LoginPage() {
                     rows={4}
                     style={{ resize: 'vertical', fontFamily: 'inherit', minHeight: 80 }}
                   />
+
+                  {branding.terms_url && (
+                    <label style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 8,
+                      fontSize: 13, color: 'var(--text)', cursor: 'pointer', marginTop: 4,
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={applyForm.terms_accepted}
+                        onChange={e => setApplyField('terms_accepted', e.target.checked)}
+                        style={{ width: 16, height: 16, marginTop: 2, flexShrink: 0, cursor: 'pointer' }}
+                      />
+                      <span>
+                        Съгласявам се с{' '}
+                        <a
+                          href={branding.terms_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: 'var(--accent)', textDecoration: 'underline' }}
+                        >
+                          Общите условия
+                        </a>
+                        {' '}*
+                      </span>
+                    </label>
+                  )}
 
                   <button
                     type="submit"

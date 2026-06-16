@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Home, FileText, Wallet, Gift, Package, Users, Settings, MailOpen,
-  Sun, Moon, LogOut, Crown,
+  Sun, Moon, LogOut, Crown, Activity,
 } from 'lucide-react'
 
 const TOKENS = {
@@ -47,6 +47,7 @@ const NAV = [
   { id: '/admin/payouts',          label: 'Изплащане',       Icon: Wallet,   short: 'Изпл.' },
   { id: '/admin/product-requests', label: 'Заявки за продукт',Icon: Gift,    short: 'Прод.' },
   { id: '/admin/request-products', label: 'Каталог',         Icon: Package,  short: 'Каталог' },
+  { id: '/admin/sessions',         label: 'Сесии',           Icon: Activity, short: 'Сесии' },
   { id: '/admin/settings',         label: 'Настройки',       Icon: Settings, short: 'Настр.' },
 ]
 

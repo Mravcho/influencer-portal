@@ -33,15 +33,33 @@ export async function GET() {
   //  или е променил commission-а, без да изисква re-login).
   let active = true
   let commission = parseFloat(payload.commission || 0)
+  let termsRequired = false
+  let termsUrl = null
   if (payload.role === 'influencer' && payload.id) {
-    const { data: inf } = await supabaseAdmin
-      .from('influencers')
-      .select('active, commission')
-      .eq('id', payload.id)
-      .maybeSingle()
+    const [{ data: inf }, { data: branding }] = await Promise.all([
+      supabaseAdmin
+        .from('influencers')
+        .select('active, commission, terms_accepted_at')
+        .eq('id', payload.id)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('branding')
+        .select('terms_url, terms_updated_at')
+        .eq('id', 1)
+        .maybeSingle(),
+    ])
     if (inf) {
       active     = inf.active !== false
       commission = parseFloat(inf.commission || 0)
+    }
+
+    // Изисква приемане, ако има качен файл и инфлуенсърът не го е приел
+    // след последното обновяване (нова версия → ново приемане).
+    if (branding?.terms_url) {
+      termsUrl = branding.terms_url
+      const acceptedAt = inf?.terms_accepted_at ? new Date(inf.terms_accepted_at) : null
+      const updatedAt  = branding.terms_updated_at ? new Date(branding.terms_updated_at) : null
+      termsRequired = !acceptedAt || (updatedAt && acceptedAt < updatedAt)
     }
   }
 
@@ -52,5 +70,7 @@ export async function GET() {
     commission,
     role:       payload.role,
     active,
+    termsRequired,
+    termsUrl,
   })
 }

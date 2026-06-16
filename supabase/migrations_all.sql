@@ -12,7 +12,8 @@ ALTER TABLE influencers
   ADD COLUMN IF NOT EXISTS email                TEXT,
   ADD COLUMN IF NOT EXISTS phone                TEXT,
   ADD COLUMN IF NOT EXISTS email_notifications  BOOLEAN DEFAULT true,
-  ADD COLUMN IF NOT EXISTS notes                TEXT;
+  ADD COLUMN IF NOT EXISTS notes                TEXT,
+  ADD COLUMN IF NOT EXISTS terms_accepted_at    TIMESTAMPTZ;
 
 -- ===== ORDERS — допълнителни колони =====
 ALTER TABLE orders
@@ -32,6 +33,11 @@ INSERT INTO branding (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
 -- Default banner за инфлуенсърски dashboard-и (fallback ако индивидуалният липсва)
 ALTER TABLE branding ADD COLUMN IF NOT EXISTS default_banner_url TEXT;
+
+-- Общи условия (файл + кога е обновен — ново качване изисква преприемане)
+ALTER TABLE branding
+  ADD COLUMN IF NOT EXISTS terms_url        TEXT,
+  ADD COLUMN IF NOT EXISTS terms_updated_at TIMESTAMPTZ;
 
 -- ===== LOGIN SESSIONS — успешни + неуспешни опити =====
 CREATE TABLE IF NOT EXISTS login_sessions (
@@ -115,6 +121,9 @@ CREATE TABLE IF NOT EXISTS influencer_applications (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT valid_application_status CHECK (status IN ('pending', 'approved', 'rejected'))
 );
+ALTER TABLE influencer_applications
+  ADD COLUMN IF NOT EXISTS terms_accepted    BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_applications_status  ON influencer_applications(status);
 CREATE INDEX IF NOT EXISTS idx_applications_created ON influencer_applications(created_at DESC);
 

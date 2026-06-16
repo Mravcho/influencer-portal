@@ -14,7 +14,7 @@ export async function POST(request) {
   const {
     full_name, email, phone,
     instagram_url, tiktok_url, facebook_url, youtube_url, other_url,
-    motivation,
+    motivation, terms_accepted,
   } = body
 
   if (!full_name || !email || !phone) {
@@ -25,6 +25,16 @@ export async function POST(request) {
   }
   if (!instagram_url && !tiktok_url && !facebook_url && !youtube_url && !other_url) {
     return NextResponse.json({ error: 'Поне един линк към соц. мрежа е задължителен' }, { status: 400 })
+  }
+
+  // Ако има качени общи условия — приемането им е задължително.
+  const { data: branding } = await supabaseAdmin
+    .from('branding')
+    .select('terms_url')
+    .eq('id', 1)
+    .maybeSingle()
+  if (branding?.terms_url && !terms_accepted) {
+    return NextResponse.json({ error: 'Трябва да приемете Общите условия' }, { status: 400 })
   }
 
   const { data, error } = await supabaseAdmin
@@ -40,6 +50,8 @@ export async function POST(request) {
       other_url:     other_url?.trim() || null,
       motivation:    motivation?.trim() || null,
       status:        'pending',
+      terms_accepted:    !!terms_accepted,
+      terms_accepted_at: terms_accepted ? new Date().toISOString() : null,
     })
     .select()
     .single()
