@@ -816,7 +816,7 @@ export default function Dashboard() {
 
             {userInfo.termsUrl && (
               <a
-                href={userInfo.termsUrl}
+                href="/terms"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn"

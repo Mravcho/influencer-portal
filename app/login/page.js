@@ -293,7 +293,7 @@ export default function LoginPage() {
                       <span>
                         Съгласявам се с{' '}
                         <a
-                          href={branding.terms_url}
+                          href="/terms"
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ color: 'var(--accent)', textDecoration: 'underline' }}

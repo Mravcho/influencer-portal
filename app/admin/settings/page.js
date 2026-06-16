@@ -268,12 +268,12 @@ export default function AdminSettings() {
             <div style={{ flex: 1, minWidth: 0 }}>
               {branding.terms_url ? (
                 <a
-                  href={branding.terms_url}
+                  href="/terms"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: 'var(--accent)', textDecoration: 'underline', fontSize: 13, wordBreak: 'break-all' }}
                 >
-                  Виж качения файл
+                  Виж качения файл (portal.realfood.bg/terms)
                 </a>
               ) : (
                 <span style={{ fontSize: 13, color: 'var(--muted)' }}>Няма качен файл</span>
