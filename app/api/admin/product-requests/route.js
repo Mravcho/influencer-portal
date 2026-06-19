@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { createOrder } from '@/lib/shopify'
+import { createOrder, fetchVariantComponents } from '@/lib/shopify'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +36,31 @@ function buildShipping(req, influencerName) {
     country_code: 'BG',
   }
   return { methodLabel, firstName, lastName, shippingAddress }
+}
+
+// Построява Shopify line items за дадена бройка от продукт.
+// Ако вариантът е bundle (Shopify Bundles), го разгъва на компонентните варианти —
+// Shopify не приема bundle вариант директно в поръчка. Цялата цена/бр. на пакета
+// сяда на първия компонент, останалите са 0, така че сумата остава вярна.
+async function buildProductLineItems({ variantId, quantity, unitPrice, baseTitle, suffix }) {
+  if (!quantity || quantity <= 0) return []
+  const components = await fetchVariantComponents(variantId)
+
+  if (!components) {
+    return [{
+      variant_id: Number(variantId),
+      quantity,
+      price:      unitPrice.toFixed(2),
+      title:      `${baseTitle} ${suffix}`.trim(),
+    }]
+  }
+
+  return components.map((c, idx) => ({
+    variant_id: Number(c.variantId),
+    quantity:   c.quantity * quantity,
+    price:      (idx === 0 ? unitPrice / c.quantity : 0).toFixed(2),
+    title:      `${baseTitle} → ${c.title} ${suffix}`.trim(),
+  }))
 }
 
 // GET → списък със заявки (по подразбиране pending + sent_to_shopify)
@@ -136,28 +161,28 @@ export async function PATCH(request) {
     // Затова override-ваме price на всеки ред — 0 за безплатните, дисконтирана цена за платените.
     const unitPrice = Number(req.product.price || 0)
     const unitPaid  = unitPrice * (1 - Number(req.product.paid_discount_pct || 0) / 100)
-    const lineItems = []
-    if (req.free_quantity > 0) {
-      lineItems.push({
-        variant_id: Number(req.product.shopify_variant_id),
-        quantity:   req.free_quantity,
-        price:      '0.00',
-        title:      `${req.product.name} (безплатно — инфлуенсър)`,
-      })
-    }
-    if (req.paid_quantity > 0) {
-      lineItems.push({
-        variant_id: Number(req.product.shopify_variant_id),
-        quantity:   req.paid_quantity,
-        price:      unitPaid.toFixed(2),
-        title:      `${req.product.name} (-${req.product.paid_discount_pct}% инфлуенсър)`,
-      })
-    }
-
-    const { methodLabel, firstName, lastName, shippingAddress } = buildShipping(req, req.influencer.name)
 
     let shopifyOrder
     try {
+      const lineItems = [
+        ...await buildProductLineItems({
+          variantId: req.product.shopify_variant_id,
+          quantity:  req.free_quantity,
+          unitPrice: 0,
+          baseTitle: req.product.name,
+          suffix:    '(безплатно — инфлуенсър)',
+        }),
+        ...await buildProductLineItems({
+          variantId: req.product.shopify_variant_id,
+          quantity:  req.paid_quantity,
+          unitPrice: unitPaid,
+          baseTitle: req.product.name,
+          suffix:    `(-${req.product.paid_discount_pct}% инфлуенсър)`,
+        }),
+      ]
+
+      const { methodLabel, firstName, lastName, shippingAddress } = buildShipping(req, req.influencer.name)
+
       const noteLines = [
         `Заявка от инфлуенсър: ${req.influencer.name} (${req.influencer.promo_code})`,
         `Продукт: ${req.product.name}`,
@@ -279,24 +304,26 @@ export async function POST(request) {
       ? Math.max(0, Number(ov.paidUnitPrice))
       : defaultPaid
 
-    if (r.free_quantity > 0) {
-      lineItems.push({
-        variant_id: Number(r.product.shopify_variant_id),
-        quantity:   r.free_quantity,
-        price:      '0.00',
-        title:      `${r.product.name} (безплатно — инфлуенсър)`,
-      })
-    }
-    if (r.paid_quantity > 0) {
-      const isFree = paidUnit <= 0
-      lineItems.push({
-        variant_id: Number(r.product.shopify_variant_id),
-        quantity:   r.paid_quantity,
-        price:      paidUnit.toFixed(2),
-        title:      isFree
-          ? `${r.product.name} (безплатно — инфлуенсър)`
-          : `${r.product.name} (-${r.product.paid_discount_pct}% инфлуенсър)`,
-      })
+    const isFree = paidUnit <= 0
+    try {
+      lineItems.push(...await buildProductLineItems({
+        variantId: r.product.shopify_variant_id,
+        quantity:  r.free_quantity,
+        unitPrice: 0,
+        baseTitle: r.product.name,
+        suffix:    '(безплатно — инфлуенсър)',
+      }))
+      lineItems.push(...await buildProductLineItems({
+        variantId: r.product.shopify_variant_id,
+        quantity:  r.paid_quantity,
+        unitPrice: paidUnit,
+        baseTitle: r.product.name,
+        suffix:    isFree
+          ? '(безплатно — инфлуенсър)'
+          : `(-${r.product.paid_discount_pct}% инфлуенсър)`,
+      }))
+    } catch (err) {
+      return NextResponse.json({ error: `Shopify Order error: ${err.message}` }, { status: 502 })
     }
     const reqPaidTotal = paidUnit * r.paid_quantity
     updatedTotals[r.id] = Number(reqPaidTotal.toFixed(2))
