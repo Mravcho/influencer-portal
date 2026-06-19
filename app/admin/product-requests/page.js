@@ -32,6 +32,7 @@ export default function ProductRequestsPage() {
   const [filter, setFilter]     = useState('open') // 'open' | 'all'
   const [busy, setBusy]         = useState({})
   const [msg, setMsg]           = useState({ type: '', text: '' })
+  const [merge, setMerge]       = useState(null) // { influencerId, selectedIds, overrides, shippingFromId, busy }
 
   const load = async () => {
     const url = filter === 'all' ? '/api/admin/product-requests?status=all' : '/api/admin/product-requests'
@@ -63,6 +64,80 @@ export default function ProductRequestsPage() {
     }
     load()
   }
+
+  // Цена/бр. на платените бройки по подразбиране (каталожна цена с отстъпката)
+  const defaultPaidUnit = (r) =>
+    Number(r.product?.price || 0) * (1 - Number(r.product?.paid_discount_pct || 0) / 100)
+
+  // Има ли друга чакаща заявка от същия инфлуенсър, с която да обединим?
+  const hasMergeCandidates = (r) =>
+    requests.some(o => o.id !== r.id && o.status === 'pending' && o.influencer?.id === r.influencer?.id)
+
+  const openMerge = (base) => {
+    setMsg({})
+    setMerge({
+      influencerId:   base.influencer?.id,
+      selectedIds:    [base.id],
+      overrides:      {},
+      shippingFromId: base.id,
+    })
+  }
+
+  const toggleMergeSel = (id) => setMerge(m => {
+    const has = m.selectedIds.includes(id)
+    const selectedIds = has ? m.selectedIds.filter(x => x !== id) : [...m.selectedIds, id]
+    // Ако махнем заявката, чиято доставка ползваме — връщаме се на първата избрана
+    const shippingFromId = selectedIds.includes(m.shippingFromId) ? m.shippingFromId : selectedIds[0]
+    return { ...m, selectedIds, shippingFromId }
+  })
+
+  const setOverride = (id, val) => setMerge(m => ({ ...m, overrides: { ...m.overrides, [id]: val } }))
+
+  const overrideUnit = (r) => {
+    const v = merge?.overrides[r.id]
+    if (v != null && v !== '') return Math.max(0, Number(v) || 0)
+    return defaultPaidUnit(r)
+  }
+
+  const submitMerge = async () => {
+    if (merge.selectedIds.length < 2) {
+      setMsg({ type: 'error', text: 'Избери поне 2 заявки за обединяване.' })
+      return
+    }
+    setMerge(m => ({ ...m, busy: true }))
+    setMsg({})
+    const overrides = {}
+    for (const id of merge.selectedIds) {
+      const v = merge.overrides[id]
+      if (v != null && v !== '') overrides[id] = { paidUnitPrice: Math.max(0, Number(v) || 0) }
+    }
+    const res = await fetch('/api/admin/product-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: merge.selectedIds, shippingFromId: merge.shippingFromId, overrides }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setMerge(m => ({ ...m, busy: false }))
+      setMsg({ type: 'error', text: data.error })
+      return
+    }
+    setMerge(null)
+    setMsg({
+      type: 'success',
+      text: data.shopify_order_number
+        ? `Поръчка ${data.shopify_order_number} е създадена от ${data.merged} заявки.`
+        : `Обединени са ${data.merged} заявки в една поръчка.`,
+    })
+    load()
+  }
+
+  const mergeCandidates = merge
+    ? requests.filter(r => r.status === 'pending' && r.influencer?.id === merge.influencerId)
+    : []
+  const mergeTotal = mergeCandidates
+    .filter(r => merge?.selectedIds.includes(r.id))
+    .reduce((sum, r) => sum + overrideUnit(r) * r.paid_quantity, 0)
 
   return (
     <AdminShell>
@@ -184,6 +259,16 @@ export default function ProductRequestsPage() {
                         >
                           Откажи
                         </button>
+                        {hasMergeCandidates(r) && (
+                          <button
+                            className="btn btn-sm"
+                            style={{ background: '#ede9fe', color: '#5b21b6', border: '1px solid #c4b5fd' }}
+                            onClick={() => openMerge(r)}
+                            disabled={!!busy[r.id]}
+                          >
+                            🔗 Обедини с друга
+                          </button>
+                        )}
                       </>
                     )}
                     {r.status === 'sent_to_shopify' && (
@@ -203,6 +288,124 @@ export default function ProductRequestsPage() {
           })}
         </div>
       </div>
+
+      {merge && (
+        <div
+          onClick={() => !merge.busy && setMerge(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50,
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+            padding: 16, overflowY: 'auto',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="card"
+            style={{ maxWidth: 560, width: '100%', marginTop: 24 }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700 }}>🔗 Обедини в една поръчка</h2>
+              <button className="btn btn-sm" onClick={() => !merge.busy && setMerge(null)} style={{ background: 'transparent' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+              Една Shopify поръчка с една доставка. Избери кои заявки да включиш и
+              коригирай цената на платените бройки (0 = безплатно).
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+              {mergeCandidates.map(r => {
+                const checked = merge.selectedIds.includes(r.id)
+                const unit = overrideUnit(r)
+                return (
+                  <div key={r.id} style={{
+                    border: `1px solid ${checked ? 'var(--accent, #8b5cf6)' : 'var(--border)'}`,
+                    borderRadius: 8, padding: 10, fontSize: 13,
+                    background: checked ? '#faf5ff' : 'var(--bg)',
+                  }}>
+                    <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleMergeSel(r.id)}
+                        style={{ marginTop: 3, width: 'auto' }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600 }}>{r.product?.name || '?'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                          Безплатно: {r.free_quantity} бр. · Платено: {r.paid_quantity} бр.
+                        </div>
+                      </div>
+                    </label>
+
+                    {checked && r.paid_quantity > 0 && (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, paddingLeft: 24, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 12, color: 'var(--muted)' }}>Цена/бр.:</span>
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={merge.overrides[r.id] ?? defaultPaidUnit(r).toFixed(2)}
+                          onChange={e => setOverride(r.id, e.target.value)}
+                          style={{ width: 90, fontSize: 13 }}
+                        />
+                        <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                          € · общо {(unit * r.paid_quantity).toFixed(2)} €
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7' }}
+                          onClick={() => setOverride(r.id, '0')}
+                        >
+                          Направи безплатно
+                        </button>
+                      </div>
+                    )}
+
+                    {checked && (
+                      <label style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8, paddingLeft: 24, fontSize: 12, cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="shippingFrom"
+                          checked={merge.shippingFromId === r.id}
+                          onChange={() => setMerge(m => ({ ...m, shippingFromId: r.id }))}
+                          style={{ width: 'auto' }}
+                        />
+                        <span>
+                          Ползвай доставката оттук:{' '}
+                          <strong>{SHIPPING_LABEL[r.shipping_method] || r.shipping_method || '—'}</strong>
+                          {r.shipping_location ? ` · ${r.shipping_location}` : ''}
+                        </span>
+                      </label>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '10px 12px', background: 'var(--bg)', borderRadius: 8, marginBottom: 14, fontSize: 14,
+            }}>
+              <span style={{ color: 'var(--muted)' }}>
+                Обединени заявки: <strong>{merge.selectedIds.length}</strong>
+              </span>
+              <span>Сума за плащане: <strong>{mergeTotal.toFixed(2)} €</strong></span>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-sm" onClick={() => setMerge(null)} disabled={merge.busy}>
+                Отказ
+              </button>
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={submitMerge}
+                disabled={merge.busy || merge.selectedIds.length < 2}
+              >
+                {merge.busy ? 'Създаване...' : `✓ Създай 1 поръчка от ${merge.selectedIds.length}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminShell>
   )
 }

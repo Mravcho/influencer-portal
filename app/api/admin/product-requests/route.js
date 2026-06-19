@@ -4,6 +4,40 @@ import { createOrder } from '@/lib/shopify'
 
 export const dynamic = 'force-dynamic'
 
+const METHOD_LABELS = {
+  econt_office:  'Еконт офис',
+  speedy_office: 'Спиди офис',
+  boxnow:        'BoxNow',
+  address:       'Адрес',
+}
+
+// Построява shipping_address + customer name за Shopify от данните на заявката.
+// Shopify изисква city за BG поръчки; ако не я подадем — цялото address се
+// отхвърля. Опитваме да я извлечем от shipping_location ("София, офис 87" →
+// "София") или fallback-ваме на "София".
+function buildShipping(req, influencerName) {
+  const methodLabel = METHOD_LABELS[req.shipping_method] || req.shipping_method || '—'
+  const nameParts = (req.shipping_recipient || '').trim().split(/\s+/)
+  const firstName = nameParts[0] || influencerName?.split(/\s+/)[0] || 'Получател'
+  const lastName  = nameParts.slice(1).join(' ') || '—'
+  const cityGuess = req.shipping_method === 'address'
+    ? 'София'
+    : ((req.shipping_location || '').split(/[,;–-]/)[0].trim() || 'София')
+  const shippingAddress = {
+    first_name:   firstName,
+    last_name:    lastName,
+    phone:        req.shipping_phone || '',
+    address1:     req.shipping_method === 'address'
+                    ? (req.shipping_location || '')
+                    : `${methodLabel}: ${req.shipping_location || ''}`,
+    city:         cityGuess,
+    zip:          '0000',
+    country:      'Bulgaria',
+    country_code: 'BG',
+  }
+  return { methodLabel, firstName, lastName, shippingAddress }
+}
+
 // GET → списък със заявки (по подразбиране pending + sent_to_shopify)
 // ?count=pending → връща само { count } за badge
 // ?status=all → връща всичко
@@ -120,12 +154,7 @@ export async function PATCH(request) {
       })
     }
 
-    const methodLabel = {
-      econt_office:  'Еконт офис',
-      speedy_office: 'Спиди офис',
-      boxnow:        'BoxNow',
-      address:       'Адрес',
-    }[req.shipping_method] || req.shipping_method || '—'
+    const { methodLabel, firstName, lastName, shippingAddress } = buildShipping(req, req.influencer.name)
 
     let shopifyOrder
     try {
@@ -141,31 +170,6 @@ export async function PATCH(request) {
         `Телефон: ${req.shipping_phone || '—'}`,
         `${req.shipping_method === 'address' ? 'Адрес' : 'Офис'}: ${req.shipping_location || '—'}`,
       ]
-
-      // shipping_address за Shopify Order
-      // Shopify изисква city за BG поръчки; ако не я подадем — цялото address
-      // се отхвърля. Опитваме да я извлечем от shipping_location ("София, офис 87"
-      // → "София") или fallback-ваме на "София".
-      const nameParts = (req.shipping_recipient || '').trim().split(/\s+/)
-      const firstName = nameParts[0] || req.influencer.name?.split(/\s+/)[0] || 'Получател'
-      const lastName  = nameParts.slice(1).join(' ') || '—'
-      const cityGuess = (() => {
-        if (req.shipping_method === 'address') return 'София'
-        const first = (req.shipping_location || '').split(/[,;–-]/)[0].trim()
-        return first || 'София'
-      })()
-      const shippingAddress = {
-        first_name:   firstName,
-        last_name:    lastName,
-        phone:        req.shipping_phone || '',
-        address1:     req.shipping_method === 'address'
-                        ? (req.shipping_location || '')
-                        : `${methodLabel}: ${req.shipping_location || ''}`,
-        city:         cityGuess,
-        zip:          '0000',
-        country:      'Bulgaria',
-        country_code: 'BG',
-      }
 
       // Explicit customer block — само име на получателя.
       // НЕ подаваме email НИТО phone, защото Shopify ги ползва за customer matching
@@ -211,4 +215,151 @@ export async function PATCH(request) {
   }
 
   return NextResponse.json({ error: 'Неизвестно действие' }, { status: 400 })
+}
+
+// POST → обединява няколко pending заявки от СЪЩИЯ инфлуенсър в ЕДНА Shopify
+// поръчка (една доставка). Позволява override на цената на платените редове —
+// напр. да направиш допълнителен продукт безплатен за конкретен инфлуенсър.
+//
+// body: {
+//   ids:            [uuid, ...]                       // >= 2 заявки
+//   shippingFromId: uuid                              // от коя заявка да е доставката (по подразб. първата)
+//   overrides:      { [requestId]: { paidUnitPrice } } // нова цена/бр. за платените бройки (0 = безплатно)
+// }
+export async function POST(request) {
+  const body = await request.json()
+  const ids = Array.isArray(body.ids) ? [...new Set(body.ids.filter(Boolean))] : []
+  const overrides = body.overrides || {}
+
+  if (ids.length < 2) {
+    return NextResponse.json({ error: 'Избери поне 2 заявки за обединяване' }, { status: 400 })
+  }
+
+  const { data: reqs, error: reqErr } = await supabaseAdmin
+    .from('product_requests')
+    .select(`
+      id, quantity, free_quantity, paid_quantity, paid_total, status,
+      shipping_method, shipping_recipient, shipping_phone, shipping_location,
+      influencer:influencers(id, name, email, promo_code),
+      product:request_products(id, name, shopify_product_id, shopify_variant_id, price, paid_discount_pct)
+    `)
+    .in('id', ids)
+
+  if (reqErr) return NextResponse.json({ error: reqErr.message }, { status: 500 })
+  if (!reqs || reqs.length !== ids.length) {
+    return NextResponse.json({ error: 'Някоя от заявките не съществува' }, { status: 404 })
+  }
+
+  // Валидации
+  if (reqs.some(r => r.status !== 'pending')) {
+    return NextResponse.json({ error: 'Всички заявки трябва да са в статус „Чакаща".' }, { status: 400 })
+  }
+  if (new Set(reqs.map(r => r.influencer?.id)).size !== 1) {
+    return NextResponse.json({ error: 'Заявките трябва да са от един и същ инфлуенсър.' }, { status: 400 })
+  }
+  const missingVariant = reqs.find(r => !r.product?.shopify_variant_id)
+  if (missingVariant) {
+    return NextResponse.json({
+      error: `Продукт „${missingVariant.product?.name}" няма Shopify variant ID — пусни „🔄 Refresh from Shopify" в каталога.`,
+    }, { status: 400 })
+  }
+
+  const influencer = reqs[0].influencer
+
+  // Построяваме обединените line_items + смятаме новата paid_total за всяка заявка
+  const lineItems = []
+  const updatedTotals = {} // requestId → нова paid_total
+  let combinedPaid = 0
+  const productLines = []  // за бележката
+  for (const r of reqs) {
+    const unitPrice   = Number(r.product.price || 0)
+    const defaultPaid = unitPrice * (1 - Number(r.product.paid_discount_pct || 0) / 100)
+    const ov = overrides[r.id] || {}
+    const paidUnit = ov.paidUnitPrice != null && ov.paidUnitPrice !== ''
+      ? Math.max(0, Number(ov.paidUnitPrice))
+      : defaultPaid
+
+    if (r.free_quantity > 0) {
+      lineItems.push({
+        variant_id: Number(r.product.shopify_variant_id),
+        quantity:   r.free_quantity,
+        price:      '0.00',
+        title:      `${r.product.name} (безплатно — инфлуенсър)`,
+      })
+    }
+    if (r.paid_quantity > 0) {
+      const isFree = paidUnit <= 0
+      lineItems.push({
+        variant_id: Number(r.product.shopify_variant_id),
+        quantity:   r.paid_quantity,
+        price:      paidUnit.toFixed(2),
+        title:      isFree
+          ? `${r.product.name} (безплатно — инфлуенсър)`
+          : `${r.product.name} (-${r.product.paid_discount_pct}% инфлуенсър)`,
+      })
+    }
+    const reqPaidTotal = paidUnit * r.paid_quantity
+    updatedTotals[r.id] = Number(reqPaidTotal.toFixed(2))
+    combinedPaid += reqPaidTotal
+    productLines.push(
+      `- ${r.product.name}: безплатно ${r.free_quantity} бр., платено ${r.paid_quantity} бр. (${reqPaidTotal.toFixed(2)} €)`
+    )
+  }
+
+  // Доставка — от избраната заявка (по подразбиране първата от списъка)
+  const shipReq = reqs.find(r => r.id === body.shippingFromId) || reqs[0]
+  const { methodLabel, firstName, lastName, shippingAddress } = buildShipping(shipReq, influencer.name)
+
+  let shopifyOrder
+  try {
+    const noteLines = [
+      `Обединена заявка от инфлуенсър: ${influencer.name} (${influencer.promo_code})`,
+      `Брой обединени заявки: ${reqs.length}`,
+      'Продукти:',
+      ...productLines,
+      `Обща сума за плащане: ${combinedPaid.toFixed(2)} €`,
+      '',
+      '— ДОСТАВКА —',
+      `Начин: ${methodLabel}`,
+      `Получател: ${shipReq.shipping_recipient || '—'}`,
+      `Телефон: ${shipReq.shipping_phone || '—'}`,
+      `${shipReq.shipping_method === 'address' ? 'Адрес' : 'Офис'}: ${shipReq.shipping_location || '—'}`,
+    ]
+
+    shopifyOrder = await createOrder({
+      lineItems,
+      note: noteLines.join('\n'),
+      customer: { first_name: firstName, last_name: lastName },
+      tags: [
+        'influencer-request',
+        'merged',
+        influencer.promo_code,
+        `shipping-${shipReq.shipping_method || 'unknown'}`,
+      ].filter(Boolean),
+      shippingAddress,
+    })
+  } catch (err) {
+    return NextResponse.json({ error: `Shopify Order error: ${err.message}` }, { status: 502 })
+  }
+
+  // Всички обединени заявки сочат към една и съща Shopify поръчка
+  const orderId = String(shopifyOrder?.id || '')
+  const results = await Promise.all(reqs.map(r =>
+    supabaseAdmin
+      .from('product_requests')
+      .update({
+        status:                 'sent_to_shopify',
+        shopify_draft_order_id: orderId,
+        paid_total:             updatedTotals[r.id],
+      })
+      .eq('id', r.id)
+  ))
+  const updateErr = results.find(res => res.error)
+  if (updateErr) return NextResponse.json({ error: updateErr.error.message }, { status: 500 })
+
+  return NextResponse.json({
+    ok: true,
+    merged: reqs.length,
+    shopify_order_number: shopifyOrder?.order_number ? `#${shopifyOrder.order_number}` : null,
+  })
 }
