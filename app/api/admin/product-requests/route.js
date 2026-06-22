@@ -242,22 +242,25 @@ export async function PATCH(request) {
   return NextResponse.json({ error: 'Неизвестно действие' }, { status: 400 })
 }
 
-// POST → обединява няколко pending заявки от СЪЩИЯ инфлуенсър в ЕДНА Shopify
-// поръчка (една доставка). Позволява override на цената на платените редове —
-// напр. да направиш допълнителен продукт безплатен за конкретен инфлуенсър.
+// POST → създава ЕДНА Shopify поръчка от 1+ pending заявки на СЪЩИЯ инфлуенсър
+// (една доставка). Позволява:
+//  - override на цената на платените редове (0 = безплатно);
+//  - добавяне на допълнителни продукти (мърч) по преценка на админа.
 //
 // body: {
-//   ids:            [uuid, ...]                       // >= 2 заявки
-//   shippingFromId: uuid                              // от коя заявка да е доставката (по подразб. първата)
+//   ids:            [uuid, ...]                        // >= 1 заявка
+//   shippingFromId: uuid                               // от коя заявка да е доставката (по подразб. първата)
 //   overrides:      { [requestId]: { paidUnitPrice } } // нова цена/бр. за платените бройки (0 = безплатно)
+//   extras:         [{ variantId, quantity, price, name }] // доп. продукти (price по подразб. 0)
 // }
 export async function POST(request) {
   const body = await request.json()
   const ids = Array.isArray(body.ids) ? [...new Set(body.ids.filter(Boolean))] : []
   const overrides = body.overrides || {}
+  const extras = Array.isArray(body.extras) ? body.extras : []
 
-  if (ids.length < 2) {
-    return NextResponse.json({ error: 'Избери поне 2 заявки за обединяване' }, { status: 400 })
+  if (ids.length < 1) {
+    return NextResponse.json({ error: 'Избери поне 1 заявка' }, { status: 400 })
   }
 
   const { data: reqs, error: reqErr } = await supabaseAdmin
@@ -333,17 +336,40 @@ export async function POST(request) {
     )
   }
 
+  // Допълнителни продукти (мърч) по преценка на админа
+  const extraLines = []
+  try {
+    for (const ex of extras) {
+      if (!ex.variantId) continue
+      const qty   = Math.max(1, parseInt(ex.quantity, 10) || 1)
+      const price = Math.max(0, Number(ex.price) || 0)
+      lineItems.push(...await buildProductLineItems({
+        variantId: ex.variantId,
+        quantity:  qty,
+        unitPrice: price,
+        baseTitle: ex.name || 'Допълнителен продукт',
+        suffix:    price <= 0 ? '(подарък — инфлуенсър)' : '(добавено от админ)',
+      }))
+      combinedPaid += price * qty
+      extraLines.push(`- ${ex.name || 'Продукт'}: ${qty} бр. (${(price * qty).toFixed(2)} €)`)
+    }
+  } catch (err) {
+    return NextResponse.json({ error: `Shopify Order error: ${err.message}` }, { status: 502 })
+  }
+
   // Доставка — от избраната заявка (по подразбиране първата от списъка)
   const shipReq = reqs.find(r => r.id === body.shippingFromId) || reqs[0]
   const { methodLabel, firstName, lastName, shippingAddress } = buildShipping(shipReq, influencer.name)
 
   let shopifyOrder
   try {
+    const isMerged = reqs.length > 1
     const noteLines = [
-      `Обединена заявка от инфлуенсър: ${influencer.name} (${influencer.promo_code})`,
-      `Брой обединени заявки: ${reqs.length}`,
+      `${isMerged ? 'Обединена заявка' : 'Заявка'} от инфлуенсър: ${influencer.name} (${influencer.promo_code})`,
+      ...(isMerged ? [`Брой обединени заявки: ${reqs.length}`] : []),
       'Продукти:',
       ...productLines,
+      ...(extraLines.length ? ['Допълнително (мърч):', ...extraLines] : []),
       `Обща сума за плащане: ${combinedPaid.toFixed(2)} €`,
       '',
       '— ДОСТАВКА —',
@@ -359,7 +385,8 @@ export async function POST(request) {
       customer: { first_name: firstName, last_name: lastName },
       tags: [
         'influencer-request',
-        'merged',
+        ...(isMerged ? ['merged'] : []),
+        ...(extraLines.length ? ['merch-added'] : []),
         influencer.promo_code,
         `shipping-${shipReq.shipping_method || 'unknown'}`,
       ].filter(Boolean),
