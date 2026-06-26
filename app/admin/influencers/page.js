@@ -26,7 +26,6 @@ export default function AdminPage() {
   const [assignedProductIds, setAssignedProductIds] = useState(new Set())
   const [msg, setMsg]     = useState({ type: '', text: '' })
   const [loading, setLoading] = useState(false)
-  const [avatarLoading, setAvatarLoading] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [contractUploading, setContractUploading] = useState(false)
@@ -103,20 +102,6 @@ export default function AdminPage() {
     }
     setField('contract_url', data.url)
     setField('contract_filename', data.filename || file.name)
-  }
-
-  const fetchAvatar = async () => {
-    if (!form.profile_url) return
-    setAvatarLoading(true)
-    const res = await fetch('/api/admin/fetch-avatar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: form.profile_url }),
-    })
-    const data = await res.json()
-    setAvatarLoading(false)
-    if (data.avatarUrl) setField('avatar_url', data.avatarUrl)
-    else setMsg({ type: 'error', text: data.error || 'Не намерих снимка' })
   }
 
   const handleSubmit = async (e) => {
@@ -716,26 +701,14 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Профилен линк + авто-снимка */}
+              {/* Профилен линк */}
               <div>
                 <label style={labelStyle}>Линк към профил в социалните мрежи</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    value={form.profile_url}
-                    onChange={e => setField('profile_url', e.target.value)}
-                    placeholder="https://www.instagram.com/maria_style"
-                    style={{ flex: 1 }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    onClick={fetchAvatar}
-                    disabled={avatarLoading || !form.profile_url}
-                    title="Вземи снимка от профила"
-                  >
-                    {avatarLoading ? '⟳' : '📷 Снимка'}
-                  </button>
-                </div>
+                <input
+                  value={form.profile_url}
+                  onChange={e => setField('profile_url', e.target.value)}
+                  placeholder="https://www.instagram.com/maria_style"
+                />
               </div>
 
               {/* Avatar — авто URL или upload от компютъра */}
