@@ -51,3 +51,9 @@ BEGIN
   END IF;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Enable RLS with NO policies: the anon/authenticated keys get zero access,
+-- while the service_role key (used by all server-side access) bypasses RLS.
+-- These tables are only ever touched server-side via supabaseAdmin.
+ALTER TABLE utm_links       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE utm_daily_clicks ENABLE ROW LEVEL SECURITY;
