@@ -39,7 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_utm_daily_alias ON utm_daily_clicks(alias);
 -- Atomic click recorder: bump lifetime total + today's daily bucket in one call.
 -- Called from the /go/<alias> redirect via supabaseAdmin.rpc('record_utm_click', ...).
 CREATE OR REPLACE FUNCTION record_utm_click(p_alias TEXT)
-RETURNS void AS $$
+RETURNS void AS $fn$
 BEGIN
   UPDATE utm_links
      SET clicks = clicks + 1, last_click_at = now()
@@ -50,7 +50,7 @@ BEGIN
     ON CONFLICT (alias, date) DO UPDATE SET count = utm_daily_clicks.count + 1;
   END IF;
 END;
-$$ LANGUAGE plpgsql;
+$fn$ LANGUAGE plpgsql;
 
 -- Enable RLS with NO policies: the anon/authenticated keys get zero access,
 -- while the service_role key (used by all server-side access) bypasses RLS.
