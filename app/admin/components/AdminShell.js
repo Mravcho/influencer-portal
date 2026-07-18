@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Home, FileText, Wallet, Gift, Package, Users, Settings, MailOpen,
-  Sun, Moon, LogOut, Crown, Activity, Link2,
+  Sun, Moon, LogOut, Crown, Activity, Link2, Menu, X,
 } from 'lucide-react'
 
 const TOKENS = {
@@ -107,6 +107,11 @@ function NavBtn({ item, isActive, onClick, t }) {
 export default function AdminShell({ children }) {
   const router = useRouter()
   const pathname = usePathname()
+
+  // Мобилно меню (чекмедже с всички линкове)
+  const [menuOpen, setMenuOpen] = useState(false)
+  // Затваряме менюто при смяна на страница
+  useEffect(() => { setMenuOpen(false) }, [pathname])
 
   // Тема — споделя се с инфлуенсърския dashboard през същия localStorage ключ
   const [theme, setTheme] = useState('light')
@@ -356,14 +361,14 @@ export default function AdminShell({ children }) {
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <button
-              onClick={logout}
-              aria-label="Изход"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Меню"
               style={{
-                padding: 8, borderRadius: 999, color: t.muted,
+                padding: 8, borderRadius: 999, color: t.text,
                 background: 'transparent', border: 'none', cursor: 'pointer',
               }}
             >
-              <LogOut size={18} />
+              <Menu size={20} />
             </button>
           </div>
         </div>
@@ -447,6 +452,90 @@ export default function AdminShell({ children }) {
           )
         })}
       </nav>
+
+      {/* Mobile full menu (чекмедже с всички линкове) */}
+      {menuOpen && (
+        <div
+          className="lg:hidden"
+          onClick={() => setMenuOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 60,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex', justifyContent: 'flex-end',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: 'min(84vw, 320px)',
+              height: '100%',
+              background: t.sidebarBg,
+              borderLeft: `1px solid ${t.sidebarBorder}`,
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '-8px 0 40px rgba(0,0,0,0.25)',
+              paddingTop: 'env(safe-area-inset-top)',
+            }}
+          >
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 16px 8px',
+            }}>
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: t.muted,
+                textTransform: 'uppercase', letterSpacing: '.08em',
+              }}>Меню</span>
+              <button
+                onClick={() => setMenuOpen(false)}
+                aria-label="Затвори"
+                style={{ padding: 6, borderRadius: 999, color: t.text, background: 'transparent', border: 'none', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <nav style={{ padding: '4px 10px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto', flex: 1 }} aria-label="Всички линкове">
+              {NAV.map(item => {
+                const count = countFor(item.id)
+                return (
+                  <div key={item.id} style={{ position: 'relative' }}>
+                    <NavBtn item={item} isActive={isActive(item.id)} onClick={() => { setMenuOpen(false); router.push(item.id) }} t={t} />
+                    {count > 0 && (
+                      <span style={{
+                        position: 'absolute',
+                        top: 10, right: 10,
+                        minWidth: 18, height: 18, borderRadius: 9,
+                        padding: '0 6px',
+                        background: '#dc2626',
+                        color: '#fff',
+                        fontSize: 10, fontWeight: 700,
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        border: `2px solid ${t.sidebarBg}`,
+                        lineHeight: 1,
+                        pointerEvents: 'none',
+                      }}>{count}</span>
+                    )}
+                  </div>
+                )
+              })}
+            </nav>
+
+            <div style={{ padding: '8px 10px 16px', display: 'flex', flexDirection: 'column', gap: 4, borderTop: `1px solid ${t.sidebarBorder}` }}>
+              <NavBtn
+                item={{ id: '_theme', label: theme === 'dark' ? 'Светъл режим' : 'Тъмен режим', Icon: theme === 'dark' ? Sun : Moon }}
+                isActive={false}
+                onClick={toggleTheme}
+                t={t}
+              />
+              <NavBtn
+                item={{ id: '_logout', label: 'Изход', Icon: LogOut }}
+                isActive={false}
+                onClick={logout}
+                t={t}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
