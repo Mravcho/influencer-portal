@@ -225,7 +225,23 @@ export default function ProductRequestsPage() {
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{r.product?.name || '?'}</div>
                       <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                        {r.influencer?.name} · <code>{r.influencer?.promo_code}</code>
+                        {r.influencer?.id ? (
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/admin/view/${r.influencer.id}`)}
+                            title="Виж профила на инфлуенсъра"
+                            style={{
+                              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                              color: 'var(--accent)', fontWeight: 600, fontFamily: 'inherit', fontSize: 12,
+                              textDecoration: 'underline', textUnderlineOffset: 2,
+                            }}
+                          >
+                            {r.influencer.name}
+                          </button>
+                        ) : (
+                          r.influencer?.name
+                        )}
+                        {' · '}<code>{r.influencer?.promo_code}</code>
                       </div>
                     </div>
                     <span style={{
