@@ -10,6 +10,36 @@ const ADMIN_EMAILS = (process.env.ADMIN_NOTIFY_EMAILS || 'pavel@realfood.bg,simo
   .split(/[,;\s]+/).map(s => s.trim()).filter(Boolean)
 const PORTAL_URL  = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
+// Праг клика за отключване на втори+ безплатен продукт
+const CLICK_THRESHOLD = 200
+
+// Гейт за безплатни продукти СЛЕД първия: първият безплатен продукт е ОК винаги,
+// но за втори+ безплатен инфлуенсърът трябва да е доказал трафик/резултат —
+// поне 1 поръчка ИЛИ поне CLICK_THRESHOLD клика на линка си. Иначе безплатното
+// е заключено (може само платено с отстъпка).
+async function computeFreeGate(influencerId) {
+  const { count: priorFree } = await supabaseAdmin
+    .from('product_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('influencer_id', influencerId)
+    .neq('status', 'cancelled')
+    .gt('free_quantity', 0)
+
+  // Първи безплатен продукт — винаги позволен
+  if ((priorFree || 0) === 0) {
+    return { eligible: true, isFirst: true, ordersCount: 0, clicksCount: 0, threshold: CLICK_THRESHOLD }
+  }
+
+  const [ordersRes, clicksRes] = await Promise.all([
+    supabaseAdmin.from('orders').select('id', { count: 'exact', head: true }).eq('influencer_id', influencerId),
+    supabaseAdmin.from('link_clicks').select('id', { count: 'exact', head: true }).eq('influencer_id', influencerId),
+  ])
+  const ordersCount = ordersRes.count || 0
+  const clicksCount = clicksRes.count || 0
+  const eligible = ordersCount >= 1 || clicksCount >= CLICK_THRESHOLD
+  return { eligible, isFirst: false, ordersCount, clicksCount, threshold: CLICK_THRESHOLD }
+}
+
 // GET → списък с продукти достъпни за този инфлуенсър + cooldown info за всеки
 export async function GET(request) {
   const influencerId = request.headers.get('x-user-id')
@@ -67,6 +97,9 @@ export async function GET(request) {
     }
   }
 
+  // Гейт за втори+ безплатен продукт (нужна поръчка или трафик)
+  const gate = await computeFreeGate(influencerId)
+
   // Pre-fill за shipping формата: последно използваните стойности от инфлуенсъра
   const { data: shippingDefaults } = await supabaseAdmin
     .from('influencers')
@@ -78,6 +111,13 @@ export async function GET(request) {
     free_locked_until:      freeLockedUntil,
     free_days_remaining:    freeLockedDays,
     free_locked_from_name:  freeLockedFromName,
+    free_gate: {
+      eligible:        gate.eligible,
+      is_first:        gate.isFirst,
+      orders_count:    gate.ordersCount,
+      clicks_count:    gate.clicksCount,
+      click_threshold: gate.threshold,
+    },
     products: allProducts,
     shipping_defaults: {
       method:    shippingDefaults?.last_shipping_method    || '',
@@ -154,6 +194,12 @@ export async function POST(request) {
       const reqAt    = new Date(lastFreeReq.requested_at).getTime()
       const lockedTo = reqAt + lastFreeReq.request_product.request_interval_days * 24 * 60 * 60 * 1000
       if (lockedTo > Date.now()) freeAllowed = false
+    }
+
+    // Гейт: втори+ безплатен продукт изисква поне 1 поръчка или CLICK_THRESHOLD клика
+    if (freeAllowed) {
+      const gate = await computeFreeGate(influencerId)
+      if (!gate.eligible) freeAllowed = false
     }
   }
 

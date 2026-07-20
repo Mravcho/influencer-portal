@@ -6,6 +6,7 @@ const EMPTY_SHIPPING = { method: '', recipient: '', phone: '', location: '' }
 export default function ProductRequestsWidget() {
   const [products, setProducts]                 = useState([])
   const [freeLocked, setFreeLocked]             = useState(null) // { daysRemaining, fromName }
+  const [freeGate, setFreeGate]                 = useState(null) // { eligible, is_first, orders_count, clicks_count, click_threshold }
   const [shippingDefaults, setShippingDefaults] = useState(EMPTY_SHIPPING)
   const [loading, setLoading]                   = useState(true)
   const [selected, setSelected]                 = useState(null) // { product, qty, shipping }
@@ -18,6 +19,7 @@ export default function ProductRequestsWidget() {
     if (res.ok) {
       const data = await res.json()
       setProducts(data.products || [])
+      setFreeGate(data.free_gate || null)
       setShippingDefaults({ ...EMPTY_SHIPPING, ...(data.shipping_defaults || {}) })
       if (data.free_locked_until) {
         setFreeLocked({
@@ -62,6 +64,9 @@ export default function ProductRequestsWidget() {
 
   if (loading) return null
 
+  // Втори+ безплатен продукт е заключен, докато няма поръчка или достатъчно клика
+  const gateBlocked = !!(freeGate && !freeGate.eligible)
+
   return (
     <>
       <div className="card" style={{ marginBottom: '1rem' }}>
@@ -78,6 +83,19 @@ export default function ProductRequestsWidget() {
             ⏳ Безплатната заявка е заключена още <strong>{freeLocked.daysRemaining} дни</strong>
             {freeLocked.fromName && <> (от „{freeLocked.fromName}")</>}.
             Може да поръчваш с -% отстъпка по всяко време.
+          </div>
+        )}
+
+        {/* Гейт: втори безплатен продукт изисква поръчка или трафик */}
+        {gateBlocked && !freeLocked && (
+          <div style={{
+            background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 10,
+            padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#3730a3',
+          }}>
+            🔒 Вторият безплатен продукт се отключва при <strong>поне 1 поръчка</strong> или{' '}
+            <strong>{freeGate.click_threshold} клика</strong> на твоя линк.
+            Засега имаш <strong>{freeGate.clicks_count}/{freeGate.click_threshold} клика</strong>.
+            Дотогава може да поръчаш продукт с -% отстъпка.
           </div>
         )}
 
@@ -106,7 +124,7 @@ export default function ProductRequestsWidget() {
               )}
               <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>{p.name}</div>
               <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                {p.free_quantity > 0 && !freeLocked && (
+                {p.free_quantity > 0 && !freeLocked && !gateBlocked && (
                   <>{p.free_quantity} бр. безпл. · </>
                 )}
                 над безпл.: -{p.paid_discount_pct}%
@@ -135,6 +153,8 @@ export default function ProductRequestsWidget() {
           submitting={submitting}
           msg={msg}
           freeLocked={freeLocked}
+          gateBlocked={gateBlocked}
+          freeGate={freeGate}
         />
       )}
     </>
@@ -155,8 +175,9 @@ const LOCATION_PLACEHOLDER = {
   address:       'Пълен адрес: град, кв., улица, №, ап.',
 }
 
-function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, onSubmit, submitting, msg, freeLocked }) {
-  const freeQty   = freeLocked ? 0 : Math.min(qty, product.free_quantity)
+function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, onSubmit, submitting, msg, freeLocked, gateBlocked, freeGate }) {
+  const freeBlocked = !!freeLocked || !!gateBlocked
+  const freeQty   = freeBlocked ? 0 : Math.min(qty, product.free_quantity)
   const paidQty   = qty - freeQty
   const unitPaid  = Number(product.price) * (1 - Number(product.paid_discount_pct) / 100)
   const paidTotal = Math.round(paidQty * unitPaid * 100) / 100
@@ -216,6 +237,11 @@ function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, on
               {freeLocked && (
                 <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 6 }}>
                   (свободно след {freeLocked.daysRemaining}д)
+                </span>
+              )}
+              {gateBlocked && !freeLocked && (
+                <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 6 }}>
+                  (нужна поръчка или {freeGate?.click_threshold} клика)
                 </span>
               )}
             </span>
