@@ -5,7 +5,7 @@ import { format, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, parseIS
 import { bg } from 'date-fns/locale'
 import { motion, useReducedMotion } from 'framer-motion'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
-import { Clock, TrendingUp, Crown, MousePointerClick, ShoppingCart, Receipt, PiggyBank, Home, Link2, Wallet, Trophy, Gift, LogOut, Sun, Moon, Menu, X } from 'lucide-react'
+import { Clock, TrendingUp, Crown, MousePointerClick, ShoppingCart, Receipt, PiggyBank, Home, Link2, Wallet, Trophy, Gift, LogOut, Sun, Moon, Menu, X, Megaphone } from 'lucide-react'
 import InfluencerLeaderboard from './components/InfluencerLeaderboard'
 import PayoutWidget from './components/PayoutWidget'
 import ShareLinksWidget from './components/ShareLinksWidget'
@@ -110,6 +110,7 @@ const TOKENS = {
 /* ───────────────── Sidebar / Mobile tab bar nav ───────────────── */
 const NAV = [
   { id: 'top',       label: 'Преглед',  Icon: Home },
+  { id: 'campaign',  label: 'Кампания', Icon: Megaphone },
   { id: 'links',     label: 'Линкове',  Icon: Link2 },
   { id: 'payout',    label: 'Изплащане',Icon: Wallet },
   { id: 'requests',  label: 'Заявки',   Icon: Gift },
@@ -784,6 +785,7 @@ export default function Dashboard() {
   )
 
   const { orders = [], stats = {}, topProducts = [], bannerUrl = null, avatarUrl = null, currentMonth = {} } = data || {}
+  const campaignOrders = orders.filter(o => o.campaign_id)
   const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
   const monthLabel = format(new Date(), 'LLLL', { locale: bg })
 
@@ -900,8 +902,62 @@ export default function Dashboard() {
           </div>
 
           <main id="top" className="main-container pb-24 lg:pb-12">
-            {/* Активна кампания — най-отгоре, за да се вижда сигурно */}
-            <CampaignCard />
+            {/* Активна кампания — най-отгоре, за да се вижда сигурно + котва за менюто */}
+            <div id="campaign" style={{ scrollMarginTop: 80 }}>
+              <CampaignCard />
+              {campaignOrders.length > 0 && (
+                <div className="card table-cards" style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
+                    🛒 Поръчки от кампанията
+                  </div>
+                  <table style={{ minWidth: 640 }}>
+                    <thead>
+                      <tr>
+                        <th>№</th>
+                        <th>Дата</th>
+                        <th>Продукти</th>
+                        <th>Обща сума</th>
+                        <th>Продукти с код</th>
+                        <th>Комисионна</th>
+                        <th>Статус</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {campaignOrders.map(order => {
+                        const fullPrice = parseFloat(order.commissionable_revenue || 0)
+                        const paid      = parseFloat(order.total_price || 0)
+                        const rate      = order.commission_pct != null ? Number(order.commission_pct) : userInfo.commission
+                        const comm      = fullPrice * (rate / 100)
+                        return (
+                          <tr key={order.id}>
+                            <td data-label="№" style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--muted)' }}>{order.shopify_order_id}</td>
+                            <td data-label="Дата" style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmtDate(order.created_at_shopify)}</td>
+                            <td data-label="Продукти">
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {(order.line_items || []).map((item, i) => (
+                                  <span key={i} className={`product-chip ${item.discounted ? 'discounted' : ''}`}>
+                                    {item.image_url
+                                      ? <img src={item.image_url} alt="" className="product-thumb" style={{ width: 22, height: 22 }} />
+                                      : <span className="product-thumb-placeholder" style={{ width: 22, height: 22, fontSize: 9 }}>{item.title?.slice(0, 1).toUpperCase()}</span>}
+                                    <span>{item.quantity}× {item.title}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td data-label="Обща сума" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(paid)}</td>
+                            <td data-label="Продукти с код" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(fullPrice)}</td>
+                            <td data-label="Комисионна" style={{ fontWeight: 700, color: 'var(--accent-dk)', whiteSpace: 'nowrap' }}>{fmtEur(comm)}</td>
+                            <td data-label="Статус" style={{ whiteSpace: 'nowrap' }}>
+                              {order.voided ? '❌ Анулирана' : order.financial_status === 'paid' ? '✅ Платена' : '⏳ Чакаща'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
 
             {/* Hero + Payout Ring grid — render-ват се в двата режима, тоkens се сменят */}
             <div className="grid grid-cols-12 gap-4 md:gap-6 mb-6">
