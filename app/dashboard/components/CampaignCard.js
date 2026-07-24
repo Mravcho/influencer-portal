@@ -85,25 +85,26 @@ export default function CampaignCard({ viewId = null }) {
               )}
             </div>
 
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
-              Твоят личен линк за споделяне
-            </label>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input readOnly disabled={inactive} value={c.link} onFocus={e => !inactive && e.target.select()} style={{ flex: 1, fontSize: 12 }} />
-              <button
-                className="btn btn-sm btn-primary"
-                onClick={() => copy(c.link, `link-${c.id}`)}
-                disabled={inactive}
-                style={inactive ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-              >
-                {copied === `link-${c.id}` ? '✓ Копирано' : '📋 Копирай'}
-              </button>
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
-              {inactive
-                ? 'Кампанията е приключила — линкът вече не носи отстъпка/комисионна.'
-                : `Сподели този линк — клиентът получава -${c.customer_discount_pct}%, а поръчката се засича към теб за комисионна.`}
-            </div>
+            {inactive ? (
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                Кампанията е приключила — линкът вече не е наличен.
+              </div>
+            ) : (
+              <>
+                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
+                  Твоят личен линк за споделяне
+                </label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input readOnly value={c.link} onFocus={e => e.target.select()} style={{ flex: 1, fontSize: 12 }} />
+                  <button className="btn btn-sm btn-primary" onClick={() => copy(c.link, `link-${c.id}`)}>
+                    {copied === `link-${c.id}` ? '✓ Копирано' : '📋 Копирай'}
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
+                  Сподели този линк — клиентът получава -{c.customer_discount_pct}%, а поръчката се засича към теб за комисионна.
+                </div>
+              </>
+            )}
           </div>
           )
         })}
