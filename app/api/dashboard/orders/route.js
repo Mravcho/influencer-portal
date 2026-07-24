@@ -111,6 +111,10 @@ export async function GET(request) {
   const totalSavings          = orders.reduce((s, o) => s + o.total_savings, 0)
   // Комисионна per-order: кампанийните носят своя ставка (o.commission_pct), иначе ставката на инфлуенсъра
   const totalCommission       = orders.reduce((s, o) => s + orderCommission(o, o.commissionable_revenue, commission), 0)
+  // Разделяне: кампанийни vs редовни
+  const campaignCommission    = orders.reduce((s, o) => s + (o.campaign_id ? orderCommission(o, o.commissionable_revenue, commission) : 0), 0)
+  const regularCommission     = totalCommission - campaignCommission
+  const campaignOrdersCount   = orders.filter(o => !o.voided && o.campaign_id).length
   const activeOrdersCount     = orders.filter(o => !o.voided).length
 
   const productMap = {}
@@ -160,6 +164,9 @@ export async function GET(request) {
       totalRevenue:          Math.round(totalRevenue * 100) / 100,
       commissionableRevenue: Math.round(commissionableRevenue * 100) / 100,
       totalCommission:       Math.round(totalCommission * 100) / 100,
+      campaignCommission:    Math.round(campaignCommission * 100) / 100,
+      regularCommission:     Math.round(regularCommission * 100) / 100,
+      campaignOrders:        campaignOrdersCount,
       totalSavings:          Math.round(totalSavings * 100) / 100,
       avgOrderValue:         activeOrdersCount
         ? Math.round((totalRevenue / activeOrdersCount) * 100) / 100

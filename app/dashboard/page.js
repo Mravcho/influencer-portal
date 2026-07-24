@@ -999,7 +999,10 @@ export default function Dashboard() {
           {[
             { label: 'Поръчки',     value: stats.totalOrders || 0,             sub: `с код ${userInfo.promoCode}` },
             { label: 'Общ приход',  value: fmtEur(stats.totalRevenue || 0),    sub: 'платено от клиентите' },
-            { label: 'Комисионна',  value: fmtEur(stats.totalCommission || 0), sub: `${userInfo.commission}% от пълната цена` },
+            { label: 'Комисионна',  value: fmtEur(stats.totalCommission || 0),
+              sub: (stats.campaignCommission || 0) > 0
+                ? `редовна ${fmtEur(stats.regularCommission || 0)} · кампания ${fmtEur(stats.campaignCommission || 0)}`
+                : `${userInfo.commission}% от пълната цена` },
             { label: 'Ср. поръчка', value: fmtEur(stats.avgOrderValue || 0),   sub: 'средна стойност' },
           ].map(m => (
             <div key={m.label} className="metric">
@@ -1090,11 +1093,21 @@ export default function Dashboard() {
                 const savings   = parseFloat(order.total_savings || 0)
                 const paid      = parseFloat(order.total_price || 0)
                 const shipping  = parseFloat(order.shipping_total || 0)
-                const comm      = fullPrice * (userInfo.commission / 100)
+                const rate      = order.commission_pct != null ? Number(order.commission_pct) : userInfo.commission
+                const comm      = fullPrice * (rate / 100)
 
                 return (
                   <tr key={order.id}>
-                    <td data-label="№" style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--muted)' }}>{order.shopify_order_id}</td>
+                    <td data-label="№" style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--muted)' }}>
+                      {order.shopify_order_id}
+                      {order.campaign_id && (
+                        <span style={{
+                          display: 'inline-block', marginLeft: 6, padding: '1px 6px', borderRadius: 8,
+                          background: '#eef2ff', color: '#3730a3', fontSize: 9, fontWeight: 700,
+                          fontFamily: 'inherit', verticalAlign: 'middle',
+                        }}>КАМПАНИЯ</span>
+                      )}
+                    </td>
                     <td data-label="Дата" style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmtDate(order.created_at_shopify)}</td>
                     <td data-label="Продукти">
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
