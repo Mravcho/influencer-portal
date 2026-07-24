@@ -17,7 +17,7 @@ export async function GET(request) {
   // Линковете на инфлуенсъра, които са към кампания
   const { data: links } = await supabaseAdmin
     .from('utm_links')
-    .select('alias, clicks, campaign:campaigns(id, name, promo_code, customer_discount_pct, commission_pct, active, ends_at)')
+    .select('alias, clicks, campaign:campaigns(id, name, promo_code, customer_discount_pct, commission_pct, active, ends_at, archived)')
     .eq('influencer_id', influencerId)
     .not('campaign_id', 'is', null)
 
@@ -67,5 +67,7 @@ export async function GET(request) {
     commission: Math.round((statsById[c.id]?.commission || 0) * 100) / 100,
   }))
 
-  return NextResponse.json({ campaigns: withStats })
+  return NextResponse.json({ campaigns: withStats }, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
+  })
 }
