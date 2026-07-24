@@ -23,7 +23,7 @@ export async function GET(request) {
 
   const now = Date.now()
   const campaigns = (links || [])
-    .filter(l => l.campaign) // включваме и спрените/изтеклите (показват се grayed)
+    .filter(l => l.campaign && !l.campaign.archived) // спрените се показват grayed; архивираните (изтритите) — не
     .map(l => {
       const c = l.campaign
       const expired = c.ends_at ? new Date(c.ends_at).getTime() < now : false

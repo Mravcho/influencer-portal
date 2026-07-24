@@ -136,7 +136,7 @@ export default function CampaignsPage() {
   const deleteCampaign = async () => {
     if (!selected) return
     const c = selected.campaign
-    if (!confirm(`Изтрий кампанията „${c.name}"?\n\nДосегашните поръчки остават, но вече без връзка към кампанията. Действието е необратимо.`)) return
+    if (!confirm(`Изтрий кампанията „${c.name}"?\n\nПоръчките и комисионните се ЗАПАЗВАТ (за история и изплащане). Кампанията изчезва от списъка.`)) return
     // Избор: да трием ли и кода в Shopify
     const alsoShopify = confirm(
       `Да изтрия ли и промокода „${c.promo_code}" от Shopify?\n\n` +

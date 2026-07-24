@@ -50,9 +50,11 @@ export async function GET(request) {
     return NextResponse.json({ campaign, links: rows })
   }
 
-  const { data: campaigns, error } = await supabaseAdmin
+  const { data: allCampaigns, error } = await supabaseAdmin
     .from('campaigns').select('*').order('created_at', { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // Скриваме архивираните (изтритите) от активния списък; историята остава в базата
+  const campaigns = (allCampaigns || []).filter(c => !c.archived)
 
   // Обогатяваме с брой линкове + поръчки
   const ids = (campaigns || []).map(c => c.id)
@@ -150,8 +152,9 @@ export async function PATCH(request) {
 }
 
 // DELETE /api/admin/campaigns?id=...&deleteShopify=true
-// Трие кампанията (линковете cascade, поръчките остават с campaign_id=NULL).
-// При deleteShopify=true трие и промокода в Shopify.
+// АРХИВИРА кампанията (меко триене): редът, поръчките и линковете се ПАЗЯТ,
+// за да остане историята и да се плащат комисионните. Кампанията изчезва от
+// активния списък. При deleteShopify=true трие само промокода в Shopify.
 export async function DELETE(request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
@@ -167,7 +170,9 @@ export async function DELETE(request) {
     catch (err) { shopify = { deleted: false, reason: err.message } }
   }
 
-  const { error } = await supabaseAdmin.from('campaigns').delete().eq('id', id)
+  // Архивираме (не трием) — поръчките запазват campaign_id и комисионната
+  const { error } = await supabaseAdmin
+    .from('campaigns').update({ archived: true, active: false }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true, shopify })
+  return NextResponse.json({ ok: true, archived: true, shopify })
 }
