@@ -66,7 +66,7 @@ export default function AdminInfluencerView() {
     if (from) params.set('from', from)
     if (to)   params.set('to', to)
     if (!from && !to && days) params.set('days', String(days))
-    const res = await fetch(`/api/dashboard/orders?${params.toString()}`)
+    const res = await fetch(`/api/dashboard/orders?${params.toString()}`, { cache: 'no-store' })
     if (res.status === 401 || res.status === 403) { router.push('/admin'); return }
     const json = await res.json()
     setData(json)

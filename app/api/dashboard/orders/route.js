@@ -175,5 +175,7 @@ export async function GET(request) {
     topProducts: Object.values(productMap)
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 10),
+  }, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
   })
 }
