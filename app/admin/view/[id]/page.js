@@ -112,6 +112,7 @@ export default function AdminInfluencerView() {
   )
 
   const { orders = [], stats = {}, topProducts = [], commission = influencer?.commission || 0, bannerUrl = null, currentMonth = {} } = data || {}
+  const campaignOrders = orders.filter(o => o.campaign_id)
   const heroBanner = bannerUrl || influencer?.banner_url || null
   const monthLabel = format(new Date(), 'LLLL', { locale: bg })
 
@@ -170,6 +171,53 @@ export default function AdminInfluencerView() {
 
         {/* Активна кампания на инфлуенсъра — най-отгоре, 1:1 с неговия изглед */}
         <CampaignCard viewId={id} />
+
+        {campaignOrders.length > 0 && (
+          <div className="card table-cards" style={{ marginBottom: '1rem' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
+              🛒 Поръчки от кампанията
+            </div>
+            <table style={{ minWidth: 640 }}>
+              <thead>
+                <tr>
+                  <th>№</th><th>Дата</th><th>Продукти</th><th>Обща сума</th><th>Продукти с код</th><th>Комисионна</th><th>Статус</th>
+                </tr>
+              </thead>
+              <tbody>
+                {campaignOrders.map(order => {
+                  const fullPrice = parseFloat(order.commissionable_revenue || 0)
+                  const paid      = parseFloat(order.total_price || 0)
+                  const rate      = order.commission_pct != null ? Number(order.commission_pct) : commission
+                  const comm      = fullPrice * (rate / 100)
+                  return (
+                    <tr key={order.id}>
+                      <td data-label="№" style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--muted)' }}>{order.shopify_order_id}</td>
+                      <td data-label="Дата" style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmtDate(order.created_at_shopify)}</td>
+                      <td data-label="Продукти">
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {(order.line_items || []).map((item, i) => (
+                            <span key={i} className={`product-chip ${item.discounted ? 'discounted' : ''}`}>
+                              {item.image_url
+                                ? <img src={item.image_url} alt="" className="product-thumb" style={{ width: 22, height: 22 }} />
+                                : <span className="product-thumb-placeholder" style={{ width: 22, height: 22, fontSize: 9 }}>{item.title?.slice(0, 1).toUpperCase()}</span>}
+                              <span>{item.quantity}× {item.title}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td data-label="Обща сума" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(paid)}</td>
+                      <td data-label="Продукти с код" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtEur(fullPrice)}</td>
+                      <td data-label="Комисионна" style={{ fontWeight: 700, color: 'var(--accent-dk)', whiteSpace: 'nowrap' }}>{fmtEur(comm)}</td>
+                      <td data-label="Статус" style={{ whiteSpace: 'nowrap' }}>
+                        {order.voided ? '❌ Анулирана' : order.financial_status === 'paid' ? '✅ Платена' : '⏳ Чакаща'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <section>
         {/* Hero — magazine-cover (същия като в инфлуенсърския dashboard) */}
