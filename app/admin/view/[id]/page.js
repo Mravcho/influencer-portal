@@ -6,6 +6,7 @@ import { bg } from 'date-fns/locale'
 import InfluencerLeaderboard from '@/app/dashboard/components/InfluencerLeaderboard'
 import PayoutWidget from '@/app/dashboard/components/PayoutWidget'
 import ShareLinksWidget from '@/app/dashboard/components/ShareLinksWidget'
+import CampaignCard from '@/app/dashboard/components/CampaignCard'
 import AdminShell from '../../components/AdminShell'
 
 function ymd(d) { return format(d, 'yyyy-MM-dd') }
@@ -166,6 +167,9 @@ export default function AdminInfluencerView() {
             letterSpacing: '.08em',
           }}>👁 Admin изглед</span>
         </div>
+
+        {/* Активна кампания на инфлуенсъра — най-отгоре, 1:1 с неговия изглед */}
+        <CampaignCard viewId={id} />
 
         <section>
         {/* Hero — magazine-cover (същия като в инфлуенсърския dashboard) */}

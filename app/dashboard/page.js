@@ -900,6 +900,9 @@ export default function Dashboard() {
           </div>
 
           <main id="top" className="main-container pb-24 lg:pb-12">
+            {/* Активна кампания — най-отгоре, за да се вижда сигурно */}
+            <CampaignCard />
+
             {/* Hero + Payout Ring grid — render-ват се в двата режима, тоkens се сменят */}
             <div className="grid grid-cols-12 gap-4 md:gap-6 mb-6">
               <div className="col-span-12 lg:col-span-8">
@@ -1006,9 +1009,6 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
-
-        {/* Активна кампания (ако инфлуенсърът участва) */}
-        <CampaignCard />
 
         {/* Share links */}
         <div id="links"><ShareLinksWidget /></div>

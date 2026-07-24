@@ -1,18 +1,19 @@
 'use client'
 import { useEffect, useState } from 'react'
 
-export default function CampaignCard() {
+export default function CampaignCard({ viewId = null }) {
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading]     = useState(true)
   const [copied, setCopied]       = useState('')
 
   useEffect(() => {
-    fetch('/api/dashboard/campaign')
+    const url = viewId ? `/api/dashboard/campaign?viewId=${viewId}` : '/api/dashboard/campaign'
+    fetch(url)
       .then(r => r.ok ? r.json() : { campaigns: [] })
       .then(d => setCampaigns(d.campaigns || []))
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [viewId])
 
   const copy = async (text, key) => {
     try {
