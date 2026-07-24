@@ -8,7 +8,7 @@ export default function CampaignCard({ viewId = null }) {
 
   useEffect(() => {
     const url = viewId ? `/api/dashboard/campaign?viewId=${viewId}` : '/api/dashboard/campaign'
-    fetch(url)
+    fetch(url, { cache: 'no-store' })
       .then(r => r.ok ? r.json() : { campaigns: [] })
       .then(d => setCampaigns(d.campaigns || []))
       .catch(() => {})
