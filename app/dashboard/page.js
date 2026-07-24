@@ -920,7 +920,7 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
-              <KpiCard label="Кликове · общо" value={String(lifetimeClicks)} Icon={MousePointerClick} accent="#0066CC" sparkData={kpiSparks.clicks} theme={theme} />
+              <KpiCard label="Кликове · промокод" value={String(lifetimeClicks)} Icon={MousePointerClick} accent="#0066CC" sparkData={kpiSparks.clicks} theme={theme} />
               <KpiCard label="Поръчки · общо" value={String(stats.totalOrders || 0)} Icon={ShoppingCart} accent="#34C759" sparkData={kpiSparks.orders} theme={theme} />
               <KpiCard label="Средна поръчка" value={fmtCurr(stats.avgOrderValue || 0)} Icon={Receipt} accent="#FF9500" sparkData={kpiSparks.avg} theme={theme} />
               <KpiCard label="Спестено · клиенти" value={fmtCurr(currentMonth.savings || 0)} Icon={PiggyBank} accent="#A78BFA" sparkData={kpiSparks.savings} theme={theme} />

@@ -21,18 +21,28 @@ export async function GET(request) {
     .eq('influencer_id', influencerId)
     .not('campaign_id', 'is', null)
 
+  const now = Date.now()
   const campaigns = (links || [])
-    .filter(l => l.campaign && l.campaign.active)
-    .map(l => ({
-      id:                    l.campaign.id,
-      name:                  l.campaign.name,
-      promo_code:            l.campaign.promo_code,
-      customer_discount_pct: l.campaign.customer_discount_pct,
-      commission_pct:        l.campaign.commission_pct,
-      ends_at:               l.campaign.ends_at,
-      clicks:                l.clicks || 0,
-      link:                  buildShortUrl(l.alias),
-    }))
+    .filter(l => l.campaign) // включваме и спрените/изтеклите (показват се grayed)
+    .map(l => {
+      const c = l.campaign
+      const expired = c.ends_at ? new Date(c.ends_at).getTime() < now : false
+      const isActive = !!c.active && !expired
+      return {
+        id:                    c.id,
+        name:                  c.name,
+        promo_code:            c.promo_code,
+        customer_discount_pct: c.customer_discount_pct,
+        commission_pct:        c.commission_pct,
+        ends_at:               c.ends_at,
+        active:                isActive,
+        expired,
+        clicks:                l.clicks || 0,
+        link:                  buildShortUrl(l.alias),
+      }
+    })
+    // Активните най-отгоре
+    .sort((a, b) => (b.active === a.active ? 0 : b.active ? 1 : -1))
 
   // Поръчки + комисионна от кампанията за този инфлуенсър
   const campaignIds = campaigns.map(c => c.id)
