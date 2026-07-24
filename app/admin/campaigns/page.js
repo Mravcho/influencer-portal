@@ -90,6 +90,8 @@ export default function CampaignsPage() {
     setCreating(true); setMsg({})
     const payload = {
       ...form,
+      startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : '',
+      endsAt:   form.endsAt   ? new Date(form.endsAt).toISOString()   : '',
       discount: form.createInShopify ? {
         valueType:       form.discount.valueType,
         appliesTo:       form.discount.appliesTo,
@@ -129,6 +131,23 @@ export default function CampaignsPage() {
     if (!res.ok) { setMsg({ type: 'error', text: data.error }); return }
     setMsg({ type: 'success', text: `Създадени ${data.created} нови линка (${data.already_had} вече имаха).` })
     loadDetail(selected.campaign.id)
+  }
+
+  const deleteCampaign = async () => {
+    if (!selected) return
+    const c = selected.campaign
+    if (!confirm(`Изтрий кампанията „${c.name}"?\n\nПромокодът ${c.promo_code} ще бъде изтрит и от Shopify. Досегашните поръчки остават, но вече без връзка към кампанията. Действието е необратимо.`)) return
+    setBusy('delete'); setMsg({})
+    const res = await fetch(`/api/admin/campaigns?id=${c.id}&deleteShopify=true`, { method: 'DELETE' })
+    const data = await res.json()
+    setBusy('')
+    if (!res.ok) { setMsg({ type: 'error', text: data.error }); return }
+    setMsg({
+      type: 'success',
+      text: 'Кампанията е изтрита' + (data.shopify?.deleted ? ' (кодът е премахнат и от Shopify).' : '.'),
+    })
+    setSelected(null)
+    loadList()
   }
 
   const toggleActive = async () => {
@@ -184,12 +203,12 @@ export default function CampaignsPage() {
               <input value={form.destUrl} onChange={e => setField('destUrl', e.target.value)} placeholder="напр. /collections/all (по подр. магазина)" style={inp} />
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={lbl}>Начало (по избор)</label>
-                  <input type="date" value={form.startsAt} onChange={e => setField('startsAt', e.target.value)} style={inp} />
+                  <label style={lbl}>Валидна от (дата и час)</label>
+                  <input type="datetime-local" value={form.startsAt} onChange={e => setField('startsAt', e.target.value)} style={inp} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={lbl}>Край (по избор)</label>
-                  <input type="date" value={form.endsAt} onChange={e => setField('endsAt', e.target.value)} style={inp} />
+                  <label style={lbl}>Валидна до (дата и час)</label>
+                  <input type="datetime-local" value={form.endsAt} onChange={e => setField('endsAt', e.target.value)} style={inp} />
                 </div>
               </div>
               <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, margin: '6px 0 12px' }}>
@@ -352,9 +371,14 @@ export default function CampaignsPage() {
                         Код: <code>{selected.campaign.promo_code}</code> · Клиент -{selected.campaign.customer_discount_pct}% · Комисионна {selected.campaign.commission_pct}%
                       </div>
                     </div>
-                    <button className="btn btn-sm" onClick={toggleActive}>
-                      {selected.campaign.active ? 'Спри' : 'Активирай'}
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn btn-sm" onClick={toggleActive}>
+                        {selected.campaign.active ? 'Спри' : 'Активирай'}
+                      </button>
+                      <button className="btn btn-sm btn-danger" onClick={deleteCampaign} disabled={busy === 'delete'}>
+                        {busy === 'delete' ? 'Изтриване...' : '🗑 Изтрий'}
+                      </button>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                     <button className="btn btn-sm btn-primary" onClick={generateLinks} disabled={busy === 'generate'}>

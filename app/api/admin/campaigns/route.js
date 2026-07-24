@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { buildShortUrl } from '@/lib/utm'
-import { createDiscountCode } from '@/lib/shopify'
+import { createDiscountCode, deleteDiscountCode } from '@/lib/shopify'
 
 export const dynamic = 'force-dynamic'
 
@@ -149,11 +149,25 @@ export async function PATCH(request) {
   return NextResponse.json(data)
 }
 
-// DELETE /api/admin/campaigns?id=... → трие кампанията (линковете cascade, поръчките остават с campaign_id=NULL)
+// DELETE /api/admin/campaigns?id=...&deleteShopify=true
+// Трие кампанията (линковете cascade, поръчките остават с campaign_id=NULL).
+// При deleteShopify=true трие и промокода в Shopify.
 export async function DELETE(request) {
-  const id = new URL(request.url).searchParams.get('id')
+  const { searchParams } = new URL(request.url)
+  const id = searchParams.get('id')
+  const deleteShopify = searchParams.get('deleteShopify') === 'true'
   if (!id) return NextResponse.json({ error: 'Липсва id' }, { status: 400 })
+
+  const { data: campaign } = await supabaseAdmin
+    .from('campaigns').select('promo_code').eq('id', id).single()
+
+  let shopify = null
+  if (deleteShopify && campaign?.promo_code) {
+    try { shopify = await deleteDiscountCode(campaign.promo_code) }
+    catch (err) { shopify = { deleted: false, reason: err.message } }
+  }
+
   const { error } = await supabaseAdmin.from('campaigns').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, shopify })
 }

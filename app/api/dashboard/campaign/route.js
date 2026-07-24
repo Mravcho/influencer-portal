@@ -34,5 +34,28 @@ export async function GET(request) {
       link:                  buildShortUrl(l.alias),
     }))
 
-  return NextResponse.json({ campaigns })
+  // Поръчки + комисионна от кампанията за този инфлуенсър
+  const campaignIds = campaigns.map(c => c.id)
+  const statsById = {}
+  if (campaignIds.length) {
+    const { data: orders } = await supabaseAdmin
+      .from('orders')
+      .select('campaign_id, commissionable_revenue, commission_pct, financial_status')
+      .eq('influencer_id', influencerId)
+      .in('campaign_id', campaignIds)
+    for (const o of orders || []) {
+      if (o.financial_status === 'voided' || o.financial_status === 'refunded') continue
+      const s = statsById[o.campaign_id] || (statsById[o.campaign_id] = { orders: 0, commission: 0 })
+      s.orders += 1
+      s.commission += Number(o.commissionable_revenue || 0) * Number(o.commission_pct || 0) / 100
+    }
+  }
+
+  const withStats = campaigns.map(c => ({
+    ...c,
+    orders:     statsById[c.id]?.orders || 0,
+    commission: Math.round((statsById[c.id]?.commission || 0) * 100) / 100,
+  }))
+
+  return NextResponse.json({ campaigns: withStats })
 }

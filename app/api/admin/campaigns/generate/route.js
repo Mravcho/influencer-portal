@@ -32,9 +32,10 @@ export async function POST(request) {
   for (const inf of influencers || []) {
     if (haveLink.has(inf.id)) continue
 
-    // Alias с името на инфлуенсъра (напр. maria-ivanova). Ако името е на кирилица
-    // → пробваме username; краен fallback — случаен. При колизия добавяме -2, -3...
-    const base = sanitizeAlias(inf.name) || sanitizeAlias(inf.username) || generateAlias(6)
+    // Alias само с ПЪРВОТО име (напр. maria). Ако е на кирилица → username;
+    // краен fallback — случаен. При колизия добавяме -2, -3...
+    const firstName = (inf.name || '').trim().split(/\s+/)[0]
+    const base = sanitizeAlias(firstName) || sanitizeAlias(inf.username) || generateAlias(6)
     let inserted = false
     for (let attempt = 0; attempt < 6 && !inserted; attempt++) {
       const alias = attempt === 0

@@ -37,7 +37,23 @@ export default function CampaignCard({ viewId = null }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{c.name}</div>
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                -{c.customer_discount_pct}% за клиента · {c.commission_pct}% твоя комисионна · {c.clicks} клика
+                -{c.customer_discount_pct}% за клиента · {c.commission_pct}% твоя комисионна
+              </div>
+            </div>
+
+            {/* Резултати от кампанията за инфлуенсъра */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 90, background: '#eef2ff', borderRadius: 10, padding: '8px 10px' }}>
+                <div style={{ fontSize: 11, color: '#3730a3' }}>Клика</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#3730a3' }}>{c.clicks}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 90, background: '#eef2ff', borderRadius: 10, padding: '8px 10px' }}>
+                <div style={{ fontSize: 11, color: '#3730a3' }}>Поръчки</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#3730a3' }}>{c.orders ?? 0}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 110, background: '#dcfce7', borderRadius: 10, padding: '8px 10px' }}>
+                <div style={{ fontSize: 11, color: '#166534' }}>Твоя комисионна</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#166534' }}>{(c.commission ?? 0).toFixed(2)} €</div>
               </div>
             </div>
 
