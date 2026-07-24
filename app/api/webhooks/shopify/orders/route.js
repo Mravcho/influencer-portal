@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendNewOrderNotification } from '@/lib/email'
 import { fetchProductImages } from '@/lib/shopify'
+import { findActiveCampaignByCodes, resolveCampaignInfluencer } from '@/lib/campaign-sync'
 
 // Verifies Shopify HMAC-SHA256 signature
 async function verifyShopifyWebhook(request) {
@@ -122,12 +123,68 @@ export async function POST(request) {
   }
 
   // Проверяваме дали поръчката има промо код
-  const discountCodes = (order.discount_codes || []).map(dc => dc.code?.toUpperCase())
+  const discountCodes = (order.discount_codes || []).map(dc => dc.code?.toUpperCase()).filter(Boolean)
   if (discountCodes.length === 0) {
     return NextResponse.json({ ok: true, skipped: 'no discount codes' })
   }
 
-  // Намираме активен инфлуенсър с matching промо код
+  // Тегли снимките на продуктите от тази поръчка (един път, преди loop-а)
+  const productIds = (order.line_items || []).map(li => li.product_id)
+  const productImages = await fetchProductImages(productIds)
+
+  // --- КАМПАНИЯ: споделен код + UTM атрибуция (Customer Journey) ---
+  const campaign = await findActiveCampaignByCodes(discountCodes)
+  if (campaign) {
+    const resolved = await resolveCampaignInfluencer(campaign, order.id, order.landing_site)
+    if (!resolved) {
+      // UTM още не е готов в Shopify — cron-ът ще я хване по-късно
+      return NextResponse.json({ ok: true, skipped: 'campaign order, UTM not resolved yet' })
+    }
+    const { influencer, alias } = resolved
+    const s = sanitizeWebhookOrder(order, campaign.promo_code, productImages)
+
+    const { data: existing } = await supabaseAdmin
+      .from('orders').select('id').eq('shopify_order_id', s.shopify_order_id).maybeSingle()
+    const isNewOrder = !existing
+
+    const { error: upErr } = await supabaseAdmin.from('orders').upsert({
+      influencer_id:          influencer.id,
+      campaign_id:            campaign.id,
+      commission_pct:         Number(campaign.commission_pct),
+      utm_alias:              alias,
+      shopify_order_id:       s.shopify_order_id,
+      order_number:           s.order_number,
+      created_at_shopify:     s.created_at_shopify,
+      total_price:            s.total_price,
+      currency:               s.currency,
+      financial_status:       s.financial_status,
+      fulfillment_status:     s.fulfillment_status,
+      line_items:             s.line_items,
+      commissionable_revenue: s.commissionable_revenue,
+      total_savings:          s.total_savings,
+      shipping_total:         s.shipping_total,
+      customer_name:          s.customer_name,
+      customer_email:         s.customer_email,
+      customer_phone:         s.customer_phone,
+      shipping_city:          s.shipping_city,
+      synced_at:              new Date().toISOString(),
+    }, { onConflict: 'shopify_order_id', ignoreDuplicates: false })
+    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 })
+
+    let emailed = false
+    if (isNewOrder && influencer.email && influencer.email_notifications !== false) {
+      try {
+        await sendNewOrderNotification({
+          to: influencer.email, name: influencer.name,
+          promoCode: campaign.promo_code, newOrders: 1, commission: campaign.commission_pct,
+        })
+        emailed = true
+      } catch (e) { console.error('Campaign webhook email error:', e.message) }
+    }
+    return NextResponse.json({ ok: true, campaign: campaign.name, influencer: influencer.name, action: isNewOrder ? 'created' : 'updated', emailed })
+  }
+
+  // Намираме активен инфлуенсър с matching промо код (нормален поток)
   const { data: influencers } = await supabaseAdmin
     .from('influencers')
     .select('id, name, promo_code, commission, email, email_notifications')
@@ -137,10 +194,6 @@ export async function POST(request) {
   if (!influencers || influencers.length === 0) {
     return NextResponse.json({ ok: true, skipped: 'no matching influencer' })
   }
-
-  // Тегли снимките на продуктите от тази поръчка (един път, преди loop-а)
-  const productIds = (order.line_items || []).map(li => li.product_id)
-  const productImages = await fetchProductImages(productIds)
 
   const results = []
 

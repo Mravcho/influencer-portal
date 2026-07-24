@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { generateAlias, buildShortUrl } from '@/lib/utm'
+import { generateAlias, sanitizeAlias, buildShortUrl } from '@/lib/utm'
 import { buildCampaignTargetUrl, SHOP_BASE_URL } from '@/lib/share-links'
 
 export const dynamic = 'force-dynamic'
@@ -17,7 +17,7 @@ export async function POST(request) {
 
   const { data: influencers } = await supabaseAdmin
     .from('influencers')
-    .select('id, name, platform')
+    .select('id, name, username, platform')
     .eq('active', true)
 
   // Кои вече имат линк за тази кампания
@@ -32,10 +32,14 @@ export async function POST(request) {
   for (const inf of influencers || []) {
     if (haveLink.has(inf.id)) continue
 
-    // Уникален alias (пробваме до 5 пъти при колизия)
+    // Alias с името на инфлуенсъра (напр. maria-ivanova). Ако името е на кирилица
+    // → пробваме username; краен fallback — случаен. При колизия добавяме -2, -3...
+    const base = sanitizeAlias(inf.name) || sanitizeAlias(inf.username) || generateAlias(6)
     let inserted = false
-    for (let attempt = 0; attempt < 5 && !inserted; attempt++) {
-      const alias = generateAlias(6)
+    for (let attempt = 0; attempt < 6 && !inserted; attempt++) {
+      const alias = attempt === 0
+        ? base
+        : attempt < 5 ? `${base}-${attempt + 1}` : `${base}-${generateAlias(3)}`
       const fullUrl = buildCampaignTargetUrl({
         promoCode:   campaign.promo_code,
         campaignKey: campaign.promo_code,

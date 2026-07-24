@@ -131,24 +131,6 @@ export default function CampaignsPage() {
     loadDetail(selected.campaign.id)
   }
 
-  const syncOrders = async () => {
-    if (!selected) return
-    setBusy('sync'); setMsg({})
-    const res = await fetch('/api/admin/campaigns/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaignId: selected.campaign.id }),
-    })
-    const data = await res.json()
-    setBusy('')
-    if (!res.ok) { setMsg({ type: 'error', text: data.error }); return }
-    setMsg({
-      type: 'success',
-      text: `Синк готов: ${data.attributed} приписани, ${data.unattributed} без UTM (от ${data.fetched} с кода).`,
-    })
-    loadDetail(selected.campaign.id)
-  }
-
   const toggleActive = async () => {
     if (!selected) return
     const res = await fetch('/api/admin/campaigns', {
@@ -378,9 +360,9 @@ export default function CampaignsPage() {
                     <button className="btn btn-sm btn-primary" onClick={generateLinks} disabled={busy === 'generate'}>
                       {busy === 'generate' ? 'Генериране...' : '🔗 Генерирай линкове за всички'}
                     </button>
-                    <button className="btn btn-sm" onClick={syncOrders} disabled={busy === 'sync'}>
-                      {busy === 'sync' ? 'Синк...' : '🔄 Синк поръчки (UTM)'}
-                    </button>
+                    <span style={{ fontSize: 12, color: 'var(--muted)', alignSelf: 'center' }}>
+                      ⚡ Поръчките се засичат автоматично по UTM (реално време + всеки час).
+                    </span>
                   </div>
                 </div>
 
