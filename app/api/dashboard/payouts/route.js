@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { sendPayoutRequestEmail } from '@/lib/email'
 import { orderCommission } from '@/lib/commission'
 
+export const dynamic = 'force-dynamic'
+
 const MIN_PAYOUT  = 100 // евро
 const VOIDED      = new Set(['voided', 'refunded'])
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'pavel@realfood.bg'

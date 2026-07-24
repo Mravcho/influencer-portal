@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { orderCommission } from '@/lib/commission'
 
+export const dynamic = 'force-dynamic'
+
 // Поръчки със следните статуси не носят комисионна и не се броят в общата сума
 const VOIDED_STATUSES = new Set(['voided', 'refunded'])
 function isVoided(order) {
