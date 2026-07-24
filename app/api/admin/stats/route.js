@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { orderCommission } from '@/lib/commission'
 
+export const dynamic = 'force-dynamic'
+
 const VOIDED_STATUSES = new Set(['voided', 'refunded'])
 
 function commissionableOf(o) {

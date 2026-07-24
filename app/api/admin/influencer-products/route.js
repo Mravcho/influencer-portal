@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 // GET ?influencer_id=... → връща списък с request_product_id, които са изрично дадени на този инфлуенсър
 // (т.е. non-global продукти, видими лично за него)
 export async function GET(request) {

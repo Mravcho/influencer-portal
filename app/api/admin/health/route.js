@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/admin/health → проверява че всички таблици и колони ги има
 export async function GET() {
   const checks = []

@@ -7,6 +7,8 @@ import { sendWelcomeEmail } from '@/lib/email'
 import { orderCommission } from '@/lib/commission'
 import { ensureDefaultLink } from '@/lib/share-links'
 
+export const dynamic = 'force-dynamic'
+
 const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
 // Първоначалният sync за нов инфлуенсър може да отнеме >10 сек ако има много поръчки

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/admin/settings → текущи branding настройки
 export async function GET() {
   const { data, error } = await supabaseAdmin

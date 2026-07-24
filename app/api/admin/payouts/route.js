@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/admin/payouts                  → всички заявки + влъжен influencer
 // GET /api/admin/payouts?count=pending    → само брой pending (за badge)
 export async function GET(request) {

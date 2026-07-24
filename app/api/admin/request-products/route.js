@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { fetchProductById } from '@/lib/shopify'
 
+export const dynamic = 'force-dynamic'
+
 // GET → списък с всички продукти в каталога
 export async function GET() {
   const { data, error } = await supabaseAdmin
