@@ -89,12 +89,21 @@ export async function POST(request) {
 
   // По желание: създаваме кода в Shopify (иначе приемаме, че вече съществува)
   if (body.createInShopify) {
+    const disc = body.discount || {}
     try {
       await createDiscountCode({
-        code:          promoCode,
-        percentage:    discount,
-        collectionIds: Array.isArray(body.collectionIds) ? body.collectionIds : [],
-        title:         `Кампания: ${name}`,
+        code:            promoCode,
+        title:           `Кампания: ${name}`,
+        valueType:       disc.valueType || 'percentage',
+        value:           disc.value != null && disc.value !== '' ? disc.value : discount,
+        collectionIds:   disc.appliesTo === 'collections' ? (disc.collectionIds || []) : [],
+        variantIds:      disc.appliesTo === 'products'    ? (disc.variantIds || [])    : [],
+        minSubtotal:     disc.minType === 'subtotal' ? disc.minValue : null,
+        minQuantity:     disc.minType === 'quantity' ? disc.minValue : null,
+        usageLimit:      disc.usageLimit || null,
+        oncePerCustomer: !!disc.oncePerCustomer,
+        startsAt:        body.startsAt || null,
+        endsAt:          body.endsAt || null,
       })
     } catch (err) {
       return NextResponse.json({ error: `Shopify код: ${err.message}` }, { status: 502 })

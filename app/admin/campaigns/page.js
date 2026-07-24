@@ -3,9 +3,21 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminShell from '../components/AdminShell'
 
+const EMPTY_DISCOUNT = {
+  valueType: 'percentage',   // 'percentage' | 'fixed_amount'
+  appliesTo: 'all',          // 'all' | 'collections' | 'products'
+  collectionIds: [],
+  products: [],              // [{ variantId, name, variantTitle }]
+  minType: 'none',           // 'none' | 'subtotal' | 'quantity'
+  minValue: '',
+  usageLimit: '',
+  oncePerCustomer: false,
+}
+
 const EMPTY_FORM = {
   name: '', promoCode: '', customerDiscountPct: 10, commissionPct: 5,
   destUrl: '', createInShopify: false, startsAt: '', endsAt: '',
+  discount: { ...EMPTY_DISCOUNT },
 }
 
 export default function CampaignsPage() {
@@ -17,6 +29,10 @@ export default function CampaignsPage() {
   const [busy, setBusy]           = useState('')
   const [msg, setMsg]             = useState({ type: '', text: '' })
   const [copied, setCopied]       = useState('')
+  const [collections, setCollections] = useState([])
+  const [prodSearch, setProdSearch]   = useState({ q: '', results: [], loading: false })
+
+  const setDisc = (patch) => setForm(f => ({ ...f, discount: { ...f.discount, ...patch } }))
 
   const loadList = async () => {
     const res = await fetch('/api/admin/campaigns')
@@ -36,19 +52,66 @@ export default function CampaignsPage() {
 
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
+  // Колекции (лениво при нужда)
+  const loadCollections = async () => {
+    if (collections.length) return
+    const res = await fetch('/api/admin/collections')
+    const data = await res.json()
+    if (res.ok) setCollections(data.collections || [])
+  }
+
+  const toggleCollection = (id) => setForm(f => {
+    const has = f.discount.collectionIds.includes(id)
+    const collectionIds = has
+      ? f.discount.collectionIds.filter(x => x !== id)
+      : [...f.discount.collectionIds, id]
+    return { ...f, discount: { ...f.discount, collectionIds } }
+  })
+
+  const searchProducts = async () => {
+    const q = prodSearch.q.trim()
+    if (!q) { setProdSearch(s => ({ ...s, results: [] })); return }
+    setProdSearch(s => ({ ...s, loading: true }))
+    const res = await fetch(`/api/admin/products/search?q=${encodeURIComponent(q)}`)
+    const data = await res.json()
+    setProdSearch(s => ({ ...s, loading: false, results: res.ok ? data : [] }))
+  }
+
+  const addProduct = (p) => setForm(f => {
+    if (f.discount.products.some(x => x.variantId === p.variantId)) return f
+    return { ...f, discount: { ...f.discount, products: [...f.discount.products, p] } }
+  })
+  const removeProduct = (variantId) => setForm(f => ({
+    ...f, discount: { ...f.discount, products: f.discount.products.filter(p => p.variantId !== variantId) },
+  }))
+
   const createCampaign = async (e) => {
     e.preventDefault()
     setCreating(true); setMsg({})
+    const payload = {
+      ...form,
+      discount: form.createInShopify ? {
+        valueType:       form.discount.valueType,
+        appliesTo:       form.discount.appliesTo,
+        collectionIds:   form.discount.collectionIds,
+        variantIds:      form.discount.products.map(p => p.variantId),
+        minType:         form.discount.minType,
+        minValue:        form.discount.minValue,
+        usageLimit:      form.discount.usageLimit,
+        oncePerCustomer: form.discount.oncePerCustomer,
+      } : undefined,
+    }
     const res = await fetch('/api/admin/campaigns', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     })
     const data = await res.json()
     setCreating(false)
     if (!res.ok) { setMsg({ type: 'error', text: data.error }); return }
     setMsg({ type: 'success', text: 'Кампанията е създадена.' })
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, discount: { ...EMPTY_DISCOUNT } })
+    setProdSearch({ q: '', results: [], loading: false })
     loadList()
     loadDetail(data.id)
   }
@@ -127,7 +190,7 @@ export default function CampaignsPage() {
               <input value={form.promoCode} onChange={e => setField('promoCode', e.target.value.toUpperCase())} placeholder="REALFOOD10" style={inp} />
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={lbl}>Отстъпка клиент %</label>
+                  <label style={lbl}>Отстъпка клиент {form.discount.valueType === 'fixed_amount' ? '€' : '%'}</label>
                   <input type="number" min="0" step="0.5" value={form.customerDiscountPct} onChange={e => setField('customerDiscountPct', e.target.value)} style={inp} />
                 </div>
                 <div style={{ flex: 1 }}>
@@ -151,6 +214,110 @@ export default function CampaignsPage() {
                 <input type="checkbox" checked={form.createInShopify} onChange={e => setField('createInShopify', e.target.checked)} style={{ width: 'auto' }} />
                 Създай кода в Shopify (иначе трябва вече да съществува)
               </label>
+
+              {form.createInShopify && (
+                <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 12, marginBottom: 12, background: 'var(--bg)' }}>
+                  <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8 }}>Опции на промокода в Shopify</div>
+
+                  <label style={lbl}>Тип отстъпка</label>
+                  <select value={form.discount.valueType} onChange={e => setDisc({ valueType: e.target.value })} style={inp}>
+                    <option value="percentage">Процент (%)</option>
+                    <option value="fixed_amount">Фиксирана сума (€)</option>
+                  </select>
+
+                  <label style={lbl}>За кои продукти важи</label>
+                  <select
+                    value={form.discount.appliesTo}
+                    onChange={e => { setDisc({ appliesTo: e.target.value }); if (e.target.value === 'collections') loadCollections() }}
+                    style={inp}
+                  >
+                    <option value="all">Всички продукти</option>
+                    <option value="collections">Избрани колекции</option>
+                    <option value="products">Избрани продукти</option>
+                  </select>
+
+                  {form.discount.appliesTo === 'collections' && (
+                    <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: 8, margin: '6px 0' }}>
+                      {collections.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)' }}>Зареждане…</div>}
+                      {collections.map(c => (
+                        <label key={c.id} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, padding: '2px 0', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={form.discount.collectionIds.includes(c.id)}
+                            onChange={() => toggleCollection(c.id)}
+                            style={{ width: 'auto' }}
+                          />
+                          {c.title}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {form.discount.appliesTo === 'products' && (
+                    <div style={{ margin: '6px 0' }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <input
+                          type="text" placeholder="Търси продукт…"
+                          value={prodSearch.q}
+                          onChange={e => setProdSearch(s => ({ ...s, q: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchProducts() } }}
+                          style={{ flex: 1, fontSize: 13 }}
+                        />
+                        <button type="button" className="btn btn-sm" onClick={searchProducts} disabled={prodSearch.loading}>
+                          {prodSearch.loading ? '…' : 'Търси'}
+                        </button>
+                      </div>
+                      {prodSearch.results.length > 0 && (
+                        <div style={{ maxHeight: 140, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8, marginTop: 6 }}>
+                          {prodSearch.results.map(p => (
+                            <div key={p.variantId} style={{ display: 'flex', gap: 6, alignItems: 'center', padding: 6, fontSize: 12, borderBottom: '1px solid var(--border)' }}>
+                              <span style={{ flex: 1 }}>{p.name}{p.variantTitle ? ` · ${p.variantTitle}` : ''}</span>
+                              <button type="button" className="btn btn-sm" onClick={() => addProduct(p)}
+                                disabled={form.discount.products.some(x => x.variantId === p.variantId)}>
+                                {form.discount.products.some(x => x.variantId === p.variantId) ? '✓' : '+'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {form.discount.products.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                          {form.discount.products.map(p => (
+                            <span key={p.variantId} style={{ fontSize: 11, background: 'var(--accent-lt)', color: 'var(--accent-dk)', borderRadius: 12, padding: '3px 8px', display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                              {p.name}{p.variantTitle ? ` · ${p.variantTitle}` : ''}
+                              <button type="button" onClick={() => removeProduct(p.variantId)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}>✕</button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <label style={lbl}>Минимално изискване</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <select value={form.discount.minType} onChange={e => setDisc({ minType: e.target.value })} style={{ flex: 1, fontSize: 13 }}>
+                      <option value="none">Няма</option>
+                      <option value="subtotal">Мин. сума (€)</option>
+                      <option value="quantity">Мин. брой</option>
+                    </select>
+                    {form.discount.minType !== 'none' && (
+                      <input type="number" min="0" value={form.discount.minValue} onChange={e => setDisc({ minValue: e.target.value })} style={{ width: 90, fontSize: 13 }} placeholder={form.discount.minType === 'subtotal' ? '€' : 'бр.'} />
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={lbl}>Лимит употреби (по избор)</label>
+                      <input type="number" min="0" value={form.discount.usageLimit} onChange={e => setDisc({ usageLimit: e.target.value })} style={inp} placeholder="без лимит" />
+                    </div>
+                  </div>
+                  <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, marginTop: 8 }}>
+                    <input type="checkbox" checked={form.discount.oncePerCustomer} onChange={e => setDisc({ oncePerCustomer: e.target.checked })} style={{ width: 'auto' }} />
+                    Само веднъж на клиент
+                  </label>
+                </div>
+              )}
+
               <button type="submit" className="btn btn-primary btn-sm" disabled={creating} style={{ width: '100%' }}>
                 {creating ? 'Създаване...' : 'Създай кампания'}
               </button>
