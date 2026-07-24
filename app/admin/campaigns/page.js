@@ -136,15 +136,23 @@ export default function CampaignsPage() {
   const deleteCampaign = async () => {
     if (!selected) return
     const c = selected.campaign
-    if (!confirm(`Изтрий кампанията „${c.name}"?\n\nПромокодът ${c.promo_code} ще бъде изтрит и от Shopify. Досегашните поръчки остават, но вече без връзка към кампанията. Действието е необратимо.`)) return
+    if (!confirm(`Изтрий кампанията „${c.name}"?\n\nДосегашните поръчки остават, но вече без връзка към кампанията. Действието е необратимо.`)) return
+    // Избор: да трием ли и кода в Shopify
+    const alsoShopify = confirm(
+      `Да изтрия ли и промокода „${c.promo_code}" от Shopify?\n\n` +
+      `„OK“ = изтрий и кода от Shopify\n` +
+      `„Отказ“ = запази кода в Shopify (трие се само кампанията тук)`
+    )
     setBusy('delete'); setMsg({})
-    const res = await fetch(`/api/admin/campaigns?id=${c.id}&deleteShopify=true`, { method: 'DELETE' })
+    const res = await fetch(`/api/admin/campaigns?id=${c.id}&deleteShopify=${alsoShopify}`, { method: 'DELETE' })
     const data = await res.json()
     setBusy('')
     if (!res.ok) { setMsg({ type: 'error', text: data.error }); return }
     setMsg({
       type: 'success',
-      text: 'Кампанията е изтрита' + (data.shopify?.deleted ? ' (кодът е премахнат и от Shopify).' : '.'),
+      text: 'Кампанията е изтрита' + (data.shopify?.deleted
+        ? ' (кодът е премахнат и от Shopify).'
+        : (alsoShopify ? ' (кодът в Shopify не бе намерен).' : ' (кодът в Shopify е запазен).')),
     })
     setSelected(null)
     loadList()
