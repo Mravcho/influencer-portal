@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { orderCommission } from '@/lib/commission'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -46,7 +47,7 @@ export async function GET(request) {
   // Поръчки за избрания месец
   const { data: orders, error: ordErr } = await supabaseAdmin
     .from('orders')
-    .select('influencer_id, commissionable_revenue, line_items, financial_status, total_price')
+    .select('influencer_id, commissionable_revenue, line_items, financial_status, total_price, commission_pct')
     .gte('created_at_shopify', startOfMonth.toISOString())
     .lt('created_at_shopify', endOfMonth.toISOString())
   if (ordErr) return NextResponse.json({ error: ordErr.message }, { status: 500 })
@@ -71,7 +72,7 @@ export async function GET(request) {
     const e = byInf[o.influencer_id]
     e.orders += 1
     e.revenue += parseFloat(o.total_price || 0)
-    e.commission += commissionableOf(o) * (parseFloat(inf.commission || 0) / 100)
+    e.commission += orderCommission(o, commissionableOf(o), parseFloat(inf.commission || 0))
   })
 
   // Включваме ВСИЧКИ инфлуенсъри в класирането, дори с 0 поръчки.

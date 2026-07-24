@@ -10,6 +10,7 @@ import InfluencerLeaderboard from './components/InfluencerLeaderboard'
 import PayoutWidget from './components/PayoutWidget'
 import ShareLinksWidget from './components/ShareLinksWidget'
 import ProductRequestsWidget from './components/ProductRequestsWidget'
+import CampaignCard from './components/CampaignCard'
 import MyProductRequestsWidget from './components/MyProductRequestsWidget'
 
 const fmtCurr = (n) => new Intl.NumberFormat('en-EU', { style: 'currency', currency: 'EUR' }).format(Number(n || 0))
@@ -1005,6 +1006,9 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
+
+        {/* Активна кампания (ако инфлуенсърът участва) */}
+        <CampaignCard />
 
         {/* Share links */}
         <div id="links"><ShareLinksWidget /></div>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendPayoutRequestEmail } from '@/lib/email'
+import { orderCommission } from '@/lib/commission'
 
 const MIN_PAYOUT  = 100 // евро
 const VOIDED      = new Set(['voided', 'refunded'])
@@ -26,12 +27,12 @@ async function calcAvailable(influencerId) {
 
   const { data: orders } = await supabaseAdmin
     .from('orders')
-    .select('commissionable_revenue, line_items, financial_status')
+    .select('commissionable_revenue, line_items, financial_status, commission_pct')
     .eq('influencer_id', influencerId)
 
   const totalEarned = (orders || []).reduce((s, o) => {
     if (VOIDED.has(o.financial_status)) return s
-    return s + commissionableOf(o) * rate / 100
+    return s + orderCommission(o, commissionableOf(o), rate)
   }, 0)
 
   const { data: payouts } = await supabaseAdmin

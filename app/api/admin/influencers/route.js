@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { syncInfluencer } from '@/lib/sync'
 import { sendWelcomeEmail } from '@/lib/email'
+import { orderCommission } from '@/lib/commission'
 import { ensureDefaultLink } from '@/lib/share-links'
 
 const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
@@ -34,7 +35,7 @@ export async function GET() {
     const [ordersRes, clickRes] = await Promise.all([
       supabaseAdmin
         .from('orders')
-        .select('total_price, commissionable_revenue, line_items, financial_status')
+        .select('total_price, commissionable_revenue, line_items, financial_status, commission_pct')
         .eq('influencer_id', inf.id),
       supabaseAdmin
         .from('link_clicks')
@@ -51,20 +52,25 @@ export async function GET() {
     const totalRevenue = activeOrders.reduce((s, o) => s + parseFloat(o.total_price || 0), 0)
 
     // Комисионната се изчислява от пълната цена на продуктите с отстъпка
-    const totalCommissionable = activeOrders.reduce((s, o) => {
+    // commissionable за поръчка (stored или fallback от line_items)
+    const commissionableOf = (o) => {
       const stored = parseFloat(o.commissionable_revenue)
-      if (stored > 0) return s + stored
-      // Fallback за стари поръчки без stored commissionable_revenue
-      return s + (o.line_items || []).reduce(
+      if (stored > 0) return stored
+      return (o.line_items || []).reduce(
         (si, item) => si + parseFloat(item.price || 0) * (item.quantity || 1), 0
       )
-    }, 0)
+    }
+    const totalCommissionable = activeOrders.reduce((s, o) => s + commissionableOf(o), 0)
+    // Комисионна per-order: кампанийните носят своя ставка (commission_pct), иначе inf.commission
+    const totalCommission = activeOrders.reduce(
+      (s, o) => s + orderCommission(o, commissionableOf(o), inf.commission), 0
+    )
 
     return {
       ...inf,
       orderCount:      activeOrders.length,
       totalRevenue:    Math.round(totalRevenue * 100) / 100,
-      totalCommission: Math.round(totalCommissionable * inf.commission / 100 * 100) / 100,
+      totalCommission: Math.round(totalCommission * 100) / 100,
       clickCount:      clickRes.count || 0,
     }
   }))

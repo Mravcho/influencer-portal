@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { orderCommission } from '@/lib/commission'
 
 // Поръчки със следните статуси не носят комисионна и не се броят в общата сума
 const VOIDED_STATUSES = new Set(['voided', 'refunded'])
@@ -108,7 +109,8 @@ export async function GET(request) {
   const totalRevenue          = orders.reduce((s, o) => s + o.total_price, 0)
   const commissionableRevenue = orders.reduce((s, o) => s + o.commissionable_revenue, 0)
   const totalSavings          = orders.reduce((s, o) => s + o.total_savings, 0)
-  const totalCommission       = commissionableRevenue * (commission / 100)
+  // Комисионна per-order: кампанийните носят своя ставка (o.commission_pct), иначе ставката на инфлуенсъра
+  const totalCommission       = orders.reduce((s, o) => s + orderCommission(o, o.commissionable_revenue, commission), 0)
   const activeOrdersCount     = orders.filter(o => !o.voided).length
 
   const productMap = {}
@@ -131,13 +133,12 @@ export async function GET(request) {
 
   const { data: monthRaw } = await supabaseAdmin
     .from('orders')
-    .select('total_price, commissionable_revenue, total_savings, line_items, financial_status')
+    .select('total_price, commissionable_revenue, total_savings, line_items, financial_status, commission_pct')
     .eq('influencer_id', influencerId)
     .gte('created_at_shopify', monthStart.toISOString())
 
   const monthOrders = (monthRaw || []).filter(o => !isVoided(o))
-  const monthCommissionable = monthOrders.reduce((s, o) => s + getCommissionable(o), 0)
-  const monthCommission     = monthCommissionable * (commission / 100)
+  const monthCommission     = monthOrders.reduce((s, o) => s + orderCommission(o, getCommissionable(o), commission), 0)
   const monthSavings        = monthOrders.reduce((s, o) => s + getSavings(o), 0)
 
   return NextResponse.json({

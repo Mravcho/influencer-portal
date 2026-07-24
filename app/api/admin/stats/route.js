@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { orderCommission } from '@/lib/commission'
 
 const VOIDED_STATUSES = new Set(['voided', 'refunded'])
 
@@ -33,7 +34,7 @@ export async function GET(request) {
 
   const { data: recentOrders, error: ordErr } = await supabaseAdmin
     .from('orders')
-    .select('influencer_id, commissionable_revenue, line_items, financial_status, created_at_shopify')
+    .select('influencer_id, commissionable_revenue, line_items, financial_status, created_at_shopify, commission_pct')
     .gte('created_at_shopify', since.toISOString())
   if (ordErr) return NextResponse.json({ error: ordErr.message }, { status: 500 })
 
@@ -52,7 +53,7 @@ export async function GET(request) {
     if (!dailyMap[key]) return
     dailyMap[key].orders += 1
     const rate = commissionByInf[o.influencer_id] || 0
-    dailyMap[key].commission += commissionableOf(o) * rate / 100
+    dailyMap[key].commission += orderCommission(o, commissionableOf(o), rate)
   })
 
   const daily = Object.values(dailyMap).map(d => ({
@@ -68,7 +69,7 @@ export async function GET(request) {
 
   const { data: monthlyOrders } = await supabaseAdmin
     .from('orders')
-    .select('influencer_id, commissionable_revenue, line_items, financial_status, created_at_shopify')
+    .select('influencer_id, commissionable_revenue, line_items, financial_status, created_at_shopify, commission_pct')
     .gte('created_at_shopify', sixMonthsAgo.toISOString())
 
   const monthlyMap = {}
@@ -86,7 +87,7 @@ export async function GET(request) {
     if (!monthlyMap[key]) return
     monthlyMap[key].orders += 1
     const rate = commissionByInf[o.influencer_id] || 0
-    monthlyMap[key].commission += commissionableOf(o) * rate / 100
+    monthlyMap[key].commission += orderCommission(o, commissionableOf(o), rate)
   })
 
   const monthly = Object.values(monthlyMap).map(m => ({
@@ -97,7 +98,7 @@ export async function GET(request) {
   // Топ инфлуенсъри по комисионна (за целия период)
   const { data: allOrders } = await supabaseAdmin
     .from('orders')
-    .select('influencer_id, commissionable_revenue, line_items, financial_status')
+    .select('influencer_id, commissionable_revenue, line_items, financial_status, commission_pct')
 
   const byInfluencer = {}
   ;(allOrders || []).forEach(o => {
@@ -107,7 +108,7 @@ export async function GET(request) {
     }
     byInfluencer[o.influencer_id].orders += 1
     const rate = commissionByInf[o.influencer_id] || 0
-    byInfluencer[o.influencer_id].commission += commissionableOf(o) * rate / 100
+    byInfluencer[o.influencer_id].commission += orderCommission(o, commissionableOf(o), rate)
   })
 
   const topInfluencers = Object.entries(byInfluencer)
