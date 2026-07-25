@@ -129,7 +129,7 @@ export default function CampaignsPage() {
     const data = await res.json()
     setBusy('')
     if (!res.ok) { setMsg({ type: 'error', text: data.error }); return }
-    setMsg({ type: 'success', text: `Създадени ${data.created} нови линка (${data.already_had} вече имаха).` })
+    setMsg({ type: 'success', text: `Готово: ${data.created} нови · ${data.reused} обновени (един стабилен линк на инфлуенсър).` })
     loadDetail(selected.campaign.id)
   }
 

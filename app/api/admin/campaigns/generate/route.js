@@ -20,57 +20,82 @@ export async function POST(request) {
     .select('id, name, username, platform')
     .eq('active', true)
 
-  // Кои вече имат линк за тази кампания
-  const { data: existing } = await supabaseAdmin
-    .from('utm_links')
-    .select('influencer_id')
-    .eq('campaign_id', campaignId)
-  const haveLink = new Set((existing || []).map(r => r.influencer_id))
-
   let created = 0
+  let reused = 0
   const errors = []
-  for (const inf of influencers || []) {
-    if (haveLink.has(inf.id)) continue
 
-    // Alias само с ПЪРВОТО име (напр. maria). Ако е на кирилица → username;
-    // краен fallback — случаен. При колизия добавяме -2, -3...
+  // Ред за utm_links за даден alias (repoint към ТАЗИ кампания)
+  const rowFor = (inf, alias, medium) => ({
+    alias,
+    label:        `${campaign.name} — ${inf.name}`,
+    dest_url:     campaign.dest_url || SHOP_BASE_URL,
+    full_url:     buildCampaignTargetUrl({
+      promoCode:   campaign.promo_code,
+      campaignKey: campaign.promo_code,
+      platform:    inf.platform,
+      alias,
+      destUrl:     campaign.dest_url,
+    }),
+    utm_source:   'influencer_portal',
+    utm_medium:   medium,
+    utm_campaign: campaign.promo_code,
+    utm_content:  alias,
+    influencer_id: inf.id,
+    campaign_id:   campaignId,
+  })
+
+  for (const inf of influencers || []) {
     const firstName = (inf.name || '').trim().split(/\s+/)[0]
-    const base = sanitizeAlias(firstName) || sanitizeAlias(inf.username) || generateAlias(6)
-    let inserted = false
-    for (let attempt = 0; attempt < 6 && !inserted; attempt++) {
-      const alias = attempt === 0
-        ? base
-        : attempt < 5 ? `${base}-${attempt + 1}` : `${base}-${generateAlias(3)}`
-      const fullUrl = buildCampaignTargetUrl({
-        promoCode:   campaign.promo_code,
-        campaignKey: campaign.promo_code,
-        platform:    inf.platform,
-        alias,
-        destUrl:     campaign.dest_url,
-      })
-      const { error } = await supabaseAdmin.from('utm_links').insert({
-        alias,
-        label:        `${campaign.name} — ${inf.name}`,
-        dest_url:     campaign.dest_url || SHOP_BASE_URL,
-        full_url:     fullUrl,
-        utm_source:   'influencer_portal',
-        utm_medium:   (inf.platform || 'social').toLowerCase().replace(/[^a-z0-9]/g, ''),
-        utm_campaign: campaign.promo_code,
-        utm_content:  alias,
-        influencer_id: inf.id,
-        campaign_id:   campaignId,
-      })
-      if (!error) { inserted = true; created++ }
-      else if (error.code !== '23505') { errors.push(`${inf.name}: ${error.message}`); break }
-      // 23505 = дублиран alias → нов опит
+    const base   = sanitizeAlias(firstName) || sanitizeAlias(inf.username) || generateAlias(6)
+    const medium = (inf.platform || 'social').toLowerCase().replace(/[^a-z0-9]/g, '')
+
+    // Съществуващи кампанийни линкове на инфлуенсъра (от която и да е кампания)
+    const { data: links } = await supabaseAdmin
+      .from('utm_links')
+      .select('id, alias, created_at')
+      .eq('influencer_id', inf.id)
+      .not('campaign_id', 'is', null)
+      .order('created_at', { ascending: true })
+
+    if (links && links.length > 0) {
+      // Пазим ЕДИН стабилен линк. Предпочитаме този с чистото първо име.
+      const primary = links.find(l => l.alias === base) || links[0]
+      // Трием дубликатите (консолидация до 1 линк на инфлуенсър)
+      const dupIds = links.filter(l => l.id !== primary.id).map(l => l.id)
+      if (dupIds.length) await supabaseAdmin.from('utm_links').delete().in('id', dupIds)
+
+      // Ако alias-ът не е чистото първо име, а то е свободно → минаваме на него
+      let alias = primary.alias
+      if (alias !== base) {
+        const { data: taken } = await supabaseAdmin
+          .from('utm_links').select('id').eq('alias', base).neq('id', primary.id).maybeSingle()
+        if (!taken) alias = base
+      }
+
+      // Repoint: сменяме само пренасочването/кампанията, alias-ът (линкът) остава
+      const { error } = await supabaseAdmin
+        .from('utm_links').update(rowFor(inf, alias, medium)).eq('id', primary.id)
+      if (error) errors.push(`${inf.name}: ${error.message}`)
+      else reused++
+    } else {
+      // Няма линк още → създаваме с чистото първо име (колизия само срещу др. инфлуенсъри)
+      let inserted = false
+      for (let attempt = 0; attempt < 6 && !inserted; attempt++) {
+        const alias = attempt === 0
+          ? base
+          : attempt < 5 ? `${base}-${attempt + 1}` : `${base}-${generateAlias(3)}`
+        const { error } = await supabaseAdmin.from('utm_links').insert(rowFor(inf, alias, medium))
+        if (!error) { inserted = true; created++ }
+        else if (error.code !== '23505') { errors.push(`${inf.name}: ${error.message}`); break }
+      }
     }
   }
 
   return NextResponse.json({
     ok: true,
     created,
+    reused,
     total_influencers: (influencers || []).length,
-    already_had: haveLink.size,
     errors,
   })
 }
