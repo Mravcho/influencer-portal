@@ -340,13 +340,23 @@ export default function AdminUtmLinks() {
     if (res.ok) load()
   }
 
-  const filtered = useMemo(() => {
+  // Кампанийните линкове (campaign_id != null) са в отделен таб, за да не удължават общия списък
+  const regularLinks  = useMemo(() => links.filter((l) => !l.campaign_id), [links])
+  const campaignLinks = useMemo(() => links.filter((l) => l.campaign_id), [links])
+  const matchSearch = useCallback((list) => {
     const s = q.trim().toLowerCase()
-    if (!s) return links
-    return links.filter((l) => [l.alias, l.label, l.utm_source, l.utm_medium, l.utm_campaign, l.dest_url].filter(Boolean).some((v) => v.toLowerCase().includes(s)))
-  }, [links, q])
+    if (!s) return list
+    return list.filter((l) => [l.alias, l.label, l.utm_source, l.utm_medium, l.utm_campaign, l.dest_url].filter(Boolean).some((v) => v.toLowerCase().includes(s)))
+  }, [q])
+  const filteredRegular  = useMemo(() => matchSearch(regularLinks), [matchSearch, regularLinks])
+  const filteredCampaign = useMemo(() => matchSearch(campaignLinks), [matchSearch, campaignLinks])
 
-  const TABS = [{ k: 'new', label: '＋ Нов линк' }, { k: 'links', label: 'Всички линкове' }, { k: 'stats', label: 'Статистики' }]
+  const TABS = [
+    { k: 'new', label: '＋ Нов линк' },
+    { k: 'links', label: 'Линкове' },
+    { k: 'campaigns', label: `Кампании${campaignLinks.length ? ` (${campaignLinks.length})` : ''}` },
+    { k: 'stats', label: 'Статистики' },
+  ]
 
   return (
     <AdminShell>
@@ -371,14 +381,30 @@ export default function AdminUtmLinks() {
 
         {tab === 'links' && (
           loading ? <div style={{ color: t.muted }}>Зареждане…</div>
-          : links.length === 0 ? <div style={{ color: t.muted }}>Още няма UTM линкове. Създай от „Нов линк".</div>
+          : regularLinks.length === 0 ? <div style={{ color: t.muted }}>Още няма маркетинг UTM линкове. Създай от „Нов линк".</div>
           : <div style={{ display: 'grid', gap: 12 }}>
               <div style={{ position: 'relative', maxWidth: 360 }}>
                 <Search size={15} style={{ position: 'absolute', left: 11, top: 11, color: t.muted }} />
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Търси по име, alias, source, кампания…" style={{ ...field(t), paddingLeft: 34 }} />
               </div>
-              <div style={{ fontSize: 12, color: t.muted }}>{filtered.length} от {links.length} линка</div>
-              {filtered.map((l) => <LinkCard key={l.id} link={l} t={t} onDelete={() => remove(l)} onCopy={copy} copiedId={copiedId} />)}
+              <div style={{ fontSize: 12, color: t.muted }}>{filteredRegular.length} от {regularLinks.length} линка</div>
+              {filteredRegular.map((l) => <LinkCard key={l.id} link={l} t={t} onDelete={() => remove(l)} onCopy={copy} copiedId={copiedId} />)}
+            </div>
+        )}
+
+        {tab === 'campaigns' && (
+          loading ? <div style={{ color: t.muted }}>Зареждане…</div>
+          : campaignLinks.length === 0 ? <div style={{ color: t.muted }}>Още няма кампанийни линкове. Създай кампания и „Генерирай линкове за всички".</div>
+          : <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ fontSize: 12, color: t.muted }}>
+                Личните линкове на инфлуенсърите от кампании. Управляват се от раздел „Кампании".
+              </div>
+              <div style={{ position: 'relative', maxWidth: 360 }}>
+                <Search size={15} style={{ position: 'absolute', left: 11, top: 11, color: t.muted }} />
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Търси по инфлуенсър, alias, кампания…" style={{ ...field(t), paddingLeft: 34 }} />
+              </div>
+              <div style={{ fontSize: 12, color: t.muted }}>{filteredCampaign.length} от {campaignLinks.length} линка</div>
+              {filteredCampaign.map((l) => <LinkCard key={l.id} link={l} t={t} onDelete={() => remove(l)} onCopy={copy} copiedId={copiedId} />)}
             </div>
         )}
 
