@@ -398,6 +398,34 @@ export default function CampaignsPage() {
                   </div>
                 </div>
 
+                {/* Обща статистика на кампанията */}
+                {selected.overview && (
+                  <div className="card">
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 10 }}>
+                      Обща статистика
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      {[
+                        { label: 'Общо кликове', value: selected.overview.totalClicks, bg: '#eef2ff', color: '#3730a3' },
+                        { label: 'Поръчки с кода', value: selected.overview.totalCodeOrders ?? '—', bg: '#eef2ff', color: '#3730a3' },
+                        { label: 'Приписани поръчки', value: selected.overview.attributedOrders, bg: '#dcfce7', color: '#166534' },
+                        { label: 'Без засечен инфлуенсър', value: selected.overview.unattributedOrders ?? '—', bg: '#fef3c7', color: '#92400e' },
+                        { label: 'Комисионна (приписана)', value: `${(selected.overview.attributedCommission || 0).toFixed(2)} €`, bg: '#dcfce7', color: '#166534' },
+                      ].map(s => (
+                        <div key={s.label} style={{ flex: 1, minWidth: 120, background: s.bg, borderRadius: 10, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 11, color: s.color }}>{s.label}</div>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: s.color }}>{s.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {selected.overview.totalCodeOrders == null && (
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
+                        „Поръчки с кода" и „без засечен инфлуенсър" не можаха да се заредят от Shopify в момента.
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
                   <div style={{ padding: '12px 14px', fontWeight: 600, fontSize: 14, borderBottom: '1px solid var(--border)' }}>
                     Инфлуенсъри и линкове ({selected.links.length})

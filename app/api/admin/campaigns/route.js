@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { buildShortUrl } from '@/lib/utm'
-import { createDiscountCode, deleteDiscountCode } from '@/lib/shopify'
+import { createDiscountCode, deleteDiscountCode, fetchOrdersByPromoCode } from '@/lib/shopify'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,7 +47,33 @@ export async function GET(request) {
       }
     }).sort((a, b) => (b.clicks || 0) - (a.clicks || 0))
 
-    return NextResponse.json({ campaign, links: rows })
+    // Обща статистика
+    const totalClicks     = (links || []).reduce((s, l) => s + (l.clicks || 0), 0)
+    const attributedOrders = (orderRows || []).length
+    const attributedCommission = Math.round(rows.reduce((s, r) => s + r.commission, 0) * 100) / 100
+
+    // Общо поръчки с кода (от Shopify) → колко са без засечен инфлуенсър
+    let totalCodeOrders = null
+    let unattributedOrders = null
+    try {
+      const since = campaign.starts_at || campaign.created_at
+      const shopifyOrders = await fetchOrdersByPromoCode(campaign.promo_code, since)
+      totalCodeOrders = shopifyOrders.length
+      unattributedOrders = Math.max(0, totalCodeOrders - attributedOrders)
+    } catch (err) {
+      // Ако Shopify не отговори — оставяме null (UI показва „—")
+      console.error('Campaign overview Shopify error:', err.message)
+    }
+
+    const overview = {
+      totalClicks,
+      attributedOrders,
+      attributedCommission,
+      totalCodeOrders,
+      unattributedOrders,
+    }
+
+    return NextResponse.json({ campaign, links: rows, overview })
   }
 
   const { data: allCampaigns, error } = await supabaseAdmin
