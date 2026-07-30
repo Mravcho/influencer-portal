@@ -116,6 +116,9 @@ const NAV = [
   { id: 'requests',  label: 'Заявки',   Icon: Gift },
   { id: 'leaderboard',label:'Класация', Icon: Trophy },
 ]
+// Долната мобилна лента е с 5 таба (без „Кампания", за да не става на 2 реда и да
+// не скрива бутоните). Кампанията е достъпна от картата най-горе + страничното меню.
+const MOBILE_NAV = NAV.filter(n => n.id !== 'campaign')
 function scrollToAnchor(id) {
   if (id === 'top') { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
   const el = document.getElementById(id)
@@ -301,7 +304,7 @@ function MobileTabBar({ active, theme }) {
         paddingTop: 6,
       }}
     >
-      {NAV.map(item => {
+      {MOBILE_NAV.map(item => {
         const isActive = active === item.id
         return (
           <button
