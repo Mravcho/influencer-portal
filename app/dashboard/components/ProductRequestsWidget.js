@@ -187,14 +187,18 @@ function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, on
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 50,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100,
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        padding: 16,
+        // Отстъп отдолу за safe-area — да не се крият бутоните на мобилен
+        paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
+        overflowY: 'auto', WebkitOverflowScrolling: 'touch',
       }}
     >
       <div
         onClick={e => e.stopPropagation()}
         className="card"
-        style={{ maxWidth: 420, width: '100%', margin: 0 }}
+        style={{ maxWidth: 420, width: '100%', margin: 'auto' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           {product.image_url && (
