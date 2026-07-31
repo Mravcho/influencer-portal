@@ -29,18 +29,33 @@ async function calcAvailable(influencerId) {
 
   const { data: orders } = await supabaseAdmin
     .from('orders')
-    .select('commissionable_revenue, line_items, financial_status, commission_pct')
+    .select('commissionable_revenue, line_items, financial_status, commission_pct, created_at_shopify')
     .eq('influencer_id', influencerId)
+
+  const monthStart = new Date()
+  monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
 
   const totalEarned = (orders || []).reduce((s, o) => {
     if (VOIDED.has(o.financial_status)) return s
     return s + orderCommission(o, commissionableOf(o), rate)
   }, 0)
+  const earnedThisMonth = (orders || []).reduce((s, o) => {
+    if (VOIDED.has(o.financial_status)) return s
+    if (new Date(o.created_at_shopify) < monthStart) return s
+    return s + orderCommission(o, commissionableOf(o), rate)
+  }, 0)
 
   const { data: payouts } = await supabaseAdmin
     .from('payout_requests')
-    .select('amount, status')
+    .select('amount, status, requested_at, processed_at')
     .eq('influencer_id', influencerId)
+
+  // Изтеглено този месец (по дата на плащане, иначе на заявка), без отказаните
+  const paidThisMonth = (payouts || []).reduce((s, p) => {
+    if (p.status === 'rejected') return s
+    const d = new Date(p.processed_at || p.requested_at)
+    return d >= monthStart ? s + parseFloat(p.amount || 0) : s
+  }, 0)
 
   // Разбивка на заявките: вече изплатено vs в процес (чака/одобрено)
   const paid = (payouts || []).reduce(
@@ -53,12 +68,14 @@ async function calcAvailable(influencerId) {
   const reserved = paid + pending
 
   return {
-    totalEarned: Math.round(totalEarned * 100) / 100,
-    paid:        Math.round(paid        * 100) / 100,
-    pending:     Math.round(pending     * 100) / 100,
-    reserved:    Math.round(reserved    * 100) / 100,
-    available:   Math.round((totalEarned - reserved) * 100) / 100,
-    minPayout:   MIN_PAYOUT,
+    totalEarned:     Math.round(totalEarned * 100) / 100,
+    earnedThisMonth: Math.round(earnedThisMonth * 100) / 100,
+    paidThisMonth:   Math.round(paidThisMonth * 100) / 100,
+    paid:            Math.round(paid        * 100) / 100,
+    pending:         Math.round(pending     * 100) / 100,
+    reserved:        Math.round(reserved    * 100) / 100,
+    available:       Math.round((totalEarned - reserved) * 100) / 100,
+    minPayout:       MIN_PAYOUT,
   }
 }
 

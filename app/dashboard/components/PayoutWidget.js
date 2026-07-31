@@ -111,6 +111,12 @@ export default function PayoutWidget({ viewId = null }) {
             )}
             <div>Налично за теглене: <strong style={{ color: 'var(--accent)' }}>{fmtEur(balance.available)}</strong></div>
           </div>
+          {/* Месечна активност */}
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)', lineHeight: 1.7 }}>
+            <div style={{ fontWeight: 600, color: 'var(--text)' }}>Този месец</div>
+            <div>Изкарано този месец: <strong style={{ color: 'var(--text)' }}>{fmtEur(balance.earnedThisMonth || 0)}</strong></div>
+            <div>Изтеглено този месец: <strong style={{ color: 'var(--text)' }}>{fmtEur(balance.paidThisMonth || 0)}</strong></div>
+          </div>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, fontStyle: 'italic' }}>
             „Налично" е за целия период минус вече изтегленото — затова може да се различава от месечната комисионна.
           </div>
