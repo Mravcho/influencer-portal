@@ -42,14 +42,20 @@ async function calcAvailable(influencerId) {
     .select('amount, status')
     .eq('influencer_id', influencerId)
 
-  // Pending / approved / paid — всичко занижава наличното
-  const reserved = (payouts || []).reduce((s, p) => {
-    if (p.status === 'rejected') return s
-    return s + parseFloat(p.amount || 0)
-  }, 0)
+  // Разбивка на заявките: вече изплатено vs в процес (чака/одобрено)
+  const paid = (payouts || []).reduce(
+    (s, p) => s + (p.status === 'paid' ? parseFloat(p.amount || 0) : 0), 0
+  )
+  const pending = (payouts || []).reduce(
+    (s, p) => s + (p.status === 'pending' || p.status === 'approved' ? parseFloat(p.amount || 0) : 0), 0
+  )
+  // Всичко нерефузирано занижава наличното
+  const reserved = paid + pending
 
   return {
     totalEarned: Math.round(totalEarned * 100) / 100,
+    paid:        Math.round(paid        * 100) / 100,
+    pending:     Math.round(pending     * 100) / 100,
     reserved:    Math.round(reserved    * 100) / 100,
     available:   Math.round((totalEarned - reserved) * 100) / 100,
     minPayout:   MIN_PAYOUT,

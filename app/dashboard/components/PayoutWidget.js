@@ -98,10 +98,18 @@ export default function PayoutWidget({ viewId = null }) {
             {fmtEur(balance.available)}
           </div>
           <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-            налично за теглене
-            {balance.reserved > 0 && (
-              <> · резервирано: <strong>{fmtEur(balance.reserved)}</strong></>
+            налично за теглене сега
+          </div>
+          {/* Ясна разбивка, за да не се бъркат сумите */}
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, lineHeight: 1.7 }}>
+            <div>Общо изкарано (за целия период): <strong style={{ color: 'var(--text)' }}>{fmtEur(balance.totalEarned)}</strong></div>
+            {balance.paid > 0 && (
+              <div>Вече изплатено: <strong style={{ color: 'var(--text)' }}>{fmtEur(balance.paid)}</strong></div>
             )}
+            {balance.pending > 0 && (
+              <div>В процес (чака одобрение/плащане): <strong style={{ color: 'var(--text)' }}>{fmtEur(balance.pending)}</strong></div>
+            )}
+            <div>Налично за теглене: <strong style={{ color: 'var(--accent)' }}>{fmtEur(balance.available)}</strong></div>
           </div>
         </div>
 
