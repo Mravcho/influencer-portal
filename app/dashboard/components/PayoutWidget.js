@@ -111,6 +111,9 @@ export default function PayoutWidget({ viewId = null }) {
             )}
             <div>Налично за теглене: <strong style={{ color: 'var(--accent)' }}>{fmtEur(balance.available)}</strong></div>
           </div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, fontStyle: 'italic' }}>
+            „Налично" е за целия период минус вече изтегленото — затова може да се различава от месечната комисионна.
+          </div>
         </div>
 
         {!viewId && (
