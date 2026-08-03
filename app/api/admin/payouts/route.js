@@ -74,7 +74,10 @@ export async function PATCH(request) {
   // Прави се веднъж (ако erp_expense_id още липсва) и НЕ блокира одобрението при грешка.
   let erp = null
   if (['approved', 'paid'].includes(status) && data.invoice_url && !data.erp_expense_id) {
-    erp = await createExpenseFromInvoiceUrl(data.invoice_url)
+    // Налагаме категория „Инфлуенсъри" (иначе AI слага своя, напр. „Реклама")
+    erp = await createExpenseFromInvoiceUrl(data.invoice_url, {
+      category: process.env.EXPENSE_ERP_CATEGORY || 'Инфлуенсъри',
+    })
     const erpUpdates = {
       erp_synced_at: new Date().toISOString(),
       erp_warning:   erp.ok ? (erp.warning || null) : erp.error,
