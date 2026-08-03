@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { createExpenseFromInvoiceUrl } from '@/lib/erp'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +22,7 @@ export async function GET(request) {
 
   let query = supabaseAdmin
     .from('payout_requests')
-    .select('id, amount, status, requested_at, processed_at, notes, admin_notes, influencer_id, invoice_url, invoice_filename')
+    .select('*')
     .order('requested_at', { ascending: false })
     .limit(200)
 
@@ -68,5 +69,21 @@ export async function PATCH(request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // При одобрение/плащане → автоматично качваме фактурата като разход в ERP.
+  // Прави се веднъж (ако erp_expense_id още липсва) и НЕ блокира одобрението при грешка.
+  let erp = null
+  if (['approved', 'paid'].includes(status) && data.invoice_url && !data.erp_expense_id) {
+    erp = await createExpenseFromInvoiceUrl(data.invoice_url)
+    const erpUpdates = {
+      erp_synced_at: new Date().toISOString(),
+      erp_warning:   erp.ok ? (erp.warning || null) : erp.error,
+    }
+    if (erp.ok && erp.id) erpUpdates.erp_expense_id = erp.id
+    const { data: data2 } = await supabaseAdmin
+      .from('payout_requests').update(erpUpdates).eq('id', id).select().single()
+    return NextResponse.json({ ...(data2 || data), erp })
+  }
+
   return NextResponse.json(data)
 }
