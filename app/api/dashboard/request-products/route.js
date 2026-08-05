@@ -45,6 +45,13 @@ export async function GET(request) {
   const influencerId = request.headers.get('x-user-id')
   if (!influencerId) return NextResponse.json({ error: 'Не сте логнат' }, { status: 401 })
 
+  // Може ли този акаунт да заявява продукти? (админ toggle)
+  const { data: me } = await supabaseAdmin
+    .from('influencers').select('can_request_products').eq('id', influencerId).single()
+  if (me?.can_request_products === false) {
+    return NextResponse.json({ can_request: false, products: [] })
+  }
+
   // 1) Глобални активни продукти
   const { data: globalProducts } = await supabaseAdmin
     .from('request_products')
@@ -108,6 +115,7 @@ export async function GET(request) {
     .single()
 
   return NextResponse.json({
+    can_request:            true,
     free_locked_until:      freeLockedUntil,
     free_days_remaining:    freeLockedDays,
     free_locked_from_name:  freeLockedFromName,
@@ -133,6 +141,13 @@ export async function GET(request) {
 export async function POST(request) {
   const influencerId = request.headers.get('x-user-id')
   if (!influencerId) return NextResponse.json({ error: 'Не сте логнат' }, { status: 401 })
+
+  // Админ toggle: този акаунт има ли право да заявява продукти
+  const { data: me } = await supabaseAdmin
+    .from('influencers').select('can_request_products').eq('id', influencerId).single()
+  if (me?.can_request_products === false) {
+    return NextResponse.json({ error: 'Заявките за продукти са изключени за твоя акаунт.' }, { status: 403 })
+  }
 
   const { product_id, quantity, shipping } = await request.json()
   const qty = parseInt(quantity)

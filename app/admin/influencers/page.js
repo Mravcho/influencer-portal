@@ -5,12 +5,21 @@ import AdminShell from '../components/AdminShell'
 
 const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Facebook', 'Друга']
 
+const CATEGORIES = [
+  { value: 'influencers', label: 'Инфлуенсъри' },
+  { value: 'partners',    label: 'Партньори' },
+  { value: 'cosmetics',   label: 'Козметици' },
+]
+const categoryLabel = (v) => (CATEGORIES.find(c => c.value === v) || CATEGORIES[0]).label
+
 const emptyForm = {
   name: '', username: '', password: '', promo_code: '', commission: 10,
   platform: 'Instagram', email: '', email_notifications: true, notes: '',
   profile_url: '', avatar_url: '', banner_url: '',
   send_password_reset: false,
   exclude_from_leaderboard: false,
+  can_request_products: true,
+  category: 'influencers',
   share_link_target: '',
   contract_url: '', contract_filename: '',
 }
@@ -18,7 +27,7 @@ const emptyForm = {
 export default function AdminPage() {
   const router = useRouter()
   const [influencers, setInfluencers] = useState([])
-  const [tab, setTab]     = useState('list')
+  const [tab, setTab]     = useState('influencers') // 'influencers'|'partners'|'cosmetics'|'form'
   const [form, setForm]   = useState(emptyForm)
   const [editId, setEditId] = useState(null)
   const [originalEmail, setOriginalEmail] = useState('')
@@ -167,6 +176,8 @@ export default function AdminPage() {
       banner_url:  inf.banner_url  || '',
       send_password_reset: false,
       exclude_from_leaderboard: inf.exclude_from_leaderboard === true,
+      can_request_products: inf.can_request_products !== false,
+      category: inf.category || 'influencers',
       share_link_target: inf.share_link_target || '',
       contract_url: inf.contract_url || '',
       contract_filename: inf.contract_filename || '',
@@ -480,9 +491,15 @@ export default function AdminPage() {
       </div>
 
       <section>
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', marginBottom: '1.5rem' }}>
-          {[['list', 'Инфлуенсъри'], ['form', editId ? 'Редактиране' : 'Добави нов']].map(([id, label]) => (
+        {/* Tabs — категории + добавяне */}
+        <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          {[
+            ...CATEGORIES.map(c => {
+              const n = influencers.filter(i => (i.category || 'influencers') === c.value).length
+              return [c.value, `${c.label}${n ? ` (${n})` : ''}`]
+            }),
+            ['form', editId ? 'Редактиране' : '＋ Добави нов'],
+          ].map(([id, label]) => (
             <button
               key={id}
               onClick={() => { setTab(id); if (id === 'form' && !editId) { setForm(emptyForm); setMsg({}) } }}
@@ -497,7 +514,7 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {tab === 'list' && (
+        {tab !== 'form' && (
           <div className="card table-wrap">
             <table style={{ fontSize: 12 }}>
               <thead><tr>
@@ -508,7 +525,7 @@ export default function AdminPage() {
                 <th>Действия</th>
               </tr></thead>
               <tbody>
-                {influencers.map(inf => (
+                {influencers.filter(inf => (inf.category || 'influencers') === tab).map(inf => (
                   <tr key={inf.id} style={{ verticalAlign: 'top' }}>
                     {/* Инфлуенсър: avatar + name + username · platform + промокод + мейл icon */}
                     <td style={{ padding: '8px 6px' }}>
@@ -697,6 +714,14 @@ export default function AdminPage() {
                   <label style={labelStyle}>Платформа</label>
                   <select value={form.platform} onChange={e => setField('platform', e.target.value)}>
                     {PLATFORMS.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid-2">
+                <div>
+                  <label style={labelStyle}>Категория</label>
+                  <select value={form.category} onChange={e => setField('category', e.target.value)}>
+                    {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -920,6 +945,21 @@ export default function AdminPage() {
                 </label>
                 <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
                   Инфлуенсърът работи нормално, но не се показва в месечната класация (и при админ, и при инфлуенсърите).
+                </p>
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.can_request_products}
+                    onChange={e => setField('can_request_products', e.target.checked)}
+                    style={{ width: 'auto', cursor: 'pointer' }}
+                  />
+                  🎁 Може да заявява продукти
+                </label>
+                <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                  Ако е изключено — този акаунт няма да вижда/може да заявява продукти (напр. партньори/козметици без тази екстра).
                 </p>
               </div>
 

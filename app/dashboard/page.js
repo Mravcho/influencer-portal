@@ -5,12 +5,13 @@ import { format, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, parseIS
 import { bg } from 'date-fns/locale'
 import { motion, useReducedMotion } from 'framer-motion'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
-import { Clock, TrendingUp, Crown, MousePointerClick, ShoppingCart, Receipt, PiggyBank, Home, Link2, Wallet, Trophy, Gift, LogOut, Sun, Moon, Menu, X, Megaphone } from 'lucide-react'
+import { Clock, TrendingUp, Crown, MousePointerClick, ShoppingCart, Receipt, PiggyBank, Home, Link2, Wallet, Trophy, Gift, LogOut, Sun, Moon, Menu, X, Megaphone, MessageCircle } from 'lucide-react'
 import InfluencerLeaderboard from './components/InfluencerLeaderboard'
 import PayoutWidget from './components/PayoutWidget'
 import ShareLinksWidget from './components/ShareLinksWidget'
 import ProductRequestsWidget from './components/ProductRequestsWidget'
 import CampaignCard from './components/CampaignCard'
+import ChatWidget from './components/ChatWidget'
 import MyProductRequestsWidget from './components/MyProductRequestsWidget'
 
 const fmtCurr = (n) => new Intl.NumberFormat('en-EU', { style: 'currency', currency: 'EUR' }).format(Number(n || 0))
@@ -114,11 +115,12 @@ const NAV = [
   { id: 'links',     label: 'Линкове',  Icon: Link2 },
   { id: 'payout',    label: 'Изплащане',Icon: Wallet },
   { id: 'requests',  label: 'Заявки',   Icon: Gift },
+  { id: 'chat',      label: 'Чат',      Icon: MessageCircle },
   { id: 'leaderboard',label:'Класация', Icon: Trophy },
 ]
 // Долната мобилна лента е с 5 таба (без „Кампания", за да не става на 2 реда и да
 // не скрива бутоните). Кампанията е достъпна от картата най-горе + страничното меню.
-const MOBILE_NAV = NAV.filter(n => n.id !== 'campaign')
+const MOBILE_NAV = NAV.filter(n => !['campaign', 'leaderboard'].includes(n.id))
 function scrollToAnchor(id) {
   if (id === 'top') { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
   const el = document.getElementById(id)
@@ -1080,6 +1082,9 @@ export default function Dashboard() {
 
         {/* История на заявките за продукти */}
         <MyProductRequestsWidget />
+
+        {/* Чат с екипа */}
+        <div id="chat" style={{ scrollMarginTop: 80 }}><ChatWidget /></div>
 
         {/* Leaderboard */}
         <div id="leaderboard"><InfluencerLeaderboard /></div>

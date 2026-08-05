@@ -12,12 +12,14 @@ export default function ProductRequestsWidget() {
   const [selected, setSelected]                 = useState(null) // { product, qty, shipping }
   const [submitting, setSubmitting]             = useState(false)
   const [msg, setMsg]                           = useState({ type: '', text: '' })
+  const [canRequest, setCanRequest]             = useState(true)
 
   const load = async () => {
     setLoading(true)
     const res = await fetch('/api/dashboard/request-products')
     if (res.ok) {
       const data = await res.json()
+      setCanRequest(data.can_request !== false)
       setProducts(data.products || [])
       setFreeGate(data.free_gate || null)
       setShippingDefaults({ ...EMPTY_SHIPPING, ...(data.shipping_defaults || {}) })
@@ -63,6 +65,8 @@ export default function ProductRequestsWidget() {
   }
 
   if (loading) return null
+  // Акаунтът няма право да заявява продукти (админ toggle) → не показваме widget-а
+  if (!canRequest) return null
 
   // Втори+ безплатен продукт е заключен, докато няма поръчка или достатъчно клика
   const gateBlocked = !!(freeGate && !freeGate.eligible)

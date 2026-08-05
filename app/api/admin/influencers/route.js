@@ -19,7 +19,7 @@ export const maxDuration = 60
 export async function GET() {
   const { data: influencers, error } = await supabaseAdmin
     .from('influencers')
-    .select('id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes, share_link_target, contract_url, contract_filename, contract_uploaded_at')
+    .select('id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, can_request_products, category, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes, share_link_target, contract_url, contract_filename, contract_uploaded_at')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -87,6 +87,7 @@ export async function POST(request) {
     name, username, password, promo_code, commission, platform,
     notes, profile_url, avatar_url, banner_url,
     email, email_notifications, exclude_from_leaderboard,
+    can_request_products, category,
     share_link_target, contract_url, contract_filename,
   } = body
 
@@ -117,6 +118,8 @@ export async function POST(request) {
       email:               email ? email.toLowerCase().trim() : null,
       email_notifications: email_notifications !== false,
       exclude_from_leaderboard: exclude_from_leaderboard === true,
+      can_request_products: can_request_products !== false,
+      category:            category || 'influencers',
       share_link_target:   share_link_target ? share_link_target.trim() : null,
       contract_url:        contract_url        || null,
       contract_filename:   contract_filename   || null,

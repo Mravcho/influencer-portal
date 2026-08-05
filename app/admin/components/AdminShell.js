@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Home, FileText, Wallet, Gift, Package, Users, Settings, MailOpen,
-  Sun, Moon, LogOut, Crown, Activity, Link2, Menu, X, Megaphone,
+  Sun, Moon, LogOut, Crown, Activity, Link2, Menu, X, Megaphone, MessageCircle,
 } from 'lucide-react'
 
 const TOKENS = {
@@ -43,6 +43,7 @@ const NAV = [
   { id: '/admin',                  label: 'Начало',          Icon: Home,     short: 'Начало' },
   { id: '/admin/influencers',      label: 'Инфлуенсъри',     Icon: Users,    short: 'Инфл.' },
   { id: '/admin/applications',     label: 'Кандидатствания', Icon: MailOpen, short: 'Заявки' },
+  { id: '/admin/messages',         label: 'Съобщения',       Icon: MessageCircle, short: 'Чат' },
   { id: '/admin/orders',           label: 'Поръчки',         Icon: FileText, short: 'Поръчки' },
   { id: '/admin/utm-links',        label: 'UTM Линкове',     Icon: Link2,    short: 'UTM' },
   { id: '/admin/campaigns',        label: 'Кампании',        Icon: Megaphone, short: 'Камп.' },
@@ -136,17 +137,19 @@ export default function AdminShell({ children }) {
   }, [theme])
 
   // Pending counts за badges
-  const [pending, setPending] = useState({ payouts: 0, applications: 0, productRequests: 0 })
+  const [pending, setPending] = useState({ payouts: 0, applications: 0, productRequests: 0, messages: 0 })
   useEffect(() => {
     const fetchPending = () => {
       Promise.all([
         fetch('/api/admin/payouts?count=pending').then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 })),
         fetch('/api/admin/applications?count=pending').then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 })),
         fetch('/api/admin/product-requests?count=pending').then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 })),
-      ]).then(([po, ap, pr]) => setPending({
+        fetch('/api/admin/messages?count=unread').then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 })),
+      ]).then(([po, ap, pr, ms]) => setPending({
         payouts: po.count || 0,
         applications: ap.count || 0,
         productRequests: pr.count || 0,
+        messages: ms.count || 0,
       }))
     }
     fetchPending()
@@ -178,6 +181,7 @@ export default function AdminShell({ children }) {
     if (id === '/admin/payouts') return pending.payouts
     if (id === '/admin/applications') return pending.applications
     if (id === '/admin/product-requests') return pending.productRequests
+    if (id === '/admin/messages') return pending.messages
     return 0
   }
 
