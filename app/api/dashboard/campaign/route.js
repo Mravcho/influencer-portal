@@ -23,7 +23,14 @@ export async function GET(request) {
 
   const now = Date.now()
   const campaigns = (links || [])
-    .filter(l => l.campaign && !l.campaign.archived) // спрените се показват grayed; архивираните (изтритите) — не
+    // Показваме само АКТИВНИ кампании. Спрените/архивираните/изтеклите изчезват
+    // от дашборда на инфлуенсъра, но поръчките им остават (редът не се трие).
+    .filter(l => {
+      const c = l.campaign
+      if (!c || c.archived || !c.active) return false
+      const expired = c.ends_at ? new Date(c.ends_at).getTime() < now : false
+      return !expired
+    })
     .map(l => {
       const c = l.campaign
       const expired = c.ends_at ? new Date(c.ends_at).getTime() < now : false
