@@ -39,6 +39,13 @@ export default function FloatingChat() {
     setLoading(false)
   }
 
+  // Отваряне отвън (линк „Чат" в менюто)
+  useEffect(() => {
+    const handler = () => { setOpen(true); loadMessages() }
+    window.addEventListener('rf-open-chat', handler)
+    return () => window.removeEventListener('rf-open-chat', handler)
+  }, [])
+
   const toggle = () => {
     const next = !open
     setOpen(next)
