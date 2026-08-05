@@ -9,9 +9,18 @@ const ADMIN_EMAILS = (process.env.ADMIN_NOTIFY_EMAILS || 'pavel@realfood.bg,orde
 const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
 // GET → съобщенията на логнатия инфлуенсър (маркира админските като прочетени)
+// GET ?count=unread → само брой непрочетени (от админа) за балончето
 export async function GET(request) {
   const influencerId = request.headers.get('x-user-id')
   if (!influencerId) return NextResponse.json({ error: 'Не сте логнат' }, { status: 401 })
+
+  if (new URL(request.url).searchParams.get('count') === 'unread') {
+    const { count } = await supabaseAdmin
+      .from('chat_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('influencer_id', influencerId).eq('sender', 'admin').eq('read_by_influencer', false)
+    return NextResponse.json({ count: count || 0 }, { headers: { 'Cache-Control': 'no-store' } })
+  }
 
   const { data: messages, error } = await supabaseAdmin
     .from('chat_messages')
