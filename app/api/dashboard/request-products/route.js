@@ -42,7 +42,11 @@ async function computeFreeGate(influencerId) {
 
 // GET → списък с продукти достъпни за този инфлуенсър + cooldown info за всеки
 export async function GET(request) {
-  const influencerId = request.headers.get('x-user-id')
+  // Admin, който гледа профил на инфлуенсър (?viewId=), заявява от негово име
+  const userRole = request.headers.get('x-user-role')
+  const viewId   = new URL(request.url).searchParams.get('viewId')
+  let influencerId = request.headers.get('x-user-id')
+  if (userRole === 'admin' && viewId) influencerId = viewId
   if (!influencerId) return NextResponse.json({ error: 'Не сте логнат' }, { status: 401 })
 
   // Може ли този акаунт да заявява продукти? (админ toggle)
@@ -139,7 +143,11 @@ export async function GET(request) {
 // POST { product_id, quantity } → създава заявка ако cooldown позволява
 // Връща { id, free_quantity, paid_quantity, paid_total, status }
 export async function POST(request) {
-  const influencerId = request.headers.get('x-user-id')
+  // Admin, който гледа профил на инфлуенсър (?viewId=), заявява от негово име
+  const userRole = request.headers.get('x-user-role')
+  const viewId   = new URL(request.url).searchParams.get('viewId')
+  let influencerId = request.headers.get('x-user-id')
+  if (userRole === 'admin' && viewId) influencerId = viewId
   if (!influencerId) return NextResponse.json({ error: 'Не сте логнат' }, { status: 401 })
 
   // Админ toggle: този акаунт има ли право да заявява продукти

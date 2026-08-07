@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react'
 
 const EMPTY_SHIPPING = { method: '', recipient: '', phone: '', location: '' }
 
-export default function ProductRequestsWidget() {
+export default function ProductRequestsWidget({ viewId } = {}) {
+  // Когато админ гледа профил на инфлуенсър (?viewId=<id>) — заявяваме от негово име
+  const qs = viewId ? `?viewId=${encodeURIComponent(viewId)}` : ''
   const [products, setProducts]                 = useState([])
   const [freeLocked, setFreeLocked]             = useState(null) // { daysRemaining, fromName }
   const [freeGate, setFreeGate]                 = useState(null) // { eligible, is_first, orders_count, clicks_count, click_threshold }
@@ -16,7 +18,7 @@ export default function ProductRequestsWidget() {
 
   const load = async () => {
     setLoading(true)
-    const res = await fetch('/api/dashboard/request-products')
+    const res = await fetch(`/api/dashboard/request-products${qs}`, { cache: 'no-store' })
     if (res.ok) {
       const data = await res.json()
       setCanRequest(data.can_request !== false)
@@ -48,7 +50,7 @@ export default function ProductRequestsWidget() {
     if (!selected) return
     setSubmitting(true)
     setMsg({})
-    const res = await fetch('/api/dashboard/request-products', {
+    const res = await fetch(`/api/dashboard/request-products${qs}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

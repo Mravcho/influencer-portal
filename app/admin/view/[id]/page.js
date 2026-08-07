@@ -7,6 +7,7 @@ import InfluencerLeaderboard from '@/app/dashboard/components/InfluencerLeaderbo
 import PayoutWidget from '@/app/dashboard/components/PayoutWidget'
 import ShareLinksWidget from '@/app/dashboard/components/ShareLinksWidget'
 import CampaignCard from '@/app/dashboard/components/CampaignCard'
+import ProductRequestsWidget from '@/app/dashboard/components/ProductRequestsWidget'
 import AdminShell from '../../components/AdminShell'
 
 function ymd(d) { return format(d, 'yyyy-MM-dd') }
@@ -376,6 +377,9 @@ export default function AdminInfluencerView() {
             </div>
           </div>
         )}
+
+        {/* Заяви продукт — от името на инфлуенсъра (1:1 с неговия изглед) */}
+        <ProductRequestsWidget viewId={id} />
 
         {/* Payouts — веднага под главната карта */}
         <PayoutWidget viewId={id} />
