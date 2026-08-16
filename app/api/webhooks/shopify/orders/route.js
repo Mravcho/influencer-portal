@@ -125,6 +125,32 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
+  // --- АНУЛИРАНЕ на вече записана поръчка ---
+  // Пряк път преди всичко останало: ако поръчката я има при нас и Shopify я е
+  // анулирал, само обновяваме статуса. Иначе кампанийният клон по-долу може да
+  // върне рано (неразпозната UTM) и анулирането да се загуби.
+  if (order.cancelled_at) {
+    const { data: existingRow } = await supabaseAdmin
+      .from('orders')
+      .select('id')
+      .eq('shopify_order_id', order.id)
+      .maybeSingle()
+
+    if (existingRow) {
+      const patch = {
+        financial_status:   normalizeFinancialStatus(order.financial_status, order.cancelled_at),
+        fulfillment_status: order.fulfillment_status || 'unfulfilled',
+        synced_at:          new Date().toISOString(),
+      }
+      if (await ordersHaveCancelledAt()) patch.cancelled_at = order.cancelled_at
+
+      const { error } = await supabaseAdmin.from('orders').update(patch).eq('id', existingRow.id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ ok: true, action: 'cancelled', order: order.id })
+    }
+    // Не я знаем — падаме към нормалния поток, за да я запишем изцяло.
+  }
+
   // Проверяваме дали поръчката има промо код
   const discountCodes = (order.discount_codes || []).map(dc => dc.code?.toUpperCase()).filter(Boolean)
   if (discountCodes.length === 0) {
