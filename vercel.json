@@ -1,12 +1,16 @@
 {
   "crons": [
     {
-      "path": "/api/admin/sync",
+      "path": "/api/cron/sync",
       "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/campaigns",
       "schedule": "0 */12 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-orders",
+      "schedule": "0 3 * * 1"
     }
   ]
 }

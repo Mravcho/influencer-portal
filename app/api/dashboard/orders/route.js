@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { orderCommission } from '@/lib/commission'
+import { isVoidedOrder } from '@/lib/order-flags'
 
 export const dynamic = 'force-dynamic'
 
-// Поръчки със следните статуси не носят комисионна и не се броят в общата сума
-const VOIDED_STATUSES = new Set(['voided', 'refunded'])
-function isVoided(order) {
-  return VOIDED_STATUSES.has(order.financial_status)
-}
+// Поръчки със следните статуси (или анулирани) не носят комисионна
+// и не се броят в общата сума.
+const isVoided = isVoidedOrder
 
 function getCommissionable(order) {
   if (isVoided(order)) return 0

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { ordersHaveCancelledAt } from '@/lib/order-status'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,11 +16,16 @@ export async function GET(request) {
   const limitRaw     = parseInt(searchParams.get('limit') || '200')
   const limit        = Math.min(Math.max(limitRaw, 1), 500)
 
+  // cancelled_at идва с migration_order_cancelled.sql — включваме я само ако
+  // миграцията е пусната, иначе целият select би гръмнал.
+  const withCancelled = await ordersHaveCancelledAt()
+
   let query = supabaseAdmin
     .from('orders')
     .select(`
       id, shopify_order_id, order_number, created_at_shopify,
       total_price, currency, financial_status, fulfillment_status,
+      ${withCancelled ? 'cancelled_at,' : ''}
       line_items, total_savings, commissionable_revenue, shipping_total,
       customer_name, customer_email, customer_phone, shipping_city,
       influencer:influencers(id, name, promo_code, avatar_url)

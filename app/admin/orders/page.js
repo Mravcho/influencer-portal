@@ -32,24 +32,26 @@ export default function AdminOrdersPage() {
 
   const onSearchSubmit = (e) => { e.preventDefault(); load() }
 
-  // Еднократна поправка на статусите: минава инфлуенсър по инфлуенсър и
-  // пре-тегли от Shopify всяка поръчка, ПРОМЕНЕНА в последните 180 дни
-  // (анулирани / рефунднати / платени). Един по един — за да не удари
-  // лимита за време на функцията.
-  const [refreshing, setRefreshing] = useState(null) // null | {done, total}
+  // Ръчно пускане на същата проверка като седмичния cron: сверява статуса на
+  // записаните поръчки с Shopify (платена / анулирана / рефундирана / изпратена).
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshMsg, setRefreshMsg] = useState('')
   const refreshStatuses = async () => {
-    if (!influencers.length) return
-    if (!confirm('Да проверя ли в Shopify статуса на всички поръчки от последните 180 дни? Само обновява статуси — нищо не се трие.')) return
-    const list = influencerId ? influencers.filter(i => i.id === influencerId) : influencers
-    setRefreshing({ done: 0, total: list.length })
-    for (let i = 0; i < list.length; i++) {
-      try {
-        await fetch(`/api/admin/sync?id=${list[i].id}&refreshDays=180`, { method: 'POST' })
-      } catch { /* продължаваме със следващия */ }
-      setRefreshing({ done: i + 1, total: list.length })
+    if (!confirm('Да сверя ли статусите на поръчките с Shopify? Само обновява статуси — нищо не се трие.')) return
+    setRefreshing(true)
+    setRefreshMsg('')
+    try {
+      const params = influencerId ? `?influencer_id=${influencerId}` : ''
+      const res = await fetch(`/api/admin/refresh-orders${params}`, { method: 'POST' })
+      const d = await res.json()
+      setRefreshMsg(res.ok
+        ? `Проверени ${d.checked} поръчки · обновени ${d.updated}`
+        : `Грешка: ${d.error || res.status}`)
+      if (res.ok) load()
+    } catch (e) {
+      setRefreshMsg(`Грешка: ${e.message}`)
     }
-    setRefreshing(null)
-    load()
+    setRefreshing(false)
   }
 
   const totals = useMemo(() => {
@@ -76,17 +78,20 @@ export default function AdminOrdersPage() {
               Всички поръчки през промокод от всички инфлуенсъри
             </div>
           </div>
-          <button
-            className="btn btn-sm"
-            onClick={refreshStatuses}
-            disabled={!!refreshing || !influencers.length}
-            title="Пре-тегля от Shopify статуса на поръчките, променени в последните 180 дни"
-            style={{ whiteSpace: 'nowrap' }}
-          >
-            {refreshing
-              ? `⟳ Проверявам… ${refreshing.done}/${refreshing.total}`
-              : '🔄 Обнови статусите от Shopify'}
-          </button>
+          <div style={{ textAlign: 'right' }}>
+            <button
+              className="btn btn-sm"
+              onClick={refreshStatuses}
+              disabled={refreshing}
+              title="Сверява статуса на записаните поръчки с Shopify (същото, което прави седмичният cron)"
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {refreshing ? '⟳ Проверявам…' : '🔄 Обнови статусите от Shopify'}
+            </button>
+            {refreshMsg && (
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{refreshMsg}</div>
+            )}
+          </div>
         </div>
         {/* Filters */}
         <div className="card" style={{ marginBottom: '1rem', padding: '14px' }}>
@@ -260,6 +265,19 @@ export default function AdminOrdersPage() {
 function OrderStatusBadge({ order }) {
   const fin = order.financial_status
   const ful = order.fulfillment_status
+
+  // Анулирана — показваме и кога (cancelled_at идва от Shopify)
+  if (order.cancelled_at) {
+    const when = new Date(order.cancelled_at).toLocaleString('bg-BG', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    })
+    return (
+      <span className="badge badge-gray" title={`Анулирана на ${when} ч.`} style={{ whiteSpace: 'nowrap' }}>
+        ✕ Анулирана · {when.split(',')[0]}
+      </span>
+    )
+  }
+
   if (fin === 'refunded')           return <span className="badge badge-gray">Рефундирана</span>
   if (fin === 'partially_refunded') return <span className="badge badge-gray">Част. рефунд</span>
   if (fin === 'voided')             return <span className="badge badge-gray">Отказана</span>

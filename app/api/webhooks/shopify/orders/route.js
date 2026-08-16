@@ -3,6 +3,8 @@ import crypto from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendNewOrderNotification } from '@/lib/email'
 import { fetchProductImages } from '@/lib/shopify'
+import { normalizeFinancialStatus } from '@/lib/order-flags'
+import { ordersHaveCancelledAt } from '@/lib/order-status'
 import { findActiveCampaignByCodes, resolveCampaignInfluencer } from '@/lib/campaign-sync'
 
 // Verifies Shopify HMAC-SHA256 signature
@@ -93,8 +95,9 @@ function sanitizeWebhookOrder(order, promoCode, productImages = {}) {
     created_at_shopify: order.created_at,
     total_price: parseFloat(order.total_price),
     currency: order.currency,
-    financial_status: order.financial_status,
+    financial_status: normalizeFinancialStatus(order.financial_status, order.cancelled_at),
     fulfillment_status: order.fulfillment_status || 'unfulfilled',
+    cancelled_at: order.cancelled_at || null,
     line_items: lineItems,
     total_savings: Math.round(totalSavings * 100) / 100,
     commissionable_revenue: Math.round(commissionableRevenue * 100) / 100,
@@ -132,6 +135,10 @@ export async function POST(request) {
   const productIds = (order.line_items || []).map(li => li.product_id)
   const productImages = await fetchProductImages(productIds)
 
+  // cancelled_at се записва само ако миграцията е пусната (виж lib/order-status.js)
+  const withCancelled = await ordersHaveCancelledAt()
+  const cancelledPatch = withCancelled ? { cancelled_at: order.cancelled_at || null } : {}
+
   // --- КАМПАНИЯ: споделен код + UTM атрибуция (Customer Journey) ---
   const campaign = await findActiveCampaignByCodes(discountCodes)
   if (campaign) {
@@ -148,6 +155,7 @@ export async function POST(request) {
     const isNewOrder = !existing
 
     const { error: upErr } = await supabaseAdmin.from('orders').upsert({
+      ...cancelledPatch,
       influencer_id:          influencer.id,
       campaign_id:            campaign.id,
       commission_pct:         Number(campaign.commission_pct),
@@ -210,6 +218,7 @@ export async function POST(request) {
     const isNewOrder = !existing
 
     const row = {
+      ...cancelledPatch,
       influencer_id: influencer.id,
       shopify_order_id: sanitized.shopify_order_id,
       order_number: sanitized.order_number,

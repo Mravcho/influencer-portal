@@ -661,6 +661,10 @@ export default function AdminInfluencerView() {
 function OrderStatusBadge({ order }) {
   const fin = order.financial_status
   const ful = order.fulfillment_status
+  if (order.cancelled_at) {
+    const when = format(new Date(order.cancelled_at), 'd MMM yyyy', { locale: bg })
+    return <span className="badge badge-gray" title={`Анулирана на ${when}`}>Анулирана</span>
+  }
   if (fin === 'refunded') return <span className="badge badge-gray">Рефундирана</span>
   if (fin === 'partially_refunded') return <span className="badge badge-gray">Част. рефунд</span>
   if (fin === 'voided') return <span className="badge badge-gray">Отказана</span>

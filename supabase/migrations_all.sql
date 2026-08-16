@@ -142,3 +142,10 @@ CREATE TABLE IF NOT EXISTS payout_requests (
 );
 CREATE INDEX IF NOT EXISTS idx_payout_requests_influencer ON payout_requests(influencer_id);
 CREATE INDEX IF NOT EXISTS idx_payout_requests_status     ON payout_requests(status);
+
+-- ===== АНУЛИРАНИ ПОРЪЧКИ =====
+-- Shopify пази анулирането отделно от financial_status (анулирана платена
+-- поръчка без рефанд остава 'paid'), затова пазим точния момент.
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS orders_cancelled_at_idx ON orders (cancelled_at);

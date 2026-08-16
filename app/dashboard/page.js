@@ -923,6 +923,12 @@ export default function Dashboard() {
               )}
             </div>
             <div className="flex items-center gap-1">
+              {userInfo.termsUrl && (
+                <a href="/terms" target="_blank" rel="noopener noreferrer" aria-label="Общи условия" title="Общи условия"
+                  style={{ padding: 8, borderRadius: 999, color: t.muted, display: 'inline-flex' }}>
+                  <FileText size={18} />
+                </a>
+              )}
               <button onClick={toggleTheme} aria-label={theme === 'dark' ? 'Светъл режим' : 'Тъмен режим'}
                 style={{ padding: 8, borderRadius: 999, color: t.muted, background: 'transparent', border: 'none', cursor: 'pointer' }}>
                 {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -1239,23 +1245,33 @@ export default function Dashboard() {
             {/* Общи условия — винаги достъпни (вкл. на мобилен, където няма sidebar) */}
             {userInfo.termsUrl && (
               <footer style={{
-                marginTop: 24, paddingTop: 16,
-                borderTop: `1px solid ${t.cardBorder}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 8, flexWrap: 'wrap', textAlign: 'center',
-                fontSize: 12, color: t.muted,
+                marginTop: 24,
+                background: t.cardBg,
+                border: `1px solid ${t.cardBorder}`,
+                borderRadius: 16,
+                padding: 16,
+                display: 'flex', alignItems: 'center',
+                gap: 12, flexWrap: 'wrap',
               }}>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: t.text, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <FileText size={15} aria-hidden /> Общи условия
+                  </div>
+                  <div style={{ fontSize: 12, color: t.muted, marginTop: 3, lineHeight: 1.45 }}>
+                    {userInfo.termsAcceptedAt
+                      ? <>Приети от теб на <strong style={{ color: t.text }}>{fmtDateTime(userInfo.termsAcceptedAt)} ч.</strong></>
+                      : 'Още не са приети.'}
+                  </div>
+                </div>
                 <a
                   href="/terms"
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: t.text, fontWeight: 600, textDecoration: 'underline' }}
+                  className="btn"
+                  style={{ whiteSpace: 'nowrap', justifyContent: 'center' }}
                 >
-                  <FileText size={14} aria-hidden /> Общи условия
+                  📄 Прочети ги
                 </a>
-                {userInfo.termsAcceptedAt && (
-                  <span>· Приети от теб на {fmtDateTime(userInfo.termsAcceptedAt)} ч.</span>
-                )}
               </footer>
             )}
           </main>
@@ -1272,6 +1288,10 @@ function OrderStatusBadge({ order }) {
   const fin = order.financial_status
   const ful = order.fulfillment_status
 
+  if (order.cancelled_at) {
+    const when = format(new Date(order.cancelled_at), 'd MMM yyyy', { locale: bg })
+    return <span className="badge badge-gray" title={`Анулирана на ${when}`}>Анулирана</span>
+  }
   if (fin === 'refunded') return <span className="badge badge-gray">Рефундирана</span>
   if (fin === 'partially_refunded') return <span className="badge badge-gray">Част. рефунд</span>
   if (fin === 'voided') return <span className="badge badge-gray">Отказана</span>

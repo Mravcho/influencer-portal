@@ -363,6 +363,16 @@ export default function LoginPage() {
               )}
             </form>
           )}
+
+          {/* Общите условия — достъпни и без вход, на всяко устройство */}
+          {branding.terms_url && (
+            <div style={{ marginTop: 18, textAlign: 'center' }}>
+              <a
+                href="/terms" target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 12, color: 'var(--muted)', textDecoration: 'underline' }}
+              >📄 Общи условия</a>
+            </div>
+          )}
         </div>
       </div>
     </div>
