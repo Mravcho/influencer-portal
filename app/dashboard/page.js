@@ -5,7 +5,7 @@ import { format, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, parseIS
 import { bg } from 'date-fns/locale'
 import { motion, useReducedMotion } from 'framer-motion'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
-import { Clock, TrendingUp, Crown, MousePointerClick, ShoppingCart, Receipt, PiggyBank, Home, Link2, Wallet, Trophy, Gift, LogOut, Sun, Moon, Menu, X, Megaphone, MessageCircle } from 'lucide-react'
+import { Clock, TrendingUp, Crown, MousePointerClick, ShoppingCart, Receipt, PiggyBank, Home, Link2, Wallet, Trophy, Gift, LogOut, Sun, Moon, Menu, X, Megaphone, MessageCircle, FileText } from 'lucide-react'
 import InfluencerLeaderboard from './components/InfluencerLeaderboard'
 import PayoutWidget from './components/PayoutWidget'
 import ShareLinksWidget from './components/ShareLinksWidget'
@@ -15,6 +15,12 @@ import FloatingChat from './components/FloatingChat'
 import MyProductRequestsWidget from './components/MyProductRequestsWidget'
 
 const fmtCurr = (n) => new Intl.NumberFormat('en-EU', { style: 'currency', currency: 'EUR' }).format(Number(n || 0))
+
+// Дата + час на приемане на общите условия (в локалното време на браузъра).
+const fmtDateTime = (iso) => {
+  if (!iso) return null
+  try { return format(new Date(iso), "d MMMM yyyy 'г.', HH:mm", { locale: bg }) } catch { return iso }
+}
 
 function ymd(d) {
   return format(d, 'yyyy-MM-dd')
@@ -241,6 +247,21 @@ function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme })
           onClick={onToggleTheme}
           t={t}
         />
+        {userInfo.termsUrl && (
+          <>
+            <SidebarNavItem
+              item={{ id: '_terms', label: 'Общи условия', Icon: FileText }}
+              active={null}
+              onClick={() => window.open('/terms', '_blank', 'noopener,noreferrer')}
+              t={t}
+            />
+            {userInfo.termsAcceptedAt && (
+              <div style={{ padding: '0 14px 4px 44px', fontSize: 10.5, lineHeight: 1.4, color: t.iconMuted }}>
+                Приети на {fmtDateTime(userInfo.termsAcceptedAt)}
+              </div>
+            )}
+          </>
+        )}
         <SidebarNavItem
           item={{ id: '_logout', label: 'Изход', Icon: LogOut }}
           active={null}
@@ -722,7 +743,14 @@ export default function Dashboard() {
     setAcceptingTerms(true)
     const res = await fetch('/api/auth/accept-terms', { method: 'POST' })
     setAcceptingTerms(false)
-    if (res.ok) setUserInfo(u => ({ ...u, termsRequired: false }))
+    if (res.ok) {
+      const { acceptedAt } = await res.json().catch(() => ({}))
+      setUserInfo(u => ({
+        ...u,
+        termsRequired: false,
+        termsAcceptedAt: acceptedAt || new Date().toISOString(),
+      }))
+    }
   }
 
   const fmtDate = (iso) => {
@@ -1207,6 +1235,29 @@ export default function Dashboard() {
           </table>
         </div>
         </>)}
+
+            {/* Общи условия — винаги достъпни (вкл. на мобилен, където няма sidebar) */}
+            {userInfo.termsUrl && (
+              <footer style={{
+                marginTop: 24, paddingTop: 16,
+                borderTop: `1px solid ${t.cardBorder}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 8, flexWrap: 'wrap', textAlign: 'center',
+                fontSize: 12, color: t.muted,
+              }}>
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: t.text, fontWeight: 600, textDecoration: 'underline' }}
+                >
+                  <FileText size={14} aria-hidden /> Общи условия
+                </a>
+                {userInfo.termsAcceptedAt && (
+                  <span>· Приети от теб на {fmtDateTime(userInfo.termsAcceptedAt)} ч.</span>
+                )}
+              </footer>
+            )}
           </main>
         </div>
       </div>

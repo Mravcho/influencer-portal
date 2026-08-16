@@ -285,6 +285,15 @@ export default function AdminPage() {
   }
 
   const fmtEur = (n) => `${Number(n || 0).toFixed(2)} €`
+  // Дата + час на приемане на общите условия (в локалното време на браузъра)
+  const fmtDateTime = (iso) => {
+    try {
+      return new Date(iso).toLocaleString('bg-BG', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    } catch { return iso }
+  }
   const totOrders = influencers.reduce((s, i) => s + (i.orderCount || 0), 0)
   const totComm   = influencers.reduce((s, i) => s + (i.totalCommission || 0), 0)
 
@@ -604,6 +613,28 @@ export default function AdminPage() {
                             style={{ background: '#fee2e2', color: '#991b1b', fontSize: 9 }}
                           >
                             🚫 Извън клас.
+                          </span>
+                        )}
+                        {/* Общи условия — кога са приети (доказателство при спор) */}
+                        {inf.terms_accepted_at ? (
+                          <span
+                            className="badge"
+                            title={`Приел е Общите условия на ${fmtDateTime(inf.terms_accepted_at)} ч.${inf.terms_outdated ? ' — след това е качена нова версия, предстои ново приемане.' : ''}`}
+                            style={{
+                              background: inf.terms_outdated ? '#fef3c7' : '#dcfce7',
+                              color:      inf.terms_outdated ? '#92400e' : '#166534',
+                              fontSize: 9, whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {inf.terms_outdated ? '⚠ ОУ' : '✓ ОУ'} {fmtDateTime(inf.terms_accepted_at)}
+                          </span>
+                        ) : (
+                          <span
+                            className="badge"
+                            title="Не е приел Общите условия"
+                            style={{ background: '#fee2e2', color: '#991b1b', fontSize: 9 }}
+                          >
+                            ✕ ОУ неприети
                           </span>
                         )}
                       </div>

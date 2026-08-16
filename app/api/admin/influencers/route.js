@@ -19,7 +19,7 @@ export const maxDuration = 60
 export async function GET() {
   const { data: influencers, error } = await supabaseAdmin
     .from('influencers')
-    .select('id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, can_request_products, category, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes, share_link_target, contract_url, contract_filename, contract_uploaded_at')
+    .select('id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, can_request_products, category, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes, share_link_target, contract_url, contract_filename, contract_uploaded_at, terms_accepted_at')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -31,6 +31,15 @@ export async function GET() {
   clickWindow.setDate(clickWindow.getDate() - 90)
   clickWindow.setHours(0, 0, 0, 0)
   const clickWindowIso = clickWindow.toISOString()
+
+  // Кога последно са обновени общите условия — за да маркираме приемания,
+  // които са отпреди текущата версия на файла.
+  const { data: branding } = await supabaseAdmin
+    .from('branding')
+    .select('terms_updated_at')
+    .eq('id', 1)
+    .maybeSingle()
+  const termsUpdatedAt = branding?.terms_updated_at ? new Date(branding.terms_updated_at) : null
 
   // Добавяме order stats + click count за всеки
   const enriched = await Promise.all(influencers.map(async (inf) => {
@@ -68,8 +77,12 @@ export async function GET() {
       (s, o) => s + orderCommission(o, commissionableOf(o), inf.commission), 0
     )
 
+    const acceptedAt = inf.terms_accepted_at ? new Date(inf.terms_accepted_at) : null
+
     return {
       ...inf,
+      // true → приел е, но след това е качена нова версия на общите условия
+      terms_outdated:  !!(acceptedAt && termsUpdatedAt && acceptedAt < termsUpdatedAt),
       orderCount:      activeOrders.length,
       totalRevenue:    Math.round(totalRevenue * 100) / 100,
       totalCommission: Math.round(totalCommission * 100) / 100,

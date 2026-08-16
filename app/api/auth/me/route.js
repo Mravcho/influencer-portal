@@ -35,6 +35,7 @@ export async function GET() {
   let commission = parseFloat(payload.commission || 0)
   let termsRequired = false
   let termsUrl = null
+  let termsAcceptedAt = null
   if (payload.role === 'influencer' && payload.id) {
     const [{ data: inf }, { data: branding }] = await Promise.all([
       supabaseAdmin
@@ -51,6 +52,7 @@ export async function GET() {
     if (inf) {
       active     = inf.active !== false
       commission = parseFloat(inf.commission || 0)
+      termsAcceptedAt = inf.terms_accepted_at || null
     }
 
     // Изисква приемане, ако има качен файл и инфлуенсърът не го е приел
@@ -72,5 +74,6 @@ export async function GET() {
     active,
     termsRequired,
     termsUrl,
+    termsAcceptedAt,
   })
 }

@@ -220,6 +220,13 @@ export default function AdminApplications() {
                         </div>
                       )}
 
+                      {/* Съгласие с Общите условия при кандидатстването */}
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>
+                        {a.terms_accepted
+                          ? `✓ Приел Общите условия при кандидатстване${a.terms_accepted_at ? ` — ${format(new Date(a.terms_accepted_at), 'd MMM yyyy, HH:mm', { locale: bg })} ч.` : ''}`
+                          : '✕ Няма отбелязано съгласие с Общите условия в заявката'}
+                      </div>
+
                       {a.reviewer_notes && (
                         <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', marginBottom: 12 }}>
                           Бележка от admin: {a.reviewer_notes}

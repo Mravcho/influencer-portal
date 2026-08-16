@@ -13,11 +13,12 @@ export async function POST() {
     return NextResponse.json({ error: 'Невалидна сесия' }, { status: 401 })
   }
 
+  const acceptedAt = new Date().toISOString()
   const { error } = await supabaseAdmin
     .from('influencers')
-    .update({ terms_accepted_at: new Date().toISOString() })
+    .update({ terms_accepted_at: acceptedAt })
     .eq('id', payload.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, acceptedAt })
 }
