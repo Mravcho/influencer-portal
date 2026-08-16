@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { refreshOrderStatuses, ordersHaveCancelledAt } from '@/lib/order-status'
+import { refreshOrderStatuses, ordersHaveCancelledAt, fetchAllRows } from '@/lib/order-status'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -31,24 +31,30 @@ async function run(request) {
   const columns = ['id', 'shopify_order_id', 'order_number', 'financial_status', 'fulfillment_status']
   if (withCancelled) columns.push('cancelled_at')
 
-  let query = supabaseAdmin
-    .from('orders')
-    .select(columns.join(', '))
-    .order('created_at_shopify', { ascending: false })
-    .limit(Math.min(Math.max(limit, 1), 10000))
-
-  if (days > 0) {
-    query = query.gte('created_at_shopify', new Date(Date.now() - days * 86400000).toISOString())
+  const buildQuery = (from, to) => {
+    let q = supabaseAdmin
+      .from('orders')
+      .select(columns.join(', '))
+      .order('created_at_shopify', { ascending: false })
+      .range(from, to)
+    if (days > 0) {
+      q = q.gte('created_at_shopify', new Date(Date.now() - days * 86400000).toISOString())
+    }
+    return q
   }
 
-  const { data: orders, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  let orders
+  try {
+    orders = await fetchAllRows(buildQuery, { max: Math.min(Math.max(limit, 1), 20000) })
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
 
-  const result = await refreshOrderStatuses(orders || [])
+  const result = await refreshOrderStatuses(orders)
 
   return NextResponse.json({
     ok: true,
-    total: orders?.length || 0,
+    total: orders.length,
     cancelledAtColumn: withCancelled,
     ...result,
     ranAt: new Date().toISOString(),
