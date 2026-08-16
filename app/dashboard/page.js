@@ -940,7 +940,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <main id="top" className="main-container pb-24 lg:pb-12">
+          {/* pb-32: плаващата лента с табове е fixed — иначе покрива края на съдържанието */}
+          <main id="top" className="main-container pb-32 lg:pb-12">
             {/* Активна кампания — най-отгоре, за да се вижда сигурно + котва за менюто */}
             <div id="campaign" style={{ scrollMarginTop: 80 }}>
               <CampaignCard />
@@ -1013,6 +1014,42 @@ export default function Dashboard() {
                 <PayoutRing balance={payoutBalance} onScrollToPayout={() => scrollToAnchor('payout')} theme={theme} />
               </div>
             </div>
+
+            {/* Общи условия — на мобилен близо до върха (на десктоп са в менюто
+                вляво). Долу на страницата ги закриваше плаващата лента с табове. */}
+            {userInfo.termsUrl && (
+              <div
+                className="flex lg:hidden"
+                style={{
+                  marginBottom: 24,
+                  background: t.cardBg,
+                  border: `1px solid ${t.cardBorder}`,
+                  borderRadius: 16,
+                  padding: 14,
+                  alignItems: 'center', gap: 12,
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: t.text, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <FileText size={15} aria-hidden /> Общи условия
+                  </div>
+                  <div style={{ fontSize: 12, color: t.muted, marginTop: 3, lineHeight: 1.45 }}>
+                    {userInfo.termsAcceptedAt
+                      ? <>Приети от теб на <strong style={{ color: t.text }}>{fmtDateTime(userInfo.termsAcceptedAt)} ч.</strong></>
+                      : 'Още не са приети.'}
+                  </div>
+                </div>
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn"
+                  style={{ whiteSpace: 'nowrap', justifyContent: 'center', flexShrink: 0 }}
+                >
+                  Прочети
+                </a>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
               <KpiCard label="Кликове · промокод" value={String(lifetimeClicks)} Icon={MousePointerClick} accent="#0066CC" sparkData={kpiSparks.clicks} theme={theme} />
@@ -1242,15 +1279,16 @@ export default function Dashboard() {
         </div>
         </>)}
 
-            {/* Общи условия — винаги достъпни (вкл. на мобилен, където няма sidebar) */}
+            {/* Общи условия — долният вариант е само за десктоп; на мобилен
+                същата карта стои горе, за да не я закрива лентата с табове. */}
             {userInfo.termsUrl && (
-              <footer style={{
+              <footer className="hidden lg:flex" style={{
                 marginTop: 24,
                 background: t.cardBg,
                 border: `1px solid ${t.cardBorder}`,
                 borderRadius: 16,
                 padding: 16,
-                display: 'flex', alignItems: 'center',
+                alignItems: 'center',
                 gap: 12, flexWrap: 'wrap',
               }}>
                 <div style={{ flex: 1, minWidth: 180 }}>
