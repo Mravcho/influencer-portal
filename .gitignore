@@ -7,3 +7,7 @@ out/
 *.log
 .DS_Store
 .vercel
+
+# локални бекъпи на env файлове
+.env*.backup*
+.env.local.backup*

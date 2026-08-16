@@ -32,6 +32,26 @@ export default function AdminOrdersPage() {
 
   const onSearchSubmit = (e) => { e.preventDefault(); load() }
 
+  // Еднократна поправка на статусите: минава инфлуенсър по инфлуенсър и
+  // пре-тегли от Shopify всяка поръчка, ПРОМЕНЕНА в последните 180 дни
+  // (анулирани / рефунднати / платени). Един по един — за да не удари
+  // лимита за време на функцията.
+  const [refreshing, setRefreshing] = useState(null) // null | {done, total}
+  const refreshStatuses = async () => {
+    if (!influencers.length) return
+    if (!confirm('Да проверя ли в Shopify статуса на всички поръчки от последните 180 дни? Само обновява статуси — нищо не се трие.')) return
+    const list = influencerId ? influencers.filter(i => i.id === influencerId) : influencers
+    setRefreshing({ done: 0, total: list.length })
+    for (let i = 0; i < list.length; i++) {
+      try {
+        await fetch(`/api/admin/sync?id=${list[i].id}&refreshDays=180`, { method: 'POST' })
+      } catch { /* продължаваме със следващия */ }
+      setRefreshing({ done: i + 1, total: list.length })
+    }
+    setRefreshing(null)
+    load()
+  }
+
   const totals = useMemo(() => {
     return orders.reduce((acc, o) => {
       acc.count    += 1
@@ -49,11 +69,24 @@ export default function AdminOrdersPage() {
   return (
     <AdminShell>
       <div className="main-container">
-        <div style={{ marginBottom: 20, paddingTop: 8 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>📋 Поръчки</h1>
-          <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
-            Всички поръчки през промокод от всички инфлуенсъри
+        <div style={{ marginBottom: 20, paddingTop: 8, display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>📋 Поръчки</h1>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
+              Всички поръчки през промокод от всички инфлуенсъри
+            </div>
           </div>
+          <button
+            className="btn btn-sm"
+            onClick={refreshStatuses}
+            disabled={!!refreshing || !influencers.length}
+            title="Пре-тегля от Shopify статуса на поръчките, променени в последните 180 дни"
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            {refreshing
+              ? `⟳ Проверявам… ${refreshing.done}/${refreshing.total}`
+              : '🔄 Обнови статусите от Shopify'}
+          </button>
         </div>
         {/* Filters */}
         <div className="card" style={{ marginBottom: '1rem', padding: '14px' }}>

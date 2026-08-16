@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { syncInfluencer } from '@/lib/sync'
 
+// Широк refreshDays прозорец може да тегли десетки поръчки от Shopify.
+export const maxDuration = 60
+
 // POST /api/admin/sync          → sync всички инфлуенсъри
 // POST /api/admin/sync?id=uuid  → sync само един
 // POST /api/admin/sync?full=true → пълен ре-синк (изтрива и презарежда)
