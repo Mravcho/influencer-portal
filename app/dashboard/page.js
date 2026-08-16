@@ -940,8 +940,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* pb-32: плаващата лента с табове е fixed — иначе покрива края на съдържанието */}
-          <main id="top" className="main-container pb-32 lg:pb-12">
+          {/* Мястото за плаващата лента с табове се пази от .main-container
+              в globals.css — Tailwind pb-* класове тук нямат ефект, защото
+              .main-container задава `padding` изцяло и идва след тях. */}
+          <main id="top" className="main-container">
             {/* Активна кампания — най-отгоре, за да се вижда сигурно + котва за менюто */}
             <div id="campaign" style={{ scrollMarginTop: 80 }}>
               <CampaignCard />

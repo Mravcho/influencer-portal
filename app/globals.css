@@ -305,8 +305,14 @@ tbody tr:hover td { background: var(--bg); }
 @media (max-width: 560px) {
   .main-container {
     padding: 1rem;
-    /* iPhone notch */
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+/* Под lg лентата с табове е fixed най-долу — пазим ѝ място, иначе покрива
+   края на съдържанието. Правилото е след горните, защото .main-container
+   задава `padding` изцяло и би презаписало отстъпа (вкл. Tailwind класове). */
+@media (max-width: 1023px) {
+  .main-container {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
   }
 }
 
