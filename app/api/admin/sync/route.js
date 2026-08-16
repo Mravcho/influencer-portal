@@ -17,6 +17,11 @@ export async function POST(request) {
   const { searchParams } = new URL(request.url)
   const singleId   = searchParams.get('id')
   const fullResync = searchParams.get('full') === 'true'
+  // ?refreshDays=N → колко дни назад да се проверяват вече записани поръчки
+  // за променен статус (анулиране/рефунд). По подразбиране 3 (виж lib/sync.js).
+  // За еднократна поправка на стари статуси: ?refreshDays=180
+  const refreshDaysParam = searchParams.get('refreshDays')
+  const refreshDays = refreshDaysParam != null ? Number(refreshDaysParam) : undefined
 
   let query = supabaseAdmin
     .from('influencers')
@@ -29,7 +34,10 @@ export async function POST(request) {
 
   const results = []
   for (const influencer of influencers) {
-    const result = await syncInfluencer(influencer, { fullResync })
+    const result = await syncInfluencer(influencer, {
+      fullResync,
+      ...(Number.isFinite(refreshDays) ? { refreshDays } : {}),
+    })
     results.push(result)
   }
 

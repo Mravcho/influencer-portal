@@ -170,6 +170,34 @@ export default function AdminInfluencerView() {
           }}>👁 Admin изглед</span>
         </div>
 
+        {/* Общи условия — кога ги е приел + линк към самия файл */}
+        <div style={{
+          marginBottom: 16, padding: '10px 14px',
+          background: 'var(--card-bg, #fff)', border: '1px solid var(--border)',
+          borderRadius: 10, display: 'flex', alignItems: 'center',
+          gap: 10, flexWrap: 'wrap', fontSize: 12,
+        }}>
+          <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--muted)' }}>
+            Общи условия
+          </strong>
+          {influencer.terms_accepted_at ? (
+            <span style={{ color: influencer.terms_outdated ? '#92400e' : '#166534', fontWeight: 600 }}>
+              {influencer.terms_outdated ? '⚠' : '✓'} Приети на{' '}
+              {new Date(influencer.terms_accepted_at).toLocaleString('bg-BG', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+              })} ч.
+              {influencer.terms_outdated && ' (след това е качена нова версия — предстои ново приемане)'}
+            </span>
+          ) : (
+            <span style={{ color: '#991b1b', fontWeight: 600 }}>✕ Още не са приети</span>
+          )}
+          <a
+            href="/terms" target="_blank" rel="noopener noreferrer"
+            style={{ marginLeft: 'auto', color: 'var(--accent)', fontWeight: 600 }}
+          >📄 Отвори файла</a>
+        </div>
+
         {/* Активна кампания на инфлуенсъра — най-отгоре, 1:1 с неговия изглед */}
         <CampaignCard viewId={id} />
 
