@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/refresh-orders",
       "schedule": "0 3 * * 1"
+    },
+    {
+      "path": "/api/cron/utm-orders",
+      "schedule": "0 2 * * *"
     }
   ]
 }

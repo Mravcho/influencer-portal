@@ -114,12 +114,32 @@ function LinkCard({ link, t, onDelete, onCopy, copiedId }) {
             <CopyBtn text={link.full_url} id={`u-${link.id}`} copiedId={copiedId} onCopy={onCopy} t={t} title="Копирай пълен UTM линк"><Copy size={12} /></CopyBtn>
           </div>
         </div>
-        {/* right: clicks + actions */}
+        {/* right: clicks + orders + actions */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 26, fontWeight: 800, color: t.text, lineHeight: 1 }}>{link.clicks}</div>
             <div style={{ fontSize: 11, color: t.muted, marginTop: 3 }}>кликове общо</div>
             <div style={{ fontSize: 11, color: t.muted, marginTop: 6 }}>{fmtDate(link.created_at)}</div>
+          </div>
+          {/* поръчки през този линк */}
+          <div style={{ textAlign: 'right', minWidth: 96 }}>
+            <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: link.orders > 0 ? t.accent : t.muted }}>
+              {link.orders ?? 0}
+            </div>
+            <div style={{ fontSize: 11, color: t.muted, marginTop: 3 }}>
+              {(link.orders ?? 0) === 1 ? 'поръчка' : 'поръчки'}
+            </div>
+            {link.orders > 0 && (
+              <div style={{ fontSize: 11, color: t.muted, marginTop: 6 }}>
+                {Number(link.ordersRevenue || 0).toFixed(2)} €
+                {link.conversion != null && <> · {link.conversion}%</>}
+              </div>
+            )}
+            {link.ordersVoided > 0 && (
+              <div style={{ fontSize: 10, color: t.muted, marginTop: 2 }}>
+                +{link.ordersVoided} анулирани
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <button onClick={() => setOpen((v) => !v)} title="Графика по дни" style={iconBtn(t, open)}><TrendingUp size={15} /></button>
@@ -200,8 +220,13 @@ function StatsTab({ stats, t }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
         <StatCard t={t} label="Линкове" value={stats.totalLinks} sub={`${activeLinks} активни за ${days} дни`} />
         <StatCard t={t} label="Кликове (общо)" value={stats.totalClicks} sub={`${periodClicks} за ${days} дни`} />
-        <StatCard t={t} label="Sources" value={Object.keys(stats.bySource).length} />
-        <StatCard t={t} label="Кампании" value={Object.keys(stats.byCampaign).length} />
+        <StatCard
+          t={t}
+          label="Поръчки през линковете"
+          value={stats.totalOrders ?? 0}
+          sub={stats.totalClicks > 0 ? `${Math.round(((stats.totalOrders || 0) / stats.totalClicks) * 1000) / 10}% от кликовете` : null}
+        />
+        <StatCard t={t} label="Приход" value={`${Number(stats.totalRevenue || 0).toFixed(2)} €`} sub="без анулирани" />
       </div>
 
       <div style={{ borderRadius: 14, background: t.cardBg, border: `1px solid ${t.cardBorder}`, padding: 16 }}>
@@ -334,6 +359,25 @@ export default function AdminUtmLinks() {
 
   const copy = useCallback((text, id) => { navigator.clipboard.writeText(text).then(() => { setCopiedId(id); setTimeout(() => setCopiedId(null), 1800) }) }, [])
 
+  // Сверява поръчките с Shopify: обхожда поръчките в магазина и записва онези,
+  // чийто landing URL носи наш alias. Дневният cron прави същото за 30 дни.
+  const [scanning, setScanning] = useState(false)
+  const [scanMsg, setScanMsg] = useState('')
+  const scanOrders = async (days) => {
+    setScanning(true); setScanMsg('')
+    try {
+      const res = await fetch(`/api/admin/utm-orders?days=${days}`, { method: 'POST' })
+      const d = await res.json().catch(() => ({}))
+      setScanMsg(res.ok
+        ? `Проверени ${d.scanned} поръчки · с UTM линк ${d.matched}`
+        : `Грешка: ${d.error || res.status}`)
+      if (res.ok) load()
+    } catch (e) {
+      setScanMsg(`Грешка: ${e.message}`)
+    }
+    setScanning(false)
+  }
+
   const remove = async (link) => {
     if (!confirm(`Изтрий "${link.label || link.alias}"? Това трие и статистиката му.`)) return
     const res = await fetch(`/api/admin/utm-links?id=${link.id}`, { method: 'DELETE' })
@@ -361,9 +405,32 @@ export default function AdminUtmLinks() {
   return (
     <AdminShell>
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '24px 16px 48px', color: t.text }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
           <Link2 size={22} color={t.accent} />
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>UTM Линкове</h1>
+          <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+            <button
+              onClick={() => scanOrders(30)}
+              disabled={scanning}
+              title="Сверява поръчките от последните 30 дни с Shopify"
+              style={{
+                padding: '8px 14px', borderRadius: 10, cursor: scanning ? 'wait' : 'pointer',
+                border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.text,
+                fontFamily: 'inherit', fontSize: 13, fontWeight: 600, opacity: scanning ? 0.6 : 1,
+              }}
+            >{scanning ? '⟳ Проверявам…' : '🔄 Обнови поръчките'}</button>
+            <button
+              onClick={() => scanOrders(0)}
+              disabled={scanning}
+              title="Обхожда всички поръчки в магазина (по-бавно)"
+              style={{
+                marginLeft: 6, padding: '8px 12px', borderRadius: 10, cursor: scanning ? 'wait' : 'pointer',
+                border: 'none', background: 'transparent', color: t.muted,
+                fontFamily: 'inherit', fontSize: 12, textDecoration: 'underline', opacity: scanning ? 0.6 : 1,
+              }}
+            >от началото</button>
+            {scanMsg && <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>{scanMsg}</div>}
+          </div>
         </div>
 
         {/* tabs */}

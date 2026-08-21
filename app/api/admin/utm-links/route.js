@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { buildUtmUrl, buildShortUrl, generateAlias, sanitizeAlias } from '@/lib/utm'
+import { utmOrderStatsByAlias } from '@/lib/utm-orders'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,20 +14,45 @@ export async function GET() {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const list = links || []
-  const withShort = list.map((l) => ({ ...l, shortUrl: buildShortUrl(l.alias) }))
+
+  // Поръчки, дошли през всеки линк (utm_orders се пълни от webhook-а и от
+  // сканирането на магазина — виж lib/utm-orders.js).
+  const orderStats = await utmOrderStatsByAlias()
+
+  const withShort = list.map((l) => {
+    const s = orderStats[l.alias] || { orders: 0, revenue: 0, voided: 0, lastOrderAt: null }
+    return {
+      ...l,
+      shortUrl:      buildShortUrl(l.alias),
+      orders:        s.orders,
+      ordersVoided:  s.voided,
+      ordersRevenue: s.revenue,
+      lastOrderAt:   s.lastOrderAt,
+      // Процент поръчки спрямо кликове — само когато има кликове.
+      conversion:    l.clicks > 0 ? Math.round((s.orders / l.clicks) * 1000) / 10 : null,
+    }
+  })
+
   const bySource = {}, byMedium = {}, byCampaign = {}
   for (const l of list) {
     if (l.utm_source)   bySource[l.utm_source]     = (bySource[l.utm_source]   || 0) + l.clicks
     if (l.utm_medium)   byMedium[l.utm_medium]     = (byMedium[l.utm_medium]   || 0) + l.clicks
     if (l.utm_campaign) byCampaign[l.utm_campaign] = (byCampaign[l.utm_campaign] || 0) + l.clicks
   }
+
+  const totalOrders  = withShort.reduce((s, l) => s + l.orders, 0)
+  const totalRevenue = Math.round(withShort.reduce((s, l) => s + l.ordersRevenue, 0) * 100) / 100
+
   return NextResponse.json({
     links: withShort,
     stats: {
       totalLinks: list.length,
       totalClicks: list.reduce((s, l) => s + (l.clicks || 0), 0),
+      totalOrders,
+      totalRevenue,
       bySource, byMedium, byCampaign,
       topLinks: [...withShort].sort((a, b) => b.clicks - a.clicks).slice(0, 10),
+      topByOrders: [...withShort].filter((l) => l.orders > 0).sort((a, b) => b.orders - a.orders).slice(0, 10),
     },
   })
 }

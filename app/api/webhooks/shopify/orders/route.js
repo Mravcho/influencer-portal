@@ -5,6 +5,7 @@ import { sendNewOrderNotification } from '@/lib/email'
 import { fetchProductImages } from '@/lib/shopify'
 import { normalizeFinancialStatus } from '@/lib/order-flags'
 import { ordersHaveCancelledAt } from '@/lib/order-status'
+import { recordUtmOrder, loadKnownAliases } from '@/lib/utm-orders'
 import { findActiveCampaignByCodes, resolveCampaignInfluencer } from '@/lib/campaign-sync'
 
 // Verifies Shopify HMAC-SHA256 signature
@@ -123,6 +124,15 @@ export async function POST(request) {
     order = await cloned.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  // --- UTM статистика ---
+  // Всяка поръчка, чийто landing URL носи наш alias, се записва в utm_orders —
+  // включително поръчки БЕЗ промокод. Затова е преди проверката за промокод.
+  try {
+    await recordUtmOrder(order, await loadKnownAliases())
+  } catch (err) {
+    console.error('UTM order record failed:', err.message)
   }
 
   // --- АНУЛИРАНЕ на вече записана поръчка ---

@@ -149,3 +149,20 @@ CREATE INDEX IF NOT EXISTS idx_payout_requests_status     ON payout_requests(sta
 ALTER TABLE orders
   ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS orders_cancelled_at_idx ON orders (cancelled_at);
+
+-- ===== ПОРЪЧКИ ПРЕЗ UTM ЛИНК =====
+-- По една редица за всяка поръчка от магазина, чийто landing URL носи наш
+-- alias (_ref=<alias> или utm_content=<alias>). Включва и поръчки без промокод.
+CREATE TABLE IF NOT EXISTS utm_orders (
+  shopify_order_id  BIGINT PRIMARY KEY,
+  alias             TEXT NOT NULL,
+  order_number      TEXT,
+  created_at        TIMESTAMPTZ NOT NULL,
+  total_price       NUMERIC(10,2) NOT NULL DEFAULT 0,
+  currency          TEXT,
+  financial_status  TEXT,
+  cancelled_at      TIMESTAMPTZ,
+  synced_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS utm_orders_alias_idx   ON utm_orders (alias);
+CREATE INDEX IF NOT EXISTS utm_orders_created_idx ON utm_orders (created_at DESC);
