@@ -668,6 +668,7 @@ export default function AdminPage() {
                             style={{ ...actionBtnStyle, opacity: 0.4, cursor: 'not-allowed' }}
                           >🔗</button>
                         )}
+                        <button className="btn btn-sm" onClick={() => router.push(`/admin/messages?to=${inf.id}`)} title="Изпрати съобщение" style={actionBtnStyle}>✉</button>
                         <button className="btn btn-sm" onClick={() => startEdit(inf)} title="Редактиране" style={actionBtnStyle}>✎</button>
                         <button
                           className="btn btn-sm"
