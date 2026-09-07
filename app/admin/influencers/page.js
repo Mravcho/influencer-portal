@@ -561,9 +561,31 @@ export default function AdminPage() {
       )}
       </>)}{/* ← край на скрития блок */}
 
-      <div style={{ marginBottom: 20, paddingTop: 8 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Инфлуенсъри</h1>
-        <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>Управление, редакция и добавяне</div>
+      <div style={{ marginBottom: 20, paddingTop: 8, display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Инфлуенсъри</h1>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>Управление, редакция и добавяне</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <button
+            className="btn btn-sm"
+            onClick={checkCodes}
+            disabled={codeCheckState === 'checking'}
+            title="Проверява дали всеки промокод реално съществува в Shopify"
+            style={{ whiteSpace: 'nowrap' }}
+          >{codeCheckState === 'checking' ? '⟳ Проверявам…' : '🏷 Провери промокодовете'}</button>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+            {codeCheckState === 'checking' && 'проверявам в Shopify…'}
+            {codeCheckState === 'error'    && 'проверката не мина — опитай пак'}
+            {codeCheckState === 'done' && (
+              Object.keys(codeProblems).length
+                ? <span style={{ color: '#991b1b', fontWeight: 600 }}>
+                    {Object.keys(codeProblems).length} проблемни кода
+                  </span>
+                : 'всички кодове са наред'
+            )}
+          </div>
+        </div>
       </div>
 
       <section>
@@ -1182,27 +1204,7 @@ export default function AdminPage() {
       </section>
       </div>
 
-      {/* Обобщение на проблемите с кодовете + модал за създаване */}
-      {Object.keys(codeProblems).length > 0 && (
-        <div style={{
-          position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 40,
-          background: '#fee2e2', borderTop: '1px solid #fca5a5',
-          padding: '10px 16px', fontSize: 13, color: '#991b1b',
-          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-        }}>
-          <strong>⚠ {Object.keys(codeProblems).length} промокода имат проблем в Shopify.</strong>
-          <span style={{ fontSize: 12 }}>
-            Поръчки с тези кодове няма да се появяват в портала. Виж червените баджове в списъка.
-          </span>
-          <button
-            className="btn btn-sm"
-            onClick={checkCodes}
-            disabled={codeCheckState === 'checking'}
-            style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}
-          >{codeCheckState === 'checking' ? '⟳ Проверявам…' : '🔄 Провери отново'}</button>
-        </div>
-      )}
-
+      {/* Модал за създаване на липсващ код */}
       {codeModal && (
         <div
           role="dialog" aria-modal="true"
