@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { syncInfluencer } from '@/lib/sync'
+import { createDiscountCode } from '@/lib/shopify'
 import { sendWelcomeEmail } from '@/lib/email'
 import { orderCommission } from '@/lib/commission'
 import { ensureDefaultLink } from '@/lib/share-links'
@@ -102,6 +103,7 @@ export async function POST(request) {
     email, email_notifications, exclude_from_leaderboard,
     can_request_products, category,
     share_link_target, contract_url, contract_filename,
+    customer_discount, collection_id,
   } = body
 
   // Промо кодът вече е опционален — за инфлуенсъри без commission setup.
@@ -110,6 +112,34 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Името и потребителското име са задължителни' }, { status: 400 })
   }
   const promoCodeNorm = promo_code ? promo_code.trim().toUpperCase() : null
+
+  // Промо код в Shopify — само ако е подадена и отстъпка за клиента.
+  // Празна отстъпка означава „кодът вече съществува в Shopify" (или не е нужен)
+  // и тогава нищо не се създава — както се държеше формата досега.
+  const discountPct = customer_discount === '' || customer_discount == null
+    ? null
+    : parseFloat(customer_discount)
+
+  if (promoCodeNorm && discountPct != null) {
+    if (!Number.isFinite(discountPct) || discountPct <= 0 || discountPct > 100) {
+      return NextResponse.json({ error: 'Отстъпката за клиента трябва да е между 0 и 100%' }, { status: 400 })
+    }
+    try {
+      await createDiscountCode({
+        code:          promoCodeNorm,
+        percentage:    discountPct,
+        collectionIds: collection_id ? [parseInt(collection_id)] : [],
+        title:         `Influencer ${promoCodeNorm} — ${name}`,
+      })
+    } catch (err) {
+      const dup = /already exists|has already been taken|taken/i.test(err.message || '')
+      return NextResponse.json({
+        error: dup
+          ? `Кодът ${promoCodeNorm} вече съществува в Shopify. Остави полето „Отстъпка за клиента" празно, за да ползваш съществуващия код.`
+          : `Грешка при създаване на промо код в Shopify: ${err.message}`,
+      }, { status: dup ? 409 : 500 })
+    }
+  }
 
   // Ако не е подадена парола — генерираме случайна (инфлуенсърът ще си зададе своя през reset линка)
   const initialPassword = password || crypto.randomBytes(16).toString('hex')

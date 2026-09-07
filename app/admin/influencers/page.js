@@ -22,6 +22,7 @@ const emptyForm = {
   category: 'influencers',
   share_link_target: '',
   contract_url: '', contract_filename: '',
+  customer_discount: '', collection_id: '',
 }
 
 export default function AdminPage() {
@@ -38,6 +39,7 @@ export default function AdminPage() {
   const [bannerUploading, setBannerUploading] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [contractUploading, setContractUploading] = useState(false)
+  const [collections, setCollections] = useState([])
   const [pendingPayouts, setPendingPayouts]      = useState(0)
   const [pendingApplications, setPendingApplications] = useState(0)
   const [pendingProductRequests, setPendingProductRequests] = useState(0)
@@ -50,6 +52,15 @@ export default function AdminPage() {
   }
 
   useEffect(() => { load() }, []) // eslint-disable-line
+
+  // Колекциите от Shopify — нужни само за създаване на нов промо код
+  useEffect(() => {
+    if (tab !== 'form' || editId || collections.length) return
+    fetch('/api/admin/collections')
+      .then(r => r.ok ? r.json() : { collections: [] })
+      .then(d => setCollections(d.collections || []))
+      .catch(() => {})
+  }, [tab, editId, collections.length])
 
   // Pending payouts + applications count за badges
   useEffect(() => {
@@ -181,6 +192,7 @@ export default function AdminPage() {
       share_link_target: inf.share_link_target || '',
       contract_url: inf.contract_url || '',
       contract_filename: inf.contract_filename || '',
+      customer_discount: '', collection_id: '',
     })
     setTab('form')
     setMsg({})
@@ -737,6 +749,43 @@ export default function AdminPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Създаване на кода в Shopify — само при нов инфлуенсър.
+                  Празна отстъпка = кодът вече съществува и не се пипа. */}
+              {!editId && form.promo_code && (
+                <div style={{
+                  border: '1px solid var(--border)', borderRadius: 10,
+                  padding: 12, background: 'var(--bg)',
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+                    🏷 Създаване на кода в Shopify
+                  </div>
+                  <div className="grid-2">
+                    <div>
+                      <label style={labelStyle}>Отстъпка за клиента (%)</label>
+                      <input
+                        type="number" min="0" max="100" step="1"
+                        value={form.customer_discount}
+                        onChange={e => setField('customer_discount', e.target.value)}
+                        placeholder="напр. 15"
+                      />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Колекция (по избор)</label>
+                      <select value={form.collection_id} onChange={e => setField('collection_id', e.target.value)}>
+                        <option value="">— Всички продукти —</option>
+                        {collections.map(c => (
+                          <option key={c.id} value={c.id}>{c.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
+                    Попълниш ли отстъпка, порталът създава кода <strong>{form.promo_code}</strong> в
+                    Shopify. Остави я празна, ако кодът вече съществува там.
+                  </p>
+                </div>
+              )}
               <div className="grid-2">
                 <div>
                   <label style={labelStyle}>Комисионна (%)</label>
