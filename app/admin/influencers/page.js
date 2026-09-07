@@ -827,7 +827,7 @@ export default function AdminPage() {
 
               {/* Създаване на кода в Shopify — само при нов инфлуенсър.
                   Празна отстъпка = кодът вече съществува и не се пипа. */}
-              {!editId && form.promo_code && (
+              {!editId && (
                 <div style={{
                   border: '1px solid var(--border)', borderRadius: 10,
                   padding: 12, background: 'var(--bg)',
@@ -843,11 +843,12 @@ export default function AdminPage() {
                         value={form.customer_discount}
                         onChange={e => setField('customer_discount', e.target.value)}
                         placeholder="напр. 15"
+                        disabled={!form.promo_code}
                       />
                     </div>
                     <div>
                       <label style={labelStyle}>Колекция (по избор)</label>
-                      <select value={form.collection_id} onChange={e => setField('collection_id', e.target.value)}>
+                      <select value={form.collection_id} onChange={e => setField('collection_id', e.target.value)} disabled={!form.promo_code}>
                         <option value="">— Всички продукти —</option>
                         {collections.map(c => (
                           <option key={c.id} value={c.id}>{c.title}</option>
@@ -856,8 +857,11 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
-                    Попълниш ли отстъпка, порталът създава кода <strong>{form.promo_code}</strong> в
-                    Shopify. Остави я празна, ако кодът вече съществува там.
+                    {form.promo_code
+                      ? <>Попълниш ли отстъпка, порталът създава кода <strong>{form.promo_code}</strong> в
+                         Shopify. Остави я празна, ако кодът вече съществува там.</>
+                      : <>Първо въведи промокод отгоре. После, ако попълниш и отстъпка,
+                         порталът ще създаде кода в Shopify вместо теб.</>}
                   </p>
                 </div>
               )}
