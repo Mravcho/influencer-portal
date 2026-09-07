@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminShell from '../components/AdminShell'
 
@@ -40,6 +40,11 @@ export default function AdminPage() {
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [contractUploading, setContractUploading] = useState(false)
   const [collections, setCollections] = useState([])
+  // Кои инфлуенсъри имат проблем с промокода в Shopify (липсва / кирилица)
+  const [codeProblems, setCodeProblems] = useState({})
+  const [codeCheckState, setCodeCheckState] = useState('idle') // idle | checking | done | error
+  const [codeModal, setCodeModal] = useState(null)             // { inf, percentage, collection_id }
+  const [creatingCode, setCreatingCode] = useState(false)
   const [pendingPayouts, setPendingPayouts]      = useState(0)
   const [pendingApplications, setPendingApplications] = useState(0)
   const [pendingProductRequests, setPendingProductRequests] = useState(0)
@@ -52,6 +57,23 @@ export default function AdminPage() {
   }
 
   useEffect(() => { load() }, []) // eslint-disable-line
+
+  // Проверка кои промокодове реално съществуват в Shopify. Пуска се сама на
+  // заден план — списъкът се показва веднага, баджовете идват след секунда.
+  const checkCodes = useCallback(async () => {
+    setCodeCheckState('checking')
+    try {
+      const res = await fetch('/api/admin/influencers/codes', { cache: 'no-store' })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || String(res.status))
+      setCodeProblems(d.problems || {})
+      setCodeCheckState('done')
+    } catch {
+      setCodeCheckState('error')
+    }
+  }, [])
+
+  useEffect(() => { checkCodes() }, [checkCodes])
 
   // Колекциите от Shopify — нужни само за създаване на нов промо код
   useEffect(() => {
@@ -84,6 +106,39 @@ export default function AdminPage() {
   }, [])
 
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const createMissingCode = async () => {
+    if (!codeModal || creatingCode) return
+    setCreatingCode(true)
+    try {
+      const res = await fetch('/api/admin/influencers/codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: codeModal.inf.id,
+          percentage: codeModal.percentage,
+          collection_id: codeModal.collection_id || null,
+        }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { setMsg({ type: 'error', text: d.error || `Грешка (${res.status})` }); return }
+      setMsg({ type: 'success', text: `Кодът ${d.code} е създаден в Shopify.` })
+      setCodeModal(null)
+      checkCodes()
+    } finally {
+      setCreatingCode(false)
+    }
+  }
+
+  const openCodeModal = (inf) => {
+    setCodeModal({ inf, percentage: '5', collection_id: '' })
+    if (!collections.length) {
+      fetch('/api/admin/collections')
+        .then(r => r.ok ? r.json() : { collections: [] })
+        .then(d => setCollections(d.collections || []))
+        .catch(() => {})
+    }
+  }
 
   const uploadImage = async (file, kind) => {
     const setter = kind === 'banner' ? setBannerUploading : setAvatarUploading
@@ -627,6 +682,18 @@ export default function AdminPage() {
                             🚫 Извън клас.
                           </span>
                         )}
+                        {/* Промокод в Shopify — липсва или е с не-латински знак */}
+                        {codeProblems[inf.id] && (
+                          <span
+                            className="badge"
+                            title={codeProblems[inf.id].reason === 'non_latin'
+                              ? `Кодът съдържа не-латински знак (${codeProblems[inf.id].badChars}). Shopify никога няма да го намери и поръчките с него не се засичат. Поправи кода в профила.`
+                              : `Кодът ${codeProblems[inf.id].code} не съществува в Shopify — поръчки с него няма да се появят.`}
+                            style={{ background: '#fee2e2', color: '#991b1b', fontSize: 9, whiteSpace: 'nowrap' }}
+                          >
+                            {codeProblems[inf.id].reason === 'non_latin' ? '⚠ Кодът е с кирилица' : '⚠ Няма код в Shopify'}
+                          </span>
+                        )}
                         {/* Общи условия — кога са приети (доказателство при спор) */}
                         {inf.terms_accepted_at ? (
                           <span
@@ -679,6 +746,14 @@ export default function AdminPage() {
                             disabled
                             style={{ ...actionBtnStyle, opacity: 0.4, cursor: 'not-allowed' }}
                           >🔗</button>
+                        )}
+                        {codeProblems[inf.id]?.reason === 'missing' && (
+                          <button
+                            className="btn btn-sm"
+                            onClick={() => openCodeModal(inf)}
+                            title={`Създай кода ${inf.promo_code} в Shopify`}
+                            style={{ ...actionBtnStyle, background: '#fee2e2', color: '#991b1b' }}
+                          >🏷</button>
                         )}
                         <button className="btn btn-sm" onClick={() => router.push(`/admin/messages?to=${inf.id}`)} title="Изпрати съобщение" style={actionBtnStyle}>✉</button>
                         <button className="btn btn-sm" onClick={() => startEdit(inf)} title="Редактиране" style={actionBtnStyle}>✎</button>
@@ -1102,6 +1177,70 @@ export default function AdminPage() {
         )}
       </section>
       </div>
+
+      {/* Обобщение на проблемите с кодовете + модал за създаване */}
+      {Object.keys(codeProblems).length > 0 && (
+        <div style={{
+          position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 40,
+          background: '#fee2e2', borderTop: '1px solid #fca5a5',
+          padding: '10px 16px', fontSize: 13, color: '#991b1b',
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+        }}>
+          <strong>⚠ {Object.keys(codeProblems).length} промокода имат проблем в Shopify.</strong>
+          <span style={{ fontSize: 12 }}>
+            Поръчки с тези кодове няма да се появяват в портала. Виж червените баджове в списъка.
+          </span>
+          <button
+            className="btn btn-sm"
+            onClick={checkCodes}
+            disabled={codeCheckState === 'checking'}
+            style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}
+          >{codeCheckState === 'checking' ? '⟳ Проверявам…' : '🔄 Провери отново'}</button>
+        </div>
+      )}
+
+      {codeModal && (
+        <div
+          role="dialog" aria-modal="true"
+          onClick={e => { if (e.target === e.currentTarget) setCodeModal(null) }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div className="card" style={{ width: '100%', maxWidth: 420 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
+              Създай кода в Shopify
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>
+              {codeModal.inf.name} · <code>{codeModal.inf.promo_code}</code>
+            </p>
+
+            <label style={labelStyle}>Отстъпка за клиента (%)</label>
+            <input
+              type="number" min="0" max="100" step="1" autoFocus
+              value={codeModal.percentage}
+              onChange={e => setCodeModal(m => ({ ...m, percentage: e.target.value }))}
+            />
+
+            <label style={{ ...labelStyle, marginTop: 12 }}>Колекция (по избор)</label>
+            <select
+              value={codeModal.collection_id}
+              onChange={e => setCodeModal(m => ({ ...m, collection_id: e.target.value }))}
+            >
+              <option value="">— Всички продукти —</option>
+              {collections.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+            </select>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+              <button className="btn btn-primary" onClick={createMissingCode} disabled={creatingCode}>
+                {creatingCode ? 'Създаване…' : 'Създай кода'}
+              </button>
+              <button className="btn" onClick={() => setCodeModal(null)} disabled={creatingCode}>Отказ</button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminShell>
   )
 }
