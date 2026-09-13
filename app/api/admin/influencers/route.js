@@ -221,7 +221,8 @@ export async function POST(request) {
 // PATCH /api/admin/influencers → обновяване
 export async function PATCH(request) {
   const body = await request.json()
-  const { id, password, send_password_reset, ...rest } = body
+  // customer_discount / collection_id са само за създаване на промокода в Shopify — не са колони
+  const { id, password, send_password_reset, customer_discount, collection_id, ...rest } = body
 
   if (!id) return NextResponse.json({ error: 'Липсва id' }, { status: 400 })
 
