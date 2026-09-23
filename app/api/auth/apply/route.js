@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendApplicationEmail } from '@/lib/email'
+import { getAdminNotifyEmails } from '@/lib/notify-emails'
 
 // Списък с админи, които получават известия за нови заявки за инфлуенсър.
-// Може да се override-не с env var ADMIN_NOTIFY_EMAILS (запетая-разделени).
-const ADMIN_EMAILS = (process.env.ADMIN_NOTIFY_EMAILS || 'pavel@realfood.bg,simona.z@realfood.bg,order@realfood.bg')
-  .split(/[,;\s]+/).map(s => s.trim()).filter(Boolean)
 const PORTAL_URL  = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
 // POST /api/auth/apply — публичен endpoint за кандидатстване
@@ -60,7 +58,7 @@ export async function POST(request) {
 
   // Уведомяваме admin (fire-and-forget — не блокираме отговора)
   sendApplicationEmail({
-    to:             ADMIN_EMAILS,
+    to:             await getAdminNotifyEmails(),
     adminPortalUrl: PORTAL_URL,
     application:    data,
   }).catch(err => console.error('Application email failed:', err.message))

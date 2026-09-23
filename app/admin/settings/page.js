@@ -6,6 +6,10 @@ import AdminShell from '../components/AdminShell'
 export default function AdminSettings() {
   const router = useRouter()
   const [branding, setBranding] = useState({ logo_url: '', login_bg_url: '', default_banner_url: '', terms_url: '' })
+  // Имейли за админ известия (кандидатури, изплащания, заявки за продукти, чат)
+  const [notifyEmails, setNotifyEmails]     = useState([])
+  const [notifyInfo, setNotifyInfo]         = useState({ supported: true, fallback: [] })
+  const [newEmail, setNewEmail]             = useState('')
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
   const [uploading, setUploading] = useState({ logo: false, bg: false, banner: false, terms: false })
@@ -24,6 +28,10 @@ export default function AdminSettings() {
           default_banner_url: d.default_banner_url || '',
           terms_url:          d.terms_url          || '',
         })
+        if (d) {
+          setNotifyEmails(d.notify_emails || [])
+          setNotifyInfo({ supported: d.notify_emails_supported !== false, fallback: d.notify_emails_fallback || [] })
+        }
       })
       .finally(() => setLoading(false))
   }, [router])
@@ -65,6 +73,7 @@ export default function AdminSettings() {
         login_bg_url:       branding.login_bg_url || null,
         default_banner_url: branding.default_banner_url || null,
         terms_url:          branding.terms_url || null,
+        ...(notifyInfo.supported ? { notify_emails: notifyEmails } : {}),
       }),
     })
     const data = await res.json()
@@ -73,6 +82,15 @@ export default function AdminSettings() {
     setMsg({ type: 'success', text: 'Настройките са запазени.' })
     setTimeout(() => setMsg({}), 2500)
   }
+
+  const addEmail = () => {
+    const e = newEmail.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setMsg({ type: 'error', text: `Невалиден имейл: ${newEmail}` }); return }
+    if (!notifyEmails.includes(e)) setNotifyEmails([...notifyEmails, e])
+    setNewEmail('')
+    setMsg({})
+  }
+  const removeEmail = (e) => setNotifyEmails(notifyEmails.filter(x => x !== e))
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -246,6 +264,61 @@ export default function AdminSettings() {
           />
           <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
             Препоръчителни размери: 1600×500 px. Макс 5 MB.
+          </p>
+        </div>
+
+        {/* Имейли за известия */}
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Имейли за известия</h2>
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+            До тези адреси се пращат известията за нови кандидатури, заявки за изплащане,
+            заявки за продукти и нови съобщения в чата. Ако списъкът е празен, се ползват
+            адресите от настройките на сървъра{notifyInfo.fallback.length > 0 ? ` (${notifyInfo.fallback.join(', ')})` : ''}.
+          </p>
+
+          {!notifyInfo.supported && (
+            <div className="alert alert-error" style={{ marginBottom: 12 }}>
+              Списъкът още не може да се записва — в базата липсва колоната <code>branding.notify_emails</code>.
+              Пусни в Supabase → SQL Editor:{' '}
+              <code>ALTER TABLE branding ADD COLUMN IF NOT EXISTS notify_emails JSONB;</code>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+            {notifyEmails.length === 0 && (
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Няма добавени адреси — ползват се тези от сървъра.</div>
+            )}
+            {notifyEmails.map(e => (
+              <div key={e} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '8px 12px', background: 'var(--bg)', borderRadius: 8, fontSize: 13,
+              }}>
+                <span style={{ flex: 1, wordBreak: 'break-all' }}>✉️ {e}</span>
+                <button
+                  className="btn btn-sm btn-ghost"
+                  style={{ color: 'var(--danger)' }}
+                  onClick={() => removeEmail(e)}
+                  title="Премахни"
+                  disabled={!notifyInfo.supported}
+                >✕</button>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="email"
+              value={newEmail}
+              onChange={e => setNewEmail(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEmail() } }}
+              placeholder="ime@realfood.bg"
+              disabled={!notifyInfo.supported}
+              style={{ flex: 1 }}
+            />
+            <button className="btn btn-sm" onClick={addEmail} disabled={!notifyInfo.supported || !newEmail.trim()}>＋ Добави</button>
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
+            Не забравяй да натиснеш „Запази настройките“ долу.
           </p>
         </div>
 

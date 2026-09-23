@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendNewChatMessage } from '@/lib/email'
+import { getAdminNotifyEmails } from '@/lib/notify-emails'
 
 export const dynamic = 'force-dynamic'
 
-const ADMIN_EMAILS = (process.env.ADMIN_NOTIFY_EMAILS || 'pavel@realfood.bg,order@realfood.bg')
-  .split(/[,;\s]+/).map(s => s.trim()).filter(Boolean)
 const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
 // GET → съобщенията на логнатия инфлуенсър (маркира админските като прочетени)
@@ -57,8 +56,8 @@ export async function POST(request) {
 
   // Имейл до админа (fire-and-forget)
   supabaseAdmin.from('influencers').select('name').eq('id', influencerId).single()
-    .then(({ data: inf }) => sendNewChatMessage({
-      to: ADMIN_EMAILS,
+    .then(async ({ data: inf }) => sendNewChatMessage({
+      to: await getAdminNotifyEmails(),
       influencerName: inf?.name || 'Инфлуенсър',
       senderRole: 'influencer',
       messagePreview: text,

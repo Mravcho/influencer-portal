@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendProductRequestEmail } from '@/lib/email'
+import { getAdminNotifyEmails } from '@/lib/notify-emails'
 
 export const dynamic = 'force-dynamic'
 
 // Списък с админи, които получават известия за нови заявки за продукт.
-// Може да се override-не с env var ADMIN_NOTIFY_EMAILS (запетая-разделени).
-const ADMIN_EMAILS = (process.env.ADMIN_NOTIFY_EMAILS || 'pavel@realfood.bg,simona.z@realfood.bg,order@realfood.bg')
-  .split(/[,;\s]+/).map(s => s.trim()).filter(Boolean)
 const PORTAL_URL  = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
 // Праг клика за отключване на втори+ безплатен продукт
@@ -273,7 +271,7 @@ export async function POST(request) {
 
   if (inf) {
     sendProductRequestEmail({
-      to:              ADMIN_EMAILS,
+      to:              await getAdminNotifyEmails(),
       adminPortalUrl:  PORTAL_URL,
       influencerName:  inf.name,
       promoCode:       inf.promo_code,

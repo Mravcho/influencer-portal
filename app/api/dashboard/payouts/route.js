@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendPayoutRequestEmail } from '@/lib/email'
 import { calcAvailable, MIN_PAYOUT } from '@/lib/payout-balance'
+import { getAdminNotifyEmails } from '@/lib/notify-emails'
 
 export const dynamic = 'force-dynamic'
 
-const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'pavel@realfood.bg'
 const PORTAL_URL  = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfood.bg'
 
 // GET /api/dashboard/payouts — моите заявки + наличен баланс
@@ -79,7 +79,7 @@ export async function POST(request) {
       .single()
     if (inf) {
       await sendPayoutRequestEmail({
-        to:             ADMIN_EMAIL,
+        to:             await getAdminNotifyEmails(),
         adminPortalUrl: PORTAL_URL,
         influencerName: inf.name,
         promoCode:      inf.promo_code,
