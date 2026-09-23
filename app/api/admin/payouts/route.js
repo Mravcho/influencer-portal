@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { createExpenseFromInvoiceUrl } from '@/lib/erp'
+import { calcAvailable } from '@/lib/payout-balance'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,23 +71,72 @@ export async function PATCH(request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // При одобрение/плащане → автоматично качваме фактурата като разход в ERP.
-  // Прави се веднъж (ако erp_expense_id още липсва) и НЕ блокира одобрението при грешка.
-  let erp = null
-  if (['approved', 'paid'].includes(status) && data.invoice_url && !data.erp_expense_id) {
-    // Налагаме категория „Инфлуенсъри" (иначе AI слага своя, напр. „Реклама")
-    erp = await createExpenseFromInvoiceUrl(data.invoice_url, {
-      category: process.env.EXPENSE_ERP_CATEGORY || 'Инфлуенсъри',
-    })
-    const erpUpdates = {
-      erp_synced_at: new Date().toISOString(),
-      erp_warning:   erp.ok ? (erp.warning || null) : erp.error,
-    }
-    if (erp.ok && erp.id) erpUpdates.erp_expense_id = erp.id
-    const { data: data2 } = await supabaseAdmin
-      .from('payout_requests').update(erpUpdates).eq('id', id).select().single()
-    return NextResponse.json({ ...(data2 || data), erp })
+  return NextResponse.json(await syncErp(data))
+}
+
+// При одобрение/плащане → автоматично качваме фактурата като разход в ERP.
+// Прави се веднъж (ако erp_expense_id още липсва) и НЕ блокира одобрението при грешка.
+async function syncErp(data) {
+  if (!['approved', 'paid'].includes(data.status) || !data.invoice_url || data.erp_expense_id) return data
+  // Налагаме категория „Инфлуенсъри" (иначе AI слага своя, напр. „Реклама")
+  const erp = await createExpenseFromInvoiceUrl(data.invoice_url, {
+    category: process.env.EXPENSE_ERP_CATEGORY || 'Инфлуенсъри',
+  })
+  const erpUpdates = {
+    erp_synced_at: new Date().toISOString(),
+    erp_warning:   erp.ok ? (erp.warning || null) : erp.error,
+  }
+  if (erp.ok && erp.id) erpUpdates.erp_expense_id = erp.id
+  const { data: data2 } = await supabaseAdmin
+    .from('payout_requests').update(erpUpdates).eq('id', data.id).select().single()
+  return { ...(data2 || data), erp }
+}
+
+// POST /api/admin/payouts { influencer_id, amount, invoice_url, invoice_filename?, notes?, admin_notes?, mark_paid? }
+// Админът въвежда заявка от името на инфлуенсър — за фактури, изпратени извън
+// портала. Сумата се резервира от баланса му както при собствена заявка, така че
+// „налично за теглене" остава вярно и плащането е проследимо.
+export async function POST(request) {
+  const body = await request.json()
+  const { influencer_id, amount, invoice_url, invoice_filename, notes, admin_notes, mark_paid } = body
+  const amt = parseFloat(amount)
+
+  if (!influencer_id) return NextResponse.json({ error: 'Липсва инфлуенсър' }, { status: 400 })
+  if (!amt || amt <= 0) return NextResponse.json({ error: 'Невалидна сума' }, { status: 400 })
+  if (!invoice_url) {
+    return NextResponse.json({ error: 'Прикачи фактурата — без финансов документ не се записва изплащане.' }, { status: 400 })
   }
 
-  return NextResponse.json(data)
+  const { data: inf } = await supabaseAdmin
+    .from('influencers').select('id, name').eq('id', influencer_id).maybeSingle()
+  if (!inf) return NextResponse.json({ error: 'Инфлуенсърът не съществува' }, { status: 404 })
+
+  const balance = await calcAvailable(influencer_id)
+  if (amt > balance.available + 0.005) {
+    return NextResponse.json({
+      error: `Сумата надвишава наличния баланс на ${inf.name} (${balance.available.toFixed(2)} €)`,
+    }, { status: 400 })
+  }
+
+  const now = new Date().toISOString()
+  const { data, error } = await supabaseAdmin
+    .from('payout_requests')
+    .insert({
+      influencer_id,
+      amount:              amt,
+      status:              mark_paid ? 'paid' : 'pending',
+      requested_at:        now,
+      processed_at:        mark_paid ? now : null,
+      notes:               notes || null,
+      admin_notes:         admin_notes || 'Въведена от екипа по фактура, изпратена извън портала.',
+      invoice_url,
+      invoice_filename:    invoice_filename || null,
+      invoice_uploaded_at: now,
+    })
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json(await syncErp(data), { status: 201 })
 }

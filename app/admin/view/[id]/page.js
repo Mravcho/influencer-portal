@@ -43,6 +43,9 @@ export default function AdminInfluencerView() {
   const [data, setData]             = useState(null)
   const [loading, setLoading]       = useState(true)
   const [activity, setActivity]     = useState(null)
+  // Заявка за изплащане от името на инфлуенсъра (фактура, получена извън портала)
+  const [payoutModal, setPayoutModal] = useState(null) // { amount, notes, markPaid, file, busy, error, available }
+  const [activityKey, setActivityKey] = useState(0)
   const [activeShortcut, setActiveShortcut] = useState('all')
   const [from, setFrom] = useState('')
   const [to, setTo]     = useState('')
@@ -78,11 +81,58 @@ export default function AdminInfluencerView() {
 
   useEffect(() => {
     if (!id) return
-    fetch(`/api/admin/influencers/${id}/activity`)
+    fetch(`/api/admin/influencers/${id}/activity`, { cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
       .then(setActivity)
       .catch(() => {})
-  }, [id])
+  }, [id, activityKey])
+
+  const openPayoutModal = async () => {
+    setPayoutModal({ amount: '', notes: '', markPaid: false, file: null, busy: false, error: '', available: null })
+    try {
+      const res = await fetch(`/api/dashboard/payouts?viewId=${id}`, { cache: 'no-store' })
+      const d = await res.json()
+      const available = d?.balance?.available ?? 0
+      setPayoutModal(m => m && ({ ...m, available, amount: available > 0 ? available.toFixed(2) : '' }))
+    } catch {
+      setPayoutModal(m => m && ({ ...m, available: 0 }))
+    }
+  }
+
+  const submitPayout = async (e) => {
+    e.preventDefault()
+    const m = payoutModal
+    if (!m || m.busy) return
+    if (!m.file) { setPayoutModal({ ...m, error: 'Прикачи фактурата.' }); return }
+    setPayoutModal({ ...m, busy: true, error: '' })
+    try {
+      const fd = new FormData()
+      fd.append('file', m.file)
+      fd.append('influencer_id', id)
+      const up = await fetch('/api/admin/payouts/upload-invoice', { method: 'POST', body: fd })
+      const upData = await up.json()
+      if (!up.ok) throw new Error(upData.error || 'Грешка при качване на фактурата')
+
+      const res = await fetch('/api/admin/payouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          influencer_id:    id,
+          amount:           m.amount,
+          notes:            m.notes || null,
+          invoice_url:      upData.url,
+          invoice_filename: upData.filename,
+          mark_paid:        m.markPaid,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `Грешка (${res.status})`)
+      setPayoutModal(null)
+      setActivityKey(k => k + 1)
+    } catch (err) {
+      setPayoutModal(mm => mm && ({ ...mm, busy: false, error: err.message }))
+    }
+  }
 
   const applyShortcut = (sc) => {
     setActiveShortcut(sc.key)
@@ -410,7 +460,7 @@ export default function AdminInfluencerView() {
         <ProductRequestsWidget viewId={id} />
 
         {/* Payouts — веднага под главната карта */}
-        <PayoutWidget viewId={id} />
+        <PayoutWidget key={activityKey} viewId={id} />
 
         {/* Date filters */}
         <div className="card" style={{ marginBottom: '1rem', padding: '14px' }}>
@@ -531,14 +581,24 @@ export default function AdminInfluencerView() {
           </div>
         )}
 
-        {/* История на заявките за изплащане */}
-        {activity && activity.payoutHistory && activity.payoutHistory.length > 0 && (
+        {/* История на заявките за изплащане + ръчна заявка от админ */}
+        {activity && (
           <div className="card" style={{ marginBottom: '1rem' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
-              💰 История на заявките за изплащане
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
+                💰 История на заявките за изплащане
+              </div>
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={openPayoutModal}
+                title="Въведи изплащане по фактура, изпратена извън портала — сумата се приспада от баланса му"
+              >＋ Заяви изплащане</button>
             </div>
+            {(!activity.payoutHistory || activity.payoutHistory.length === 0) && (
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Още няма заявки за изплащане.</div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {activity.payoutHistory.map(r => {
+              {(activity.payoutHistory || []).map(r => {
                 const badge = (
                   r.status === 'paid'      ? { bg: '#d1fae5', color: '#065f46', label: 'Платена'  } :
                   r.status === 'approved'  ? { bg: '#dbeafe', color: '#1e40af', label: 'Одобрена' } :
@@ -568,6 +628,84 @@ export default function AdminInfluencerView() {
                 )
               })}
             </div>
+          </div>
+        )}
+
+        {payoutModal && (
+          <div
+            onClick={() => !payoutModal.busy && setPayoutModal(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          >
+            <form
+              onSubmit={submitPayout}
+              onClick={e => e.stopPropagation()}
+              className="card"
+              style={{ width: '100%', maxWidth: 440, display: 'flex', flexDirection: 'column', gap: 12 }}
+            >
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>💰 Заявка за изплащане от името на {influencer?.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                  За фактури, получени извън портала. Сумата се приспада от наличния му баланс, както при собствена заявка.
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '8px 12px', fontSize: 13 }}>
+                Налично за теглене:{' '}
+                <strong>{payoutModal.available == null ? '…' : fmtEur(payoutModal.available)}</strong>
+              </div>
+
+              <label style={{ fontSize: 12, fontWeight: 600 }}>
+                Сума (€) *
+                <input
+                  type="number" min="0.01" step="0.01" required
+                  value={payoutModal.amount}
+                  onChange={e => setPayoutModal({ ...payoutModal, amount: e.target.value })}
+                  style={{ width: '100%', marginTop: 4 }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, fontWeight: 600 }}>
+                Фактура (PDF, JPG, PNG — макс 15 MB) *
+                <input
+                  type="file" accept=".pdf,image/jpeg,image/png,image/webp" required
+                  onChange={e => setPayoutModal({ ...payoutModal, file: e.target.files?.[0] || null })}
+                  style={{ width: '100%', marginTop: 4 }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, fontWeight: 600 }}>
+                Бележка (по избор)
+                <input
+                  value={payoutModal.notes}
+                  onChange={e => setPayoutModal({ ...payoutModal, notes: e.target.value })}
+                  placeholder="напр. фактура №123 от 15.09, получена по мейл"
+                  style={{ width: '100%', marginTop: 4 }}
+                />
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  style={{ width: 'auto', margin: 0 }}
+                  checked={payoutModal.markPaid}
+                  onChange={e => setPayoutModal({ ...payoutModal, markPaid: e.target.checked })}
+                />
+                Вече е платена — маркирай директно като „Платена“ (качва разхода в ERP)
+              </label>
+
+              {payoutModal.error && (
+                <div style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 8, padding: '8px 12px', fontSize: 13 }}>
+                  {payoutModal.error}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button type="button" className="btn btn-sm" onClick={() => setPayoutModal(null)} disabled={payoutModal.busy}>Отказ</button>
+                <button type="submit" className="btn btn-sm btn-primary" disabled={payoutModal.busy}>
+                  {payoutModal.busy ? 'Записване…' : payoutModal.markPaid ? '✓ Запиши като платена' : '✓ Създай заявка'}
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
