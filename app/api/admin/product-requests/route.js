@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { productPaymentSupported } from '@/lib/product-payment'
 import { createOrder, fetchVariantComponents } from '@/lib/shopify'
 
 export const dynamic = 'force-dynamic'
@@ -67,6 +68,7 @@ async function buildProductLineItems({ variantId, quantity, unitPrice, baseTitle
 // ?count=pending → връща само { count } за badge
 // ?status=all → връща всичко
 export async function GET(request) {
+  const PM = (await productPaymentSupported()) ? ' payment_method,' : ''
   const { searchParams } = new URL(request.url)
   const count  = searchParams.get('count')
   const status = searchParams.get('status') // 'all' | undefined
@@ -82,7 +84,7 @@ export async function GET(request) {
   let query = supabaseAdmin
     .from('product_requests')
     .select(`
-      id, quantity, free_quantity, paid_quantity, paid_total,
+      id, quantity, free_quantity, paid_quantity, paid_total,${PM}
       shopify_draft_order_id, status, requested_at, fulfilled_at, notes,
       shipping_method, shipping_recipient, shipping_phone, shipping_location,
       influencer:influencers(id, name, username, promo_code, email),
@@ -104,6 +106,7 @@ export async function GET(request) {
 // cancel  → status = cancelled (освобождава cooldown-а, ако трябва)
 // fulfilled → status = fulfilled, fulfilled_at = now
 export async function PATCH(request) {
+  const PM = (await productPaymentSupported()) ? ' payment_method,' : ''
   const { id, action, notes } = await request.json()
   if (!id || !action) return NextResponse.json({ error: 'Липсват полета' }, { status: 400 })
 
@@ -111,7 +114,7 @@ export async function PATCH(request) {
   const { data: req, error: reqErr } = await supabaseAdmin
     .from('product_requests')
     .select(`
-      id, quantity, free_quantity, paid_quantity, paid_total, status,
+      id, quantity, free_quantity, paid_quantity, paid_total,${PM} status,
       shopify_draft_order_id,
       shipping_method, shipping_recipient, shipping_phone, shipping_location,
       influencer:influencers(id, name, email, promo_code),
@@ -188,6 +191,9 @@ export async function PATCH(request) {
         `Продукт: ${req.product.name}`,
         `Безплатно: ${req.free_quantity} бр., платено: ${req.paid_quantity} бр.`,
         `Сума за плащане: ${Number(req.paid_total).toFixed(2)} €`,
+        ...(req.payment_method === 'commission' && Number(req.paid_total) > 0
+          ? [`💳 ПЛАТЕНО ОТ КОМИСИОННАТА НА ИНФЛУЕНСЪРА — НЕ СЕ СЪБИРА НАЛОЖЕН ПЛАТЕЖ`]
+          : []),
         '',
         '— ДОСТАВКА —',
         `Начин: ${methodLabel}`,
@@ -211,6 +217,7 @@ export async function PATCH(request) {
         customer,
         tags: [
           'influencer-request',
+          ...(req.payment_method === 'commission' && Number(req.paid_total) > 0 ? ['paid-from-commission'] : []),
           req.influencer.promo_code,
           `shipping-${req.shipping_method || 'unknown'}`,
         ].filter(Boolean),
@@ -254,6 +261,7 @@ export async function PATCH(request) {
 //   extras:         [{ variantId, quantity, price, name }] // доп. продукти (price по подразб. 0)
 // }
 export async function POST(request) {
+  const PM = (await productPaymentSupported()) ? ' payment_method,' : ''
   const body = await request.json()
   const ids = Array.isArray(body.ids) ? [...new Set(body.ids.filter(Boolean))] : []
   const overrides = body.overrides || {}
@@ -266,7 +274,7 @@ export async function POST(request) {
   const { data: reqs, error: reqErr } = await supabaseAdmin
     .from('product_requests')
     .select(`
-      id, quantity, free_quantity, paid_quantity, paid_total, status,
+      id, quantity, free_quantity, paid_quantity, paid_total,${PM} status,
       shipping_method, shipping_recipient, shipping_phone, shipping_location,
       influencer:influencers(id, name, email, promo_code),
       product:request_products(id, name, shopify_product_id, shopify_variant_id, price, paid_discount_pct)
@@ -357,6 +365,11 @@ export async function POST(request) {
     return NextResponse.json({ error: `Shopify Order error: ${err.message}` }, { status: 502 })
   }
 
+  // Колко от сумата е платено от комисионната (paid_total вече е с override-натата цена)
+  const fromCommission = reqs
+    .filter(r => r.payment_method === 'commission')
+    .reduce((sum, r) => sum + (updatedTotals[r.id] || 0), 0)
+
   // Доставка — от избраната заявка (по подразбиране първата от списъка)
   const shipReq = reqs.find(r => r.id === body.shippingFromId) || reqs[0]
   const { methodLabel, firstName, lastName, shippingAddress } = buildShipping(shipReq, influencer.name)
@@ -370,7 +383,9 @@ export async function POST(request) {
       'Продукти:',
       ...productLines,
       ...(extraLines.length ? ['Допълнително (мърч):', ...extraLines] : []),
-      `Обща сума за плащане: ${combinedPaid.toFixed(2)} €`,
+      `Обща сума: ${combinedPaid.toFixed(2)} €`,
+      ...(fromCommission > 0 ? [`💳 От тях платени от комисионната на инфлуенсъра: ${fromCommission.toFixed(2)} €`] : []),
+      `ЗА СЪБИРАНЕ (наложен платеж): ${(combinedPaid - fromCommission).toFixed(2)} €`,
       '',
       '— ДОСТАВКА —',
       `Начин: ${methodLabel}`,
@@ -386,6 +401,7 @@ export async function POST(request) {
       tags: [
         'influencer-request',
         ...(isMerged ? ['merged'] : []),
+        ...(fromCommission > 0 ? ['paid-from-commission'] : []),
         ...(extraLines.length ? ['merch-added'] : []),
         influencer.promo_code,
         `shipping-${shipReq.shipping_method || 'unknown'}`,

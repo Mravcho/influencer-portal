@@ -270,6 +270,11 @@ export default function ProductRequestsPage() {
                       </span>
                       <span>{r.paid_quantity} бр. · {Number(r.paid_total).toFixed(2)} €</span>
                     </div>
+                    {r.payment_method === 'commission' && Number(r.paid_total) > 0 && (
+                      <div style={{ marginTop: 4, padding: '4px 8px', borderRadius: 6, background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 700 }}>
+                        💳 Платено от комисионната — без наложен платеж
+                      </div>
+                    )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
                       <span style={{ color: 'var(--muted)' }}>Заявено</span>
                       <span>{format(new Date(r.requested_at), 'd MMM yyyy HH:mm', { locale: bg })}</span>

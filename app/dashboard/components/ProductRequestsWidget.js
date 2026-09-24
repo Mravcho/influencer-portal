@@ -15,6 +15,8 @@ export default function ProductRequestsWidget({ viewId } = {}) {
   const [submitting, setSubmitting]             = useState(false)
   const [msg, setMsg]                           = useState({ type: '', text: '' })
   const [canRequest, setCanRequest]             = useState(true)
+  // Плащане с изкараната комисионна: { supported, available }
+  const [commissionPay, setCommissionPay]       = useState({ supported: false, available: 0 })
 
   const load = async () => {
     setLoading(true)
@@ -24,6 +26,7 @@ export default function ProductRequestsWidget({ viewId } = {}) {
       setCanRequest(data.can_request !== false)
       setProducts(data.products || [])
       setFreeGate(data.free_gate || null)
+      setCommissionPay(data.commission_payment || { supported: false, available: 0 })
       setShippingDefaults({ ...EMPTY_SHIPPING, ...(data.shipping_defaults || {}) })
       if (data.free_locked_until) {
         setFreeLocked({
@@ -40,13 +43,13 @@ export default function ProductRequestsWidget({ viewId } = {}) {
   useEffect(() => { load() }, [])
 
   const openRequest = (product) => {
-    setSelected({ product, qty: 1, shipping: { ...shippingDefaults } })
+    setSelected({ product, qty: 1, shipping: { ...shippingDefaults }, payment: 'self' })
     setMsg({})
   }
 
   const closeRequest = () => setSelected(null)
 
-  const submit = async () => {
+  const submit = async (paymentMethod = 'self') => {
     if (!selected) return
     setSubmitting(true)
     setMsg({})
@@ -57,6 +60,7 @@ export default function ProductRequestsWidget({ viewId } = {}) {
         product_id: selected.product.id,
         quantity:   selected.qty,
         shipping:   selected.shipping,
+        payment_method: paymentMethod,
       }),
     })
     const data = await res.json()
@@ -161,6 +165,9 @@ export default function ProductRequestsWidget({ viewId } = {}) {
           freeLocked={freeLocked}
           gateBlocked={gateBlocked}
           freeGate={freeGate}
+          payment={selected.payment}
+          setPayment={v => setSelected(s => ({ ...s, payment: v }))}
+          commissionPay={commissionPay}
         />
       )}
     </>
@@ -181,12 +188,15 @@ const LOCATION_PLACEHOLDER = {
   address:       'Пълен адрес: град, кв., улица, №, ап.',
 }
 
-function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, onSubmit, submitting, msg, freeLocked, gateBlocked, freeGate }) {
+function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, onSubmit, submitting, msg, freeLocked, gateBlocked, freeGate, payment, setPayment, commissionPay }) {
   const freeBlocked = !!freeLocked || !!gateBlocked
   const freeQty   = freeBlocked ? 0 : Math.min(qty, product.free_quantity)
   const paidQty   = qty - freeQty
   const unitPaid  = Number(product.price) * (1 - Number(product.paid_discount_pct) / 100)
   const paidTotal = Math.round(paidQty * unitPaid * 100) / 100
+  const enoughCommission = commissionPay?.supported && paidTotal > 0 && commissionPay.available >= paidTotal - 0.005
+  // Ако количеството се увеличи над наличното → връщаме на „плащам сам“
+  const payFromCommission = payment === 'commission' && enoughCommission
   const formValid = shipping.method && shipping.recipient?.trim() && shipping.phone?.trim() && shipping.location?.trim()
 
   return (
@@ -275,6 +285,47 @@ function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, on
           </div>
         </div>
 
+        {/* Начин на плащане — само ако има платена част */}
+        {paidTotal > 0 && commissionPay?.supported && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>
+              Плащане
+            </div>
+            {[
+              {
+                value: 'commission',
+                title: '💳 От изкараната комисионна',
+                sub: enoughCommission
+                  ? `Налични: ${commissionPay.available.toFixed(2)} € → остават ${(commissionPay.available - paidTotal).toFixed(2)} €`
+                  : `Налични: ${commissionPay.available.toFixed(2)} € — не стигат за ${paidTotal.toFixed(2)} €`,
+                disabled: !enoughCommission,
+              },
+              { value: 'self', title: '💵 Плащам сам', sub: `${paidTotal.toFixed(2)} € при получаване`, disabled: false },
+            ].map(opt => {
+              const active = (opt.value === 'commission' ? payFromCommission : !payFromCommission)
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={opt.disabled}
+                  onClick={() => setPayment(opt.value)}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left', marginBottom: 6,
+                    padding: '8px 10px', borderRadius: 8, fontFamily: 'inherit',
+                    cursor: opt.disabled ? 'not-allowed' : 'pointer', opacity: opt.disabled ? 0.55 : 1,
+                    border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                    background: active ? 'var(--accent-lt)' : 'var(--bg)',
+                    color: active ? 'var(--accent-dk)' : 'var(--text)',
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{opt.title}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{opt.sub}</div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         {/* Доставка */}
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>
@@ -337,7 +388,7 @@ function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, on
           </button>
           <button
             className="btn btn-primary"
-            onClick={onSubmit}
+            onClick={() => onSubmit(payFromCommission ? 'commission' : 'self')}
             disabled={submitting || !formValid}
             style={{ flex: 2 }}
           >

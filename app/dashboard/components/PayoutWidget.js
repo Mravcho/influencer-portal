@@ -109,6 +109,9 @@ export default function PayoutWidget({ viewId = null }) {
             {balance.pending > 0 && (
               <div>В процес (чака одобрение/плащане): <strong style={{ color: 'var(--text)' }}>{fmtEur(balance.pending)}</strong></div>
             )}
+            {balance.spentOnProducts > 0 && (
+              <div>Използвано за продукти: <strong style={{ color: 'var(--text)' }}>{fmtEur(balance.spentOnProducts)}</strong></div>
+            )}
             <div>Налично за теглене: <strong style={{ color: 'var(--accent)' }}>{fmtEur(balance.available)}</strong></div>
           </div>
           {/* Месечна активност */}

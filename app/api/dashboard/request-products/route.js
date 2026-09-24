@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendProductRequestEmail } from '@/lib/email'
 import { getAdminNotifyEmails } from '@/lib/notify-emails'
+import { productPaymentSupported } from '@/lib/product-payment'
+import { calcAvailable } from '@/lib/payout-balance'
 
 export const dynamic = 'force-dynamic'
 
@@ -129,6 +131,10 @@ export async function GET(request) {
       click_threshold: gate.threshold,
     },
     products: allProducts,
+    // Може ли платената част да се плати с изкараната комисионна + колко има налично
+    commission_payment: await productPaymentSupported()
+      ? { supported: true, available: (await calcAvailable(influencerId)).available }
+      : { supported: false, available: 0 },
     shipping_defaults: {
       method:    shippingDefaults?.last_shipping_method    || '',
       recipient: shippingDefaults?.last_shipping_recipient || shippingDefaults?.name || '',
@@ -155,7 +161,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Заявките за продукти са изключени за твоя акаунт.' }, { status: 403 })
   }
 
-  const { product_id, quantity, shipping } = await request.json()
+  const { product_id, quantity, shipping, payment_method } = await request.json()
   const qty = parseInt(quantity)
   if (!product_id || !qty || qty < 1) {
     return NextResponse.json({ error: 'Невалидна заявка' }, { status: 400 })
@@ -230,6 +236,17 @@ export async function POST(request) {
   const unitPaid  = Number(product.price) * (1 - Number(product.paid_discount_pct) / 100)
   const paidTotal = Math.round(paidQty * unitPaid * 100) / 100
 
+  // Плащане с изкараната комисионна — само ако има какво да се плаща и балансът стига
+  const payWithCommission = payment_method === 'commission' && paidTotal > 0 && await productPaymentSupported()
+  if (payWithCommission) {
+    const balance = await calcAvailable(influencerId)
+    if (paidTotal > balance.available + 0.005) {
+      return NextResponse.json({
+        error: `Наличната комисионна (${balance.available.toFixed(2)} €) не стига за ${paidTotal.toFixed(2)} €. Избери „Плащам сам“ или намали количеството.`,
+      }, { status: 400 })
+    }
+  }
+
   // Записваме заявката
   const { data, error } = await supabaseAdmin
     .from('product_requests')
@@ -245,6 +262,7 @@ export async function POST(request) {
       shipping_recipient: recipient,
       shipping_phone:     phone,
       shipping_location:  location,
+      ...(await productPaymentSupported() ? { payment_method: payWithCommission ? 'commission' : 'self' } : {}),
     })
     .select()
     .single()
@@ -280,6 +298,7 @@ export async function POST(request) {
       freeQty,
       paidQty,
       paidTotal,
+      paidFromCommission: payWithCommission,
     }).catch(err => console.error('Admin product-request email failed:', err.message))
   }
 
