@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendNewOrderNotification } from '@/lib/email'
 import { fetchProductImages } from '@/lib/shopify'
+import { markDeliveredFromWebhook } from '@/lib/request-deliveries'
 import { normalizeFinancialStatus } from '@/lib/order-flags'
 import { ordersHaveCancelledAt } from '@/lib/order-status'
 import { recordUtmOrder, loadKnownAliases } from '@/lib/utm-orders'
@@ -159,6 +160,14 @@ export async function POST(request) {
       return NextResponse.json({ ok: true, action: 'cancelled', order: order.id })
     }
     // Не я знаем — падаме към нормалния поток, за да я запишем изцяло.
+  }
+
+  // --- Заявка за продукт, която е доставена → затваряме я (поръчките по заявки нямат промокод) ---
+  try {
+    const closed = await markDeliveredFromWebhook(order)
+    if (closed) return NextResponse.json({ ok: true, action: 'request-delivered', requests: closed })
+  } catch (err) {
+    console.error('Request delivery update failed:', err.message)
   }
 
   // Проверяваме дали поръчката има промо код

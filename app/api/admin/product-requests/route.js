@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { productPaymentSupported } from '@/lib/product-payment'
+import { syncRequestDeliveries } from '@/lib/request-deliveries'
 import { createOrder, fetchVariantComponents } from '@/lib/shopify'
 
 export const dynamic = 'force-dynamic'
@@ -81,6 +82,14 @@ export async function GET(request) {
     return NextResponse.json({ count: c || 0 })
   }
 
+  // Преди да покажем списъка — затваряме доставените (Shopify знае статуса на пратката)
+  let shipments = {}
+  try {
+    shipments = (await syncRequestDeliveries()).shipments || {}
+  } catch (err) {
+    console.error('Request deliveries sync failed:', err.message)
+  }
+
   let query = supabaseAdmin
     .from('product_requests')
     .select(`
@@ -98,7 +107,12 @@ export async function GET(request) {
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data || [])
+  // Изпратените получават статуса на пратката от Shopify (товарителница, в движение, …)
+  return NextResponse.json((data || []).map(r =>
+    r.status === 'sent_to_shopify' && r.shopify_draft_order_id
+      ? { ...r, shipment: shipments[String(r.shopify_draft_order_id)] || null }
+      : r
+  ))
 }
 
 // PATCH { id, action: 'approve' | 'cancel' | 'fulfilled' [, notes] }

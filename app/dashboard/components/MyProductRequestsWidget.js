@@ -102,6 +102,14 @@ export default function MyProductRequestsWidget() {
                     ✓ Доставена на {format(new Date(r.fulfilled_at), 'd MMM yyyy', { locale: bg })}
                   </div>
                 )}
+                {r.shipment?.tracking?.number && (
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                    🚚 {r.shipment.status === 'in_transit' ? 'В движение' : 'Изпратена'} · товарителница{' '}
+                    {r.shipment.tracking.url
+                      ? <a href={r.shipment.tracking.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{r.shipment.tracking.number}</a>
+                      : r.shipment.tracking.number}
+                  </div>
+                )}
               </div>
             </div>
           )

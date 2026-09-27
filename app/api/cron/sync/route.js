@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { syncInfluencer } from '@/lib/sync'
+import { syncRequestDeliveries } from '@/lib/request-deliveries'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -28,7 +29,17 @@ async function run(request) {
     results.push(await syncInfluencer(influencer))
   }
 
-  return NextResponse.json({ ok: true, results, ranAt: new Date().toISOString() })
+  // Заявки за продукти: затваряме тези, чиито пратки са доставени
+  let deliveries = null
+  try {
+    const { checked, delivered } = await syncRequestDeliveries()
+    deliveries = { checked, delivered }
+  } catch (err) {
+    console.error('Request deliveries sync failed:', err.message)
+    deliveries = { error: err.message }
+  }
+
+  return NextResponse.json({ ok: true, results, deliveries, ranAt: new Date().toISOString() })
 }
 
 export async function GET(request)  { return run(request) }

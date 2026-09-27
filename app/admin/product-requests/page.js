@@ -5,6 +5,15 @@ import { format } from 'date-fns'
 import { bg } from 'date-fns/locale'
 import AdminShell from '../components/AdminShell'
 
+// Статус на пратката по Shopify fulfillment (след доставка заявката се затваря сама)
+const SHIPMENT_LABEL = {
+  not_shipped: '📦 Още не е изпратена',
+  shipped:     '🚚 Изпратена',
+  in_transit:  '🚚 В движение',
+  delivered:   '✅ Доставена',
+  cancelled:   '❌ Поръчката е анулирана',
+}
+
 const STATUS_LABEL = {
   pending:         'Чакаща',
   sent_to_shopify: 'Изпратена в Shopify',
@@ -281,8 +290,24 @@ export default function ProductRequestsPage() {
                     </div>
                     {r.shopify_draft_order_id && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                        <span style={{ color: 'var(--muted)' }}>Shopify Order ID</span>
-                        <span><code>{r.shopify_draft_order_id}</code></span>
+                        <span style={{ color: 'var(--muted)' }}>Shopify поръчка</span>
+                        <span><code>{r.shipment?.name || r.shopify_draft_order_id}</code></span>
+                      </div>
+                    )}
+                    {r.shipment && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 4 }}>
+                        <span style={{ color: 'var(--muted)' }}>Пратка</span>
+                        <span style={{ textAlign: 'right' }}>
+                          <strong>{SHIPMENT_LABEL[r.shipment.status] || r.shipment.status}</strong>
+                          {r.shipment.tracking?.number && (
+                            <>
+                              {' · '}
+                              {r.shipment.tracking.url
+                                ? <a href={r.shipment.tracking.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{r.shipment.tracking.company ? `${r.shipment.tracking.company} ` : ''}{r.shipment.tracking.number}</a>
+                                : <code>{r.shipment.tracking.number}</code>}
+                            </>
+                          )}
+                        </span>
                       </div>
                     )}
                   </div>
