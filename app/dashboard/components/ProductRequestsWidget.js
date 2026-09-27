@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import OfficePicker, { isOfficeLabel } from './OfficePicker'
 
 const EMPTY_SHIPPING = { method: '', recipient: '', phone: '', location: '' }
 
@@ -175,17 +176,17 @@ export default function ProductRequestsWidget({ viewId } = {}) {
 }
 
 const SHIPPING_OPTIONS = [
-  { value: 'econt_office',  label: '📦 Еконт офис' },
-  { value: 'speedy_office', label: '🚚 Спиди офис' },
+  { value: 'econt_office',  label: '📦 Еконт офис / автомат' },
+  { value: 'speedy_office', label: '🚚 Спиди офис / автомат' },
   { value: 'boxnow',        label: '📮 BoxNow' },
   { value: 'address',       label: '🏠 Адрес' },
 ]
 
 const LOCATION_PLACEHOLDER = {
-  econt_office:  'Град, офис (напр. София, Младост 1, офис 5567)',
-  speedy_office: 'Град, офис (напр. София, офис 87)',
-  boxnow:        'Локация (напр. София, BoxNow Mall of Sofia)',
-  address:       'Пълен адрес: град, кв., улица, №, ап.',
+  econt_office:  'Търси: град, квартал или адрес (напр. София Надежда)',
+  speedy_office: 'Търси: град, квартал или адрес (напр. София Борово)',
+  boxnow:        'Търси: град, квартал или адрес (напр. Пловдив Тракия)',
+  address:       'Град, пощенски код, кв., улица, №, ап. (напр. София 1715, Младост 4, бл. 471)',
 }
 
 function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, onSubmit, submitting, msg, freeLocked, gateBlocked, freeGate, payment, setPayment, commissionPay }) {
@@ -197,7 +198,9 @@ function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, on
   const enoughCommission = commissionPay?.supported && paidTotal > 0 && commissionPay.available >= paidTotal - 0.005
   // Ако количеството се увеличи над наличното → връщаме на „плащам сам“
   const payFromCommission = payment === 'commission' && enoughCommission
-  const formValid = shipping.method && shipping.recipient?.trim() && shipping.phone?.trim() && shipping.location?.trim()
+  // Офисът трябва да е избран от списъка (за да го разпознае middleware-ът)
+  const locationValid = shipping.method === 'address' ? !!shipping.location?.trim() : isOfficeLabel(shipping.location)
+  const formValid = shipping.method && shipping.recipient?.trim() && shipping.phone?.trim() && locationValid
 
   return (
     <div
@@ -338,7 +341,7 @@ function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, on
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => setShipping({ method: opt.value })}
+                onClick={() => setShipping(opt.value === shipping.method ? {} : { method: opt.value, location: '' })}
                 style={{
                   padding: '8px 10px', borderRadius: 8, fontSize: 12,
                   cursor: 'pointer', textAlign: 'left',
@@ -371,15 +374,24 @@ function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, on
           />
 
           <label style={modalLabel}>
-            {shipping.method === 'address' ? 'Адрес *' : 'Офис / локация *'}
+            {shipping.method === 'address' ? 'Адрес *' : 'Офис / автомат *'}
           </label>
-          <input
-            type="text"
-            placeholder={LOCATION_PLACEHOLDER[shipping.method] || 'Първо избери начин на доставка'}
-            value={shipping.location || ''}
-            onChange={e => setShipping({ location: e.target.value })}
-            disabled={!shipping.method}
-          />
+          {shipping.method && shipping.method !== 'address' ? (
+            <OfficePicker
+              method={shipping.method}
+              value={shipping.location || ''}
+              onChange={label => setShipping({ location: label })}
+              placeholder={LOCATION_PLACEHOLDER[shipping.method]}
+            />
+          ) : (
+            <input
+              type="text"
+              placeholder={LOCATION_PLACEHOLDER[shipping.method] || 'Първо избери начин на доставка'}
+              value={shipping.location || ''}
+              onChange={e => setShipping({ location: e.target.value })}
+              disabled={!shipping.method}
+            />
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>

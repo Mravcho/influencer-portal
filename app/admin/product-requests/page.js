@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { bg } from 'date-fns/locale'
 import AdminShell from '../components/AdminShell'
+import OfficePicker from '@/app/dashboard/components/OfficePicker'
 
 // Статус на пратката по Shopify fulfillment (след доставка заявката се затваря сама)
 const SHIPMENT_LABEL = {
@@ -327,6 +328,42 @@ export default function ProductRequestsPage() {
                           : '—'}
                       </div>
                       <div><strong>{r.shipping_method === 'address' ? 'Адрес' : 'Офис'}:</strong> {r.shipping_location || '—'}</div>
+
+                      {/* Разпознат ли е офисът/градът за middleware.bg (само чакащи) */}
+                      {r.mw && r.mw.ok && (
+                        <div style={{ marginTop: 6, color: '#166534', fontWeight: 600 }}>
+                          ✓ Разпознат за middleware{r.mw.city ? `: ${r.mw.city} ${r.mw.zip}` : ''}
+                        </div>
+                      )}
+                      {r.mw && !r.mw.ok && (
+                        <div style={{ marginTop: 8, padding: 8, borderRadius: 6, background: '#fef3c7', color: '#92400e' }}>
+                          <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                            {r.mw.error === 'city_not_found'
+                              ? '⚠ Не разпознах града — поправи адреса преди одобрение'
+                              : '⚠ Офисът не е избран от списъка на куриера — избери го преди одобрение'}
+                          </div>
+                          {r.mw.suggestion && (
+                            <div style={{ marginBottom: 6 }}>
+                              Предложение: <strong>{r.mw.suggestion.name}</strong>{' '}
+                              <button
+                                className="btn btn-sm"
+                                disabled={!!busy[r.id]}
+                                onClick={() => act(r.id, 'set_location', { location: r.mw.suggestion.label })}
+                              >✓ Използвай</button>
+                            </div>
+                          )}
+                          {r.mw.error === 'city_not_found' ? (
+                            <AddressFix r={r} onSave={loc => act(r.id, 'set_location', { location: loc })} busy={!!busy[r.id]} />
+                          ) : (
+                            <OfficePicker
+                              method={r.shipping_method}
+                              value=""
+                              initialQuery={r.shipping_location || ''}
+                              onChange={label => act(r.id, 'set_location', { location: label })}
+                            />
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -598,5 +635,16 @@ export default function ProductRequestsPage() {
         </div>
       )}
     </AdminShell>
+  )
+}
+
+// Поправка на адрес, в който не е разпознат градът
+function AddressFix({ r, onSave, busy }) {
+  const [v, setV] = useState(r.shipping_location || '')
+  return (
+    <div style={{ display: 'flex', gap: 6 }}>
+      <input value={v} onChange={e => setV(e.target.value)} placeholder="Град, пощенски код, улица, №" style={{ flex: 1 }} />
+      <button className="btn btn-sm" disabled={busy || !v.trim()} onClick={() => onSave(v.trim())}>Запази</button>
+    </div>
   )
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { productPaymentSupported } from '@/lib/product-payment'
 import { syncRequestDeliveries } from '@/lib/request-deliveries'
+import { buildMiddlewareShipping, resolveOffice, resolveCity } from '@/lib/courier-offices'
 import { createOrder, fetchVariantComponents } from '@/lib/shopify'
 
 export const dynamic = 'force-dynamic'
@@ -17,27 +18,35 @@ const METHOD_LABELS = {
 // Shopify изисква city за BG поръчки; ако не я подадем — цялото address се
 // отхвърля. Опитваме да я извлечем от shipping_location ("София, офис 87" →
 // "София") или fallback-ваме на "София".
-function buildShipping(req, influencerName) {
+// Адрес за Shopify поръчката във формата на middleware.bg (офис по код от списъка
+// на куриера, град и пощенски код на офиса, бележки _mw_shipping/_mw_address).
+// Връща { ok, error?, methodLabel, firstName, lastName, shippingAddress, noteAttributes }
+async function buildShipping(req, influencerName) {
   const methodLabel = METHOD_LABELS[req.shipping_method] || req.shipping_method || '—'
   const nameParts = (req.shipping_recipient || '').trim().split(/\s+/)
   const firstName = nameParts[0] || influencerName?.split(/\s+/)[0] || 'Получател'
   const lastName  = nameParts.slice(1).join(' ') || '—'
-  const cityGuess = req.shipping_method === 'address'
-    ? 'София'
-    : ((req.shipping_location || '').split(/[,;–-]/)[0].trim() || 'София')
+
+  const mw = await buildMiddlewareShipping(req.shipping_method, req.shipping_location)
+  if (!mw.ok) {
+    return {
+      ok: false,
+      error: mw.error === 'city_not_found'
+        ? `Не разпознах града в адреса „${req.shipping_location}“. Редактирай адреса (град, пощенски код, улица) и опитай пак.`
+        : `Офисът „${req.shipping_location}“ не е избран от списъка на куриера. Избери офиса в заявката и опитай пак.`,
+    }
+  }
   const shippingAddress = {
     first_name:   firstName,
     last_name:    lastName,
     phone:        req.shipping_phone || '',
-    address1:     req.shipping_method === 'address'
-                    ? (req.shipping_location || '')
-                    : `${methodLabel}: ${req.shipping_location || ''}`,
-    city:         cityGuess,
-    zip:          '0000',
+    address1:     mw.address1,
+    city:         mw.city,
+    zip:          mw.zip,
     country:      'Bulgaria',
     country_code: 'BG',
   }
-  return { methodLabel, firstName, lastName, shippingAddress }
+  return { ok: true, methodLabel, firstName, lastName, shippingAddress, noteAttributes: mw.noteAttributes }
 }
 
 // Построява Shopify line items за дадена бройка от продукт.
@@ -107,8 +116,23 @@ export async function GET(request) {
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // Чакащите: разпознат ли е офисът/градът във формата на middleware-а
+  const withMw = await Promise.all((data || []).map(async r => {
+    if (r.status !== 'pending') return r
+    try {
+      if (r.shipping_method === 'address') {
+        const place = await resolveCity(r.shipping_location)
+        return { ...r, mw: place ? { ok: true, city: place.city, zip: place.zip } : { ok: false, error: 'city_not_found' } }
+      }
+      const o = await resolveOffice(r.shipping_method, r.shipping_location)
+      return { ...r, mw: o.ok ? { ok: true, label: o.office.label } : { ok: false, error: 'office_not_selected', suggestion: o.suggestion || null } }
+    } catch {
+      return r
+    }
+  }))
+
   // Изпратените получават статуса на пратката от Shopify (товарителница, в движение, …)
-  return NextResponse.json((data || []).map(r =>
+  return NextResponse.json(withMw.map(r =>
     r.status === 'sent_to_shopify' && r.shopify_draft_order_id
       ? { ...r, shipment: shipments[String(r.shopify_draft_order_id)] || null }
       : r
@@ -121,7 +145,7 @@ export async function GET(request) {
 // fulfilled → status = fulfilled, fulfilled_at = now
 export async function PATCH(request) {
   const PM = (await productPaymentSupported()) ? ' payment_method,' : ''
-  const { id, action, notes } = await request.json()
+  const { id, action, notes, location: body_location } = await request.json()
   if (!id || !action) return NextResponse.json({ error: 'Липсват полета' }, { status: 400 })
 
   // Зареждаме заявката с product + influencer info
@@ -139,6 +163,28 @@ export async function PATCH(request) {
 
   if (reqErr || !req) {
     return NextResponse.json({ error: 'Заявката не съществува' }, { status: 404 })
+  }
+
+  if (action === 'set_location') {
+    if (req.status !== 'pending') {
+      return NextResponse.json({ error: 'Може да се променя само чакаща заявка.' }, { status: 400 })
+    }
+    const location = String(body_location || "").trim()
+    if (!location) return NextResponse.json({ error: 'Липсва офис/адрес.' }, { status: 400 })
+    const mw = await buildMiddlewareShipping(req.shipping_method, location)
+    if (!mw.ok) {
+      return NextResponse.json({
+        error: mw.error === 'city_not_found' ? 'Не разпознах града в адреса.' : 'Избери офис от списъка.',
+      }, { status: 400 })
+    }
+    const { data, error } = await supabaseAdmin
+      .from('product_requests')
+      .update({ shipping_location: location })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(data)
   }
 
   if (action === 'cancel') {
@@ -198,7 +244,9 @@ export async function PATCH(request) {
         }),
       ]
 
-      const { methodLabel, firstName, lastName, shippingAddress } = buildShipping(req, req.influencer.name)
+      const ship = await buildShipping(req, req.influencer.name)
+      if (!ship.ok) return NextResponse.json({ error: ship.error }, { status: 400 })
+      const { methodLabel, firstName, lastName, shippingAddress, noteAttributes } = ship
 
       const noteLines = [
         `Заявка от инфлуенсър: ${req.influencer.name} (${req.influencer.promo_code})`,
@@ -236,6 +284,7 @@ export async function PATCH(request) {
           `shipping-${req.shipping_method || 'unknown'}`,
         ].filter(Boolean),
         shippingAddress,
+        noteAttributes,
       })
     } catch (err) {
       return NextResponse.json({
@@ -386,7 +435,9 @@ export async function POST(request) {
 
   // Доставка — от избраната заявка (по подразбиране първата от списъка)
   const shipReq = reqs.find(r => r.id === body.shippingFromId) || reqs[0]
-  const { methodLabel, firstName, lastName, shippingAddress } = buildShipping(shipReq, influencer.name)
+  const ship = await buildShipping(shipReq, influencer.name)
+  if (!ship.ok) return NextResponse.json({ error: ship.error }, { status: 400 })
+  const { methodLabel, firstName, lastName, shippingAddress, noteAttributes } = ship
 
   let shopifyOrder
   try {
@@ -421,6 +472,7 @@ export async function POST(request) {
         `shipping-${shipReq.shipping_method || 'unknown'}`,
       ].filter(Boolean),
       shippingAddress,
+      noteAttributes,
     })
   } catch (err) {
     return NextResponse.json({ error: `Shopify Order error: ${err.message}` }, { status: 502 })

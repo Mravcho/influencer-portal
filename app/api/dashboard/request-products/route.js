@@ -4,6 +4,7 @@ import { sendProductRequestEmail } from '@/lib/email'
 import { getAdminNotifyEmails } from '@/lib/notify-emails'
 import { productPaymentSupported } from '@/lib/product-payment'
 import { calcAvailable } from '@/lib/payout-balance'
+import { buildMiddlewareShipping } from '@/lib/courier-offices'
 
 export const dynamic = 'force-dynamic'
 
@@ -176,6 +177,23 @@ export async function POST(request) {
   const location  = String(shipping.location  || '').trim()
   if (!recipient || !phone || !location) {
     return NextResponse.json({ error: 'Попълни име, телефон и адрес/офис за доставка' }, { status: 400 })
+  }
+
+  // Офисът трябва да е избран от списъка на куриера (същия като в количката на
+  // магазина), а адресът — с град, който куриерът познава. Така поръчката минава
+  // през middleware-а без ръчни корекции.
+  try {
+    const mw = await buildMiddlewareShipping(shipping.method, location)
+    if (!mw.ok) {
+      return NextResponse.json({
+        error: mw.error === 'city_not_found'
+          ? 'Не разпознах града в адреса. Напиши го така: град, пощенски код, улица, №.'
+          : 'Избери офис/автомат от списъка.',
+      }, { status: 400 })
+    }
+  } catch (err) {
+    // Списъците на middleware-а са недостъпни → приемаме заявката, админът ще потвърди офиса
+    console.error('middleware office check failed:', err.message)
   }
 
   // Зареждаме продукта
