@@ -77,8 +77,11 @@ export default function ProductRequestsPage() {
   }
 
   // Цена/бр. на платените бройки по подразбиране (каталожна цена с отстъпката)
+  // Договорената цена от заявката (включва индивидуалната отстъпка на инфлуенсъра)
   const defaultPaidUnit = (r) =>
-    Number(r.product?.price || 0) * (1 - Number(r.product?.paid_discount_pct || 0) / 100)
+    Number(r.paid_quantity) > 0
+      ? Number(r.paid_total) / Number(r.paid_quantity)
+      : Number(r.product?.price || 0) * (1 - Number(r.product?.paid_discount_pct || 0) / 100)
 
   // Отваря конструктора на поръчка за дадена заявка (одобрение + евентуално обединяване + доп. продукти)
   const openOrder = (base) => {
@@ -276,15 +279,21 @@ export default function ProductRequestsPage() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
                       <span style={{ color: 'var(--muted)' }}>
-                        Платено (с -{r.product?.paid_discount_pct}%)
+                        Платено (с -{agreedPct(r)}%)
                       </span>
                       <span>{r.paid_quantity} бр. · {Number(r.paid_total).toFixed(2)} €</span>
                     </div>
-                    {r.payment_method === 'commission' && Number(r.paid_total) > 0 && (
-                      <div style={{ marginTop: 4, padding: '4px 8px', borderRadius: 6, background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 700 }}>
-                        💳 Платено от комисионната — без наложен платеж
-                      </div>
-                    )}
+                    {r.payment_method === 'commission' && Number(r.paid_total) > 0 && (() => {
+                      const part = r.paid_from_commission != null ? Math.min(Number(r.paid_from_commission), Number(r.paid_total)) : Number(r.paid_total)
+                      const rest = Number(r.paid_total) - part
+                      return (
+                        <div style={{ marginTop: 4, padding: '4px 8px', borderRadius: 6, background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 700 }}>
+                          {rest < 0.005
+                            ? '💳 Платено от комисионната — без наложен платеж'
+                            : `💳 ${part.toFixed(2)} € от комисионната + ${rest.toFixed(2)} € наложен платеж`}
+                        </div>
+                      )
+                    })()}
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
                       <span style={{ color: 'var(--muted)' }}>Заявено</span>
                       <span>{format(new Date(r.requested_at), 'd MMM yyyy HH:mm', { locale: bg })}</span>
@@ -647,4 +656,11 @@ function AddressFix({ r, onSave, busy }) {
       <button className="btn btn-sm" disabled={busy || !v.trim()} onClick={() => onSave(v.trim())}>Запази</button>
     </div>
   )
+}
+
+// Процентът отстъпка, с който е заявено (от договорената цена в заявката)
+function agreedPct(r) {
+  const price = Number(r.product?.price || 0)
+  if (!(price > 0) || !(Number(r.paid_quantity) > 0)) return Number(r.product?.paid_discount_pct || 0)
+  return Math.round((1 - Number(r.paid_total) / Number(r.paid_quantity) / price) * 100)
 }

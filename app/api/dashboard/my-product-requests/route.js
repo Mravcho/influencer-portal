@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { productPaymentSupported } from '@/lib/product-payment'
+import { productPaymentSupported, partialPaymentSupported } from '@/lib/product-payment'
 import { fetchShipments } from '@/lib/request-deliveries'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +13,7 @@ export async function GET(request) {
   const { data, error } = await supabaseAdmin
     .from('product_requests')
     .select(`
-      id, quantity, free_quantity, paid_quantity, paid_total,${await productPaymentSupported() ? ' payment_method,' : ''}
+      id, quantity, free_quantity, paid_quantity, paid_total,${await productPaymentSupported() ? ' payment_method,' : ''}${await partialPaymentSupported() ? ' paid_from_commission,' : ''}
       status, requested_at, fulfilled_at, shopify_draft_order_id,
       shipping_method, shipping_recipient, shipping_phone, shipping_location,
       product:request_products(id, name, image_url, paid_discount_pct)

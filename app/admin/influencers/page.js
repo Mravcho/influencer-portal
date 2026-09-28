@@ -19,6 +19,7 @@ const emptyForm = {
   send_password_reset: false,
   exclude_from_leaderboard: false,
   can_request_products: true,
+  product_discount_pct: '',
   category: 'influencers',
   share_link_target: '',
   contract_url: '', contract_filename: '',
@@ -243,6 +244,7 @@ export default function AdminPage() {
       send_password_reset: false,
       exclude_from_leaderboard: inf.exclude_from_leaderboard === true,
       can_request_products: inf.can_request_products !== false,
+      product_discount_pct: inf.product_discount_pct ?? '',
       category: inf.category || 'influencers',
       share_link_target: inf.share_link_target || '',
       contract_url: inf.contract_url || '',
@@ -1142,6 +1144,20 @@ export default function AdminPage() {
                 </label>
                 <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
                   Ако е изключено — може да заявява продукти само платено, с отстъпката от каталога (без безплатни бройки). Напр. партньори/козметици.
+                </p>
+              </div>
+
+              <div>
+                <label style={labelStyle}>🏷 Отстъпка при заявка на продукти (%)</label>
+                <input
+                  type="number" min="0" max="100" step="1"
+                  value={form.product_discount_pct}
+                  onChange={e => setField('product_discount_pct', e.target.value)}
+                  placeholder="празно = отстъпката от каталога"
+                  style={{ maxWidth: 220 }}
+                />
+                <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                  Важи за платените бройки на всички продукти за този акаунт. Празно → процентът от каталога.
                 </p>
               </div>
 

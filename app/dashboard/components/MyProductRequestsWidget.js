@@ -89,7 +89,7 @@ export default function MyProductRequestsWidget() {
                   {format(new Date(r.requested_at), 'd MMM yyyy', { locale: bg })}
                   {' · '}
                   {r.quantity} бр. ({r.free_quantity} безпл + {r.paid_quantity} плат)
-                  {r.paid_total > 0 && <> · <strong>{Number(r.paid_total).toFixed(2)} €</strong>{r.payment_method === 'commission' && ' (от комисионната)'}</>}
+                  {r.paid_total > 0 && <> · <strong>{Number(r.paid_total).toFixed(2)} €</strong>{r.payment_method === 'commission' && (r.paid_from_commission != null && Number(r.paid_from_commission) < Number(r.paid_total) - 0.005 ? ` (${Number(r.paid_from_commission).toFixed(2)} € от комисионната)` : ' (от комисионната)')}</>}
                 </div>
                 {r.shipping_method && (
                   <div style={{ fontSize: 11, color: 'var(--muted)' }}>

@@ -7,6 +7,7 @@ import { createDiscountCode } from '@/lib/shopify'
 import { sendWelcomeEmail } from '@/lib/email'
 import { orderCommission } from '@/lib/commission'
 import { ensureDefaultLink } from '@/lib/share-links'
+import { productDiscountSupported } from '@/lib/product-payment'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,11 +17,18 @@ const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.realfoo
 // (тегли продуктови снимки + insert-ва в базата). Vercel Pro поддържа до 60.
 export const maxDuration = 60
 
+// Отстъпка в % (0–100) или null, ако полето е празно
+function normPct(v) {
+  if (v === '' || v === null || v === undefined) return null
+  const n = Number(v)
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : null
+}
+
 // GET /api/admin/influencers → списък с всички + stats
 export async function GET() {
   const { data: influencers, error } = await supabaseAdmin
     .from('influencers')
-    .select('id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, can_request_products, category, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes, share_link_target, contract_url, contract_filename, contract_uploaded_at, terms_accepted_at')
+    .select(`id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, can_request_products, category, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes, share_link_target, contract_url, contract_filename, contract_uploaded_at, terms_accepted_at${await productDiscountSupported() ? ', product_discount_pct' : ''}`)
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -103,7 +111,7 @@ export async function POST(request) {
     email, email_notifications, exclude_from_leaderboard,
     can_request_products, category,
     share_link_target, contract_url, contract_filename,
-    customer_discount, collection_id,
+    customer_discount, collection_id, product_discount_pct,
   } = body
 
   // Промо кодът вече е опционален — за инфлуенсъри без commission setup.
@@ -167,6 +175,7 @@ export async function POST(request) {
       contract_url:        contract_url        || null,
       contract_filename:   contract_filename   || null,
       contract_uploaded_at: contract_url ? new Date().toISOString() : null,
+      ...(await productDiscountSupported() ? { product_discount_pct: normPct(product_discount_pct) } : {}),
     })
     .select('id, name, username, promo_code, commission, platform, email, share_link_target')
     .single()
@@ -227,6 +236,11 @@ export async function PATCH(request) {
   if (!id) return NextResponse.json({ error: 'Липсва id' }, { status: 400 })
 
   const updates = { ...rest }
+  // Индивидуална отстъпка за заявки: празно → от каталога; без колоната → не пращаме полето
+  if ('product_discount_pct' in updates) {
+    if (await productDiscountSupported()) updates.product_discount_pct = normPct(updates.product_discount_pct)
+    else delete updates.product_discount_pct
+  }
   if (rest.username) updates.username = rest.username.toLowerCase()
   if (rest.promo_code) updates.promo_code = rest.promo_code.toUpperCase()
   if (typeof rest.email === 'string') updates.email = rest.email ? rest.email.toLowerCase().trim() : null

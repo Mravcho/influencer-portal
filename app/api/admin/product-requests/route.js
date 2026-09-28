@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { productPaymentSupported } from '@/lib/product-payment'
+import { productPaymentSupported, partialPaymentSupported, commissionPart, agreedUnitPrice, agreedDiscountPct } from '@/lib/product-payment'
 import { syncRequestDeliveries } from '@/lib/request-deliveries'
 import { buildMiddlewareShipping, resolveOffice, resolveCity } from '@/lib/courier-offices'
 import { createOrder, fetchVariantComponents } from '@/lib/shopify'
@@ -78,7 +78,7 @@ async function buildProductLineItems({ variantId, quantity, unitPrice, baseTitle
 // ?count=pending → връща само { count } за badge
 // ?status=all → връща всичко
 export async function GET(request) {
-  const PM = (await productPaymentSupported()) ? ' payment_method,' : ''
+  const PM = ((await productPaymentSupported()) ? ' payment_method,' : '') + ((await partialPaymentSupported()) ? ' paid_from_commission,' : '')
   const { searchParams } = new URL(request.url)
   const count  = searchParams.get('count')
   const status = searchParams.get('status') // 'all' | undefined
@@ -144,7 +144,7 @@ export async function GET(request) {
 // cancel  → status = cancelled (освобождава cooldown-а, ако трябва)
 // fulfilled → status = fulfilled, fulfilled_at = now
 export async function PATCH(request) {
-  const PM = (await productPaymentSupported()) ? ' payment_method,' : ''
+  const PM = ((await productPaymentSupported()) ? ' payment_method,' : '') + ((await partialPaymentSupported()) ? ' paid_from_commission,' : '')
   const { id, action, notes, location: body_location } = await request.json()
   if (!id || !action) return NextResponse.json({ error: 'Липсват полета' }, { status: 400 })
 
@@ -223,7 +223,9 @@ export async function PATCH(request) {
     // На реални Orders applied_discount НЕ работи (само на Draft Orders).
     // Затова override-ваме price на всеки ред — 0 за безплатните, дисконтирана цена за платените.
     const unitPrice = Number(req.product.price || 0)
-    const unitPaid  = unitPrice * (1 - Number(req.product.paid_discount_pct || 0) / 100)
+    // Договорената цена от заявката (включва индивидуалната отстъпка на инфлуенсъра)
+    const unitPaid  = agreedUnitPrice(req)
+    const pctLabel  = agreedDiscountPct(req)
 
     let shopifyOrder
     try {
@@ -240,7 +242,7 @@ export async function PATCH(request) {
           quantity:  req.paid_quantity,
           unitPrice: unitPaid,
           baseTitle: req.product.name,
-          suffix:    `(-${req.product.paid_discount_pct}% инфлуенсър)`,
+          suffix:    `(-${pctLabel}% инфлуенсър)`,
         }),
       ]
 
@@ -253,8 +255,11 @@ export async function PATCH(request) {
         `Продукт: ${req.product.name}`,
         `Безплатно: ${req.free_quantity} бр., платено: ${req.paid_quantity} бр.`,
         `Сума за плащане: ${Number(req.paid_total).toFixed(2)} €`,
-        ...(req.payment_method === 'commission' && Number(req.paid_total) > 0
-          ? [`💳 ПЛАТЕНО ОТ КОМИСИОННАТА НА ИНФЛУЕНСЪРА — НЕ СЕ СЪБИРА НАЛОЖЕН ПЛАТЕЖ`]
+        ...(commissionPart(req) > 0
+          ? (commissionPart(req) >= Number(req.paid_total) - 0.005
+              ? [`💳 ПЛАТЕНО ОТ КОМИСИОННАТА НА ИНФЛУЕНСЪРА — НЕ СЕ СЪБИРА НАЛОЖЕН ПЛАТЕЖ`]
+              : [`💳 От комисионната на инфлуенсъра: ${commissionPart(req).toFixed(2)} €`,
+                 `ЗА СЪБИРАНЕ (наложен платеж): ${(Number(req.paid_total) - commissionPart(req)).toFixed(2)} €`])
           : []),
         '',
         '— ДОСТАВКА —',
@@ -279,7 +284,7 @@ export async function PATCH(request) {
         customer,
         tags: [
           'influencer-request',
-          ...(req.payment_method === 'commission' && Number(req.paid_total) > 0 ? ['paid-from-commission'] : []),
+          ...(commissionPart(req) > 0 ? ['paid-from-commission'] : []),
           req.influencer.promo_code,
           `shipping-${req.shipping_method || 'unknown'}`,
         ].filter(Boolean),
@@ -324,7 +329,7 @@ export async function PATCH(request) {
 //   extras:         [{ variantId, quantity, price, name }] // доп. продукти (price по подразб. 0)
 // }
 export async function POST(request) {
-  const PM = (await productPaymentSupported()) ? ' payment_method,' : ''
+  const PM = ((await productPaymentSupported()) ? ' payment_method,' : '') + ((await partialPaymentSupported()) ? ' paid_from_commission,' : '')
   const body = await request.json()
   const ids = Array.isArray(body.ids) ? [...new Set(body.ids.filter(Boolean))] : []
   const overrides = body.overrides || {}
@@ -372,7 +377,7 @@ export async function POST(request) {
   const productLines = []  // за бележката
   for (const r of reqs) {
     const unitPrice   = Number(r.product.price || 0)
-    const defaultPaid = unitPrice * (1 - Number(r.product.paid_discount_pct || 0) / 100)
+    const defaultPaid = agreedUnitPrice(r)
     const ov = overrides[r.id] || {}
     const paidUnit = ov.paidUnitPrice != null && ov.paidUnitPrice !== ''
       ? Math.max(0, Number(ov.paidUnitPrice))
@@ -394,7 +399,7 @@ export async function POST(request) {
         baseTitle: r.product.name,
         suffix:    isFree
           ? '(безплатно — инфлуенсър)'
-          : `(-${r.product.paid_discount_pct}% инфлуенсър)`,
+          : `(-${agreedDiscountPct(r)}% инфлуенсър)`,
       }))
     } catch (err) {
       return NextResponse.json({ error: `Shopify Order error: ${err.message}` }, { status: 502 })
@@ -429,9 +434,13 @@ export async function POST(request) {
   }
 
   // Колко от сумата е платено от комисионната (paid_total вече е с override-натата цена)
-  const fromCommission = reqs
-    .filter(r => r.payment_method === 'commission')
-    .reduce((sum, r) => sum + (updatedTotals[r.id] || 0), 0)
+  // Частта от комисионната на всяка заявка не може да надвиши новата ѝ сума
+  const commissionById = {}
+  for (const r of reqs) {
+    if (r.payment_method !== 'commission') continue
+    commissionById[r.id] = Math.round(Math.min(commissionPart(r), updatedTotals[r.id] || 0) * 100) / 100
+  }
+  const fromCommission = Object.values(commissionById).reduce((a, b) => a + b, 0)
 
   // Доставка — от избраната заявка (по подразбиране първата от списъка)
   const shipReq = reqs.find(r => r.id === body.shippingFromId) || reqs[0]
@@ -479,6 +488,7 @@ export async function POST(request) {
   }
 
   // Всички обединени заявки сочат към една и съща Shopify поръчка
+  const partialOk = await partialPaymentSupported()
   const orderId = String(shopifyOrder?.id || '')
   const results = await Promise.all(reqs.map(r =>
     supabaseAdmin
@@ -487,6 +497,7 @@ export async function POST(request) {
         status:                 'sent_to_shopify',
         shopify_draft_order_id: orderId,
         paid_total:             updatedTotals[r.id],
+        ...(commissionById[r.id] !== undefined && partialOk ? { paid_from_commission: commissionById[r.id] } : {}),
       })
       .eq('id', r.id)
   ))

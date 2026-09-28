@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendProductRequestEmail } from '@/lib/email'
 import { getAdminNotifyEmails } from '@/lib/notify-emails'
-import { productPaymentSupported } from '@/lib/product-payment'
+import { productPaymentSupported, partialPaymentSupported, influencerDiscountPct } from '@/lib/product-payment'
 import { calcAvailable } from '@/lib/payout-balance'
 import { buildMiddlewareShipping } from '@/lib/courier-offices'
 
@@ -80,7 +80,10 @@ export async function GET(request) {
     individualProducts = data || []
   }
 
+  // Индивидуалната отстъпка на инфлуенсъра (ако е зададена) замества тази от каталога
+  const myPct = await influencerDiscountPct(influencerId)
   const allProducts = [...(globalProducts || []), ...individualProducts]
+    .map(p => (myPct === null ? p : { ...p, paid_discount_pct: myPct }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
   // Глобален free lockout: най-скорошната заявка с free_quantity > 0 заключва безплатното
@@ -134,7 +137,7 @@ export async function GET(request) {
     products: allProducts,
     // Може ли платената част да се плати с изкараната комисионна + колко има налично
     commission_payment: await productPaymentSupported()
-      ? { supported: true, available: (await calcAvailable(influencerId)).available }
+      ? { supported: true, partial: await partialPaymentSupported(), available: (await calcAvailable(influencerId)).available }
       : { supported: false, available: 0 },
     shipping_defaults: {
       method:    shippingDefaults?.last_shipping_method    || '',
@@ -249,18 +252,26 @@ export async function POST(request) {
   // Изчисляваме безплатно / платено
   const freeQty   = freeAllowed ? Math.min(qty, product.free_quantity) : 0
   const paidQty   = qty - freeQty
-  const unitPaid  = Number(product.price) * (1 - Number(product.paid_discount_pct) / 100)
+  const myPct     = await influencerDiscountPct(influencerId)
+  const discount  = myPct === null ? Number(product.paid_discount_pct) : myPct
+  const unitPaid  = Number(product.price) * (1 - discount / 100)
   const paidTotal = Math.round(paidQty * unitPaid * 100) / 100
 
-  // Плащане с изкараната комисионна — само ако има какво да се плаща и балансът стига
-  const payWithCommission = payment_method === 'commission' && paidTotal > 0 && await productPaymentSupported()
+  // Плащане с изкараната комисионна. Ако не стига — взимаме наличното, а остатъкът
+  // се плаща при получаване (наложен платеж).
+  let payWithCommission = payment_method === 'commission' && paidTotal > 0 && await productPaymentSupported()
+  let fromCommission = 0
   if (payWithCommission) {
-    const balance = await calcAvailable(influencerId)
-    if (paidTotal > balance.available + 0.005) {
+    const available = Math.max(0, (await calcAvailable(influencerId)).available)
+    const partial = await partialPaymentSupported()
+    if (available <= 0.005) {
+      payWithCommission = false
+    } else if (paidTotal > available + 0.005 && !partial) {
       return NextResponse.json({
-        error: `Наличната комисионна (${balance.available.toFixed(2)} €) не стига за ${paidTotal.toFixed(2)} €. Избери „Плащам сам“ или намали количеството.`,
+        error: `Наличната комисионна (${available.toFixed(2)} €) не стига за ${paidTotal.toFixed(2)} €. Избери „Плащам сам“ или намали количеството.`,
       }, { status: 400 })
     }
+    fromCommission = payWithCommission ? Math.round(Math.min(available, paidTotal) * 100) / 100 : 0
   }
 
   // Записваме заявката
@@ -279,6 +290,7 @@ export async function POST(request) {
       shipping_phone:     phone,
       shipping_location:  location,
       ...(await productPaymentSupported() ? { payment_method: payWithCommission ? 'commission' : 'self' } : {}),
+      ...(payWithCommission && await partialPaymentSupported() ? { paid_from_commission: fromCommission } : {}),
     })
     .select()
     .single()
@@ -315,6 +327,7 @@ export async function POST(request) {
       paidQty,
       paidTotal,
       paidFromCommission: payWithCommission,
+      fromCommission,
     }).catch(err => console.error('Admin product-request email failed:', err.message))
   }
 

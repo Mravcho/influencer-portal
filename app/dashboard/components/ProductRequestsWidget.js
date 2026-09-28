@@ -211,9 +211,13 @@ function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, on
   const paidQty   = qty - freeQty
   const unitPaid  = Number(product.price) * (1 - Number(product.paid_discount_pct) / 100)
   const paidTotal = Math.round(paidQty * unitPaid * 100) / 100
-  const enoughCommission = commissionPay?.supported && paidTotal > 0 && commissionPay.available >= paidTotal - 0.005
-  // Ако количеството се увеличи над наличното → връщаме на „плащам сам“
-  const payFromCommission = payment === 'commission' && enoughCommission
+  // Комисионната покрива колкото има; остатъкът се плаща при получаване
+  const available        = Math.max(0, Number(commissionPay?.available) || 0)
+  const canUseCommission = commissionPay?.supported && paidTotal > 0 && available > 0.005
+    && (commissionPay.partial || available >= paidTotal - 0.005)
+  const fromCommission   = Math.min(available, paidTotal)
+  const toPayOnDelivery  = Math.max(0, paidTotal - fromCommission)
+  const payFromCommission = payment === 'commission' && canUseCommission
   // Офисът трябва да е избран от списъка (за да го разпознае middleware-ът)
   const locationValid = shipping.method === 'address' ? !!shipping.location?.trim() : isOfficeLabel(shipping.location)
   const formValid = shipping.method && shipping.recipient?.trim() && shipping.phone?.trim() && locationValid
@@ -316,10 +320,12 @@ function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, on
               {
                 value: 'commission',
                 title: '💳 От изкараната комисионна',
-                sub: enoughCommission
-                  ? `Налични: ${commissionPay.available.toFixed(2)} € → остават ${(commissionPay.available - paidTotal).toFixed(2)} €`
-                  : `Налични: ${commissionPay.available.toFixed(2)} € — не стигат за ${paidTotal.toFixed(2)} €`,
-                disabled: !enoughCommission,
+                sub: !canUseCommission
+                  ? (available > 0.005 ? `Налични: ${available.toFixed(2)} € — не стигат за ${paidTotal.toFixed(2)} €` : 'Нямаш налична комисионна')
+                  : toPayOnDelivery < 0.005
+                    ? `Налични: ${available.toFixed(2)} € → остават ${(available - paidTotal).toFixed(2)} €`
+                    : `${fromCommission.toFixed(2)} € от комисионната + ${toPayOnDelivery.toFixed(2)} € при получаване`,
+                disabled: !canUseCommission,
               },
               { value: 'self', title: '💵 Плащам сам', sub: `${paidTotal.toFixed(2)} € при получаване`, disabled: false },
             ].map(opt => {
