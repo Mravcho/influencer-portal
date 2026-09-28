@@ -1138,10 +1138,10 @@ export default function AdminPage() {
                     onChange={e => setField('can_request_products', e.target.checked)}
                     style={{ width: 'auto', cursor: 'pointer' }}
                   />
-                  🎁 Може да заявява продукти
+                  🎁 Безплатни продукти
                 </label>
                 <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-                  Ако е изключено — този акаунт няма да вижда/може да заявява продукти (напр. партньори/козметици без тази екстра).
+                  Ако е изключено — може да заявява продукти само платено, с отстъпката от каталога (без безплатни бройки). Напр. партньори/козметици.
                 </p>
               </div>
 

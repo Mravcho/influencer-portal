@@ -50,12 +50,11 @@ export async function GET(request) {
   if (userRole === 'admin' && viewId) influencerId = viewId
   if (!influencerId) return NextResponse.json({ error: 'Не сте логнат' }, { status: 401 })
 
-  // Може ли този акаунт да заявява продукти? (админ toggle)
+  // Админ toggle „Безплатни продукти“: изключен → заявява само платено, с отстъпката
+  // от каталога (напр. козметици/партньори). Заявките като такива остават достъпни.
   const { data: me } = await supabaseAdmin
     .from('influencers').select('can_request_products').eq('id', influencerId).single()
-  if (me?.can_request_products === false) {
-    return NextResponse.json({ can_request: false, products: [] })
-  }
+  const freeDisabled = me?.can_request_products === false
 
   // 1) Глобални активни продукти
   const { data: globalProducts } = await supabaseAdmin
@@ -121,7 +120,8 @@ export async function GET(request) {
 
   return NextResponse.json({
     can_request:            true,
-    free_locked_until:      freeLockedUntil,
+    free_disabled:          freeDisabled,
+    free_locked_until:      freeDisabled ? null : freeLockedUntil,
     free_days_remaining:    freeLockedDays,
     free_locked_from_name:  freeLockedFromName,
     free_gate: {
@@ -155,12 +155,10 @@ export async function POST(request) {
   if (userRole === 'admin' && viewId) influencerId = viewId
   if (!influencerId) return NextResponse.json({ error: 'Не сте логнат' }, { status: 401 })
 
-  // Админ toggle: този акаунт има ли право да заявява продукти
+  // Админ toggle „Безплатни продукти“: изключен → само платено, с отстъпка
   const { data: me } = await supabaseAdmin
     .from('influencers').select('can_request_products').eq('id', influencerId).single()
-  if (me?.can_request_products === false) {
-    return NextResponse.json({ error: 'Заявките за продукти са изключени за твоя акаунт.' }, { status: 403 })
-  }
+  const freeDisabled = me?.can_request_products === false
 
   const { product_id, quantity, shipping, payment_method } = await request.json()
   const qty = parseInt(quantity)
@@ -223,8 +221,8 @@ export async function POST(request) {
   // Глобален free lockout: ако последната заявка с free_quantity > 0 е още в интервал
   // → безплатното за този инфлуенсър е заключено за ВСИЧКИ продукти.
   // Платените (с -X%) се позволяват винаги — само свеждаме free_quantity до 0.
-  let freeAllowed = true
-  if (product.free_quantity > 0) {
+  let freeAllowed = !freeDisabled
+  if (freeAllowed && product.free_quantity > 0) {
     const { data: lastFreeReq } = await supabaseAdmin
       .from('product_requests')
       .select('requested_at, request_product:request_products(request_interval_days)')

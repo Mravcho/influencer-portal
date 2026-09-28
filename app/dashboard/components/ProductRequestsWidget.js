@@ -16,6 +16,8 @@ export default function ProductRequestsWidget({ viewId } = {}) {
   const [submitting, setSubmitting]             = useState(false)
   const [msg, setMsg]                           = useState({ type: '', text: '' })
   const [canRequest, setCanRequest]             = useState(true)
+  // Акаунт без безплатни продукти (админ toggle) — заявява само с отстъпка
+  const [freeDisabled, setFreeDisabled]         = useState(false)
   // Плащане с изкараната комисионна: { supported, available }
   const [commissionPay, setCommissionPay]       = useState({ supported: false, available: 0 })
 
@@ -25,6 +27,7 @@ export default function ProductRequestsWidget({ viewId } = {}) {
     if (res.ok) {
       const data = await res.json()
       setCanRequest(data.can_request !== false)
+      setFreeDisabled(!!data.free_disabled)
       setProducts(data.products || [])
       setFreeGate(data.free_gate || null)
       setCommissionPay(data.commission_payment || { supported: false, available: 0 })
@@ -76,7 +79,7 @@ export default function ProductRequestsWidget({ viewId } = {}) {
   if (!canRequest) return null
 
   // Втори+ безплатен продукт е заключен, докато няма поръчка или достатъчно клика
-  const gateBlocked = !!(freeGate && !freeGate.eligible)
+  const gateBlocked = !freeDisabled && !!(freeGate && !freeGate.eligible)
 
   return (
     <>
@@ -84,6 +87,16 @@ export default function ProductRequestsWidget({ viewId } = {}) {
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
           🎁 Заяви продукт
         </div>
+
+        {/* Акаунт без безплатни продукти */}
+        {freeDisabled && (
+          <div style={{
+            background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10,
+            padding: '10px 14px', marginBottom: 14, fontSize: 13, color: 'var(--muted)',
+          }}>
+            🏷 Може да поръчаш продуктите с отстъпка от каталожната цена.
+          </div>
+        )}
 
         {/* Глобален free lockout банер */}
         {freeLocked && (
@@ -135,14 +148,16 @@ export default function ProductRequestsWidget({ viewId } = {}) {
               )}
               <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>{p.name}</div>
               <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                {p.free_quantity > 0 && !freeLocked && !gateBlocked && (
+                {p.free_quantity > 0 && !freeLocked && !gateBlocked && !freeDisabled && (
                   <>{p.free_quantity} бр. безпл. · </>
                 )}
-                над безпл.: -{p.paid_discount_pct}%
+                {freeDisabled ? <>Отстъпка: -{p.paid_discount_pct}%</> : <>над безпл.: -{p.paid_discount_pct}%</>}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                Заключва безпл. за {p.request_interval_days}д
-              </div>
+              {!freeDisabled && (
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                  Заключва безпл. за {p.request_interval_days}д
+                </div>
+              )}
               <button className="btn btn-sm btn-primary" onClick={() => openRequest(p)}>
                 Заяви
               </button>
@@ -165,6 +180,7 @@ export default function ProductRequestsWidget({ viewId } = {}) {
           msg={msg}
           freeLocked={freeLocked}
           gateBlocked={gateBlocked}
+          freeDisabled={freeDisabled}
           freeGate={freeGate}
           payment={selected.payment}
           setPayment={v => setSelected(s => ({ ...s, payment: v }))}
@@ -189,8 +205,8 @@ const LOCATION_PLACEHOLDER = {
   address:       'Град, пощенски код, кв., улица, №, ап. (напр. София 1715, Младост 4, бл. 471)',
 }
 
-function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, onSubmit, submitting, msg, freeLocked, gateBlocked, freeGate, payment, setPayment, commissionPay }) {
-  const freeBlocked = !!freeLocked || !!gateBlocked
+function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, onSubmit, submitting, msg, freeLocked, gateBlocked, freeDisabled, freeGate, payment, setPayment, commissionPay }) {
+  const freeBlocked = !!freeLocked || !!gateBlocked || !!freeDisabled
   const freeQty   = freeBlocked ? 0 : Math.min(qty, product.free_quantity)
   const paidQty   = qty - freeQty
   const unitPaid  = Number(product.price) * (1 - Number(product.paid_discount_pct) / 100)
@@ -254,24 +270,26 @@ function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, on
         <div style={{
           background: 'var(--bg)', padding: 12, borderRadius: 10, marginBottom: 14, fontSize: 13,
         }}>
+          {!freeDisabled && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span>
+                Безплатно
+                {freeLocked && (
+                  <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 6 }}>
+                    (свободно след {freeLocked.daysRemaining}д)
+                  </span>
+                )}
+                {gateBlocked && !freeLocked && (
+                  <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 6 }}>
+                    (нужна поръчка или {freeGate?.click_threshold} клика)
+                  </span>
+                )}
+              </span>
+              <span style={{ fontWeight: 600 }}>{freeQty} бр.</span>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span>
-              Безплатно
-              {freeLocked && (
-                <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 6 }}>
-                  (свободно след {freeLocked.daysRemaining}д)
-                </span>
-              )}
-              {gateBlocked && !freeLocked && (
-                <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 6 }}>
-                  (нужна поръчка или {freeGate?.click_threshold} клика)
-                </span>
-              )}
-            </span>
-            <span style={{ fontWeight: 600 }}>{freeQty} бр.</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span>Платено (с -{product.paid_discount_pct}%)</span>
+            <span>{freeDisabled ? 'Цена' : 'Платено'} (с -{product.paid_discount_pct}%)</span>
             <span style={{ fontWeight: 600 }}>
               {paidQty} бр. × {unitPaid.toFixed(2)} €
             </span>
