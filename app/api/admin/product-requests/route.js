@@ -290,6 +290,7 @@ export async function PATCH(request) {
         ].filter(Boolean),
         shippingAddress,
         noteAttributes,
+        payment: { fromCommission: commissionPart(req) },
       })
     } catch (err) {
       return NextResponse.json({
@@ -482,6 +483,7 @@ export async function POST(request) {
       ].filter(Boolean),
       shippingAddress,
       noteAttributes,
+      payment: { fromCommission },
     })
   } catch (err) {
     return NextResponse.json({ error: `Shopify Order error: ${err.message}` }, { status: 502 })
