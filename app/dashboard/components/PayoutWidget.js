@@ -12,6 +12,14 @@ const STATUS_LABEL = {
   rejected: { label: 'Отказана',    badge: 'badge-gray'  },
 }
 
+// Продукт, платен с комисионната — удръжка от баланса
+const PRODUCT_STATUS = {
+  pending:         { label: 'Удържано · чака одобрение', badge: 'badge-amber' },
+  sent_to_shopify: { label: 'Удържано · изпратено',      badge: 'badge-blue'  },
+  fulfilled:       { label: 'Удържано · доставено',      badge: 'badge-green' },
+  cancelled:       { label: 'Отказана · върнато',        badge: 'badge-gray'  },
+}
+
 export default function PayoutWidget({ viewId = null }) {
   const [data, setData]     = useState(null)
   const [amount, setAmount] = useState('')
@@ -34,6 +42,11 @@ export default function PayoutWidget({ viewId = null }) {
 
   if (!data) return null
   const { balance, payouts } = data
+  // Историята: заявки за изплащане + продукти, платени с комисионната (по дата)
+  const history = [
+    ...payouts.map(p => ({ ...p, kind: 'payout' })),
+    ...(data.productPayments || []),
+  ].sort((a, b) => new Date(b.requested_at) - new Date(a.requested_at))
   const canRequest = balance.available >= balance.minPayout
 
   const uploadInvoice = async (file) => {
@@ -231,13 +244,34 @@ export default function PayoutWidget({ viewId = null }) {
         </form>
       )}
 
-      {payouts.length > 0 && (
+      {history.length > 0 && (
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>
-            История на заявки
+            История на плащанията
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {payouts.map(p => {
+            {history.map(p => {
+              if (p.kind === 'product') {
+                const ps = PRODUCT_STATUS[p.status] || PRODUCT_STATUS.pending
+                return (
+                  <div key={`pr-${p.id}`} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    gap: 12, padding: '8px 12px', background: 'var(--bg)', borderRadius: 8, flexWrap: 'wrap',
+                  }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, textDecoration: p.status === 'cancelled' ? 'line-through' : 'none' }}>
+                        −{fmtEur(p.amount)}
+                      </div>
+                      <div style={{ fontSize: 12 }}>🎁 {p.product_name}{p.quantity ? ` × ${p.quantity}` : ''}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                        {format(new Date(p.requested_at), 'd MMM yyyy, HH:mm', { locale: bg })}
+                        {p.rest > 0 && <> · + {fmtEur(p.rest)} наложен платеж</>}
+                      </div>
+                    </div>
+                    <span className={`badge ${ps.badge}`}>{ps.label}</span>
+                  </div>
+                )
+              }
               const s = STATUS_LABEL[p.status] || STATUS_LABEL.pending
               return (
                 <div key={p.id} style={{

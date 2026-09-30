@@ -594,10 +594,33 @@ export default function AdminInfluencerView() {
                 title="Въведи изплащане по фактура, изпратена извън портала — сумата се приспада от баланса му"
               >＋ Заяви изплащане</button>
             </div>
-            {(!activity.payoutHistory || activity.payoutHistory.length === 0) && (
+            {(!activity.payoutHistory || activity.payoutHistory.length === 0) && !(activity.commissionProducts || []).length && (
               <div style={{ fontSize: 13, color: 'var(--muted)' }}>Още няма заявки за изплащане.</div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {/* Продукти, платени с комисионната — удръжки от баланса */}
+              {(activity.commissionProducts || []).map(r => {
+                const ps = (
+                  r.status === 'fulfilled'       ? { bg: '#d1fae5', color: '#065f46', label: 'Удържано · доставено' } :
+                  r.status === 'sent_to_shopify' ? { bg: '#dbeafe', color: '#1e40af', label: 'Удържано · изпратено' } :
+                  r.status === 'cancelled'       ? { bg: '#f3f4f6', color: '#6b7280', label: 'Отказана · върнато' } :
+                                                   { bg: '#fef3c7', color: '#92400e', label: 'Удържано · чака' }
+                )
+                return (
+                  <div key={`pr-${r.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, background: 'var(--bg)', borderRadius: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--accent-dk)', textDecoration: r.status === 'cancelled' ? 'line-through' : 'none' }}>
+                        −{fmtEur(r.amount)} <span style={{ fontWeight: 500, fontSize: 12, color: 'var(--text)' }}>🎁 {r.product_name}{r.quantity ? ` × ${r.quantity}` : ''}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                        {fmtDate(r.requested_at)} · от комисионната
+                        {r.rest > 0 && <> · + {fmtEur(r.rest)} наложен платеж</>}
+                      </div>
+                    </div>
+                    <span style={{ background: ps.bg, color: ps.color, padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{ps.label}</span>
+                  </div>
+                )
+              })}
               {(activity.payoutHistory || []).map(r => {
                 const badge = (
                   r.status === 'paid'      ? { bg: '#d1fae5', color: '#065f46', label: 'Платена'  } :

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendPayoutRequestEmail } from '@/lib/email'
 import { calcAvailable, MIN_PAYOUT } from '@/lib/payout-balance'
+import { commissionProductPayments } from '@/lib/product-payment'
 import { getAdminNotifyEmails } from '@/lib/notify-emails'
 
 export const dynamic = 'force-dynamic'
@@ -25,7 +26,12 @@ export async function GET(request) {
     .eq('influencer_id', influencerId)
     .order('requested_at', { ascending: false })
 
-  return NextResponse.json({ balance, payouts: payouts || [] })
+  // Продукти, платени с комисионната — показват се в историята като удръжки
+  let productPayments = []
+  try { productPayments = await commissionProductPayments(influencerId) }
+  catch (err) { console.error(err.message) }
+
+  return NextResponse.json({ balance, payouts: payouts || [], productPayments })
 }
 
 // POST /api/dashboard/payouts { amount, notes? } — нова заявка

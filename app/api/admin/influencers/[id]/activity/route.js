@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { commissionProductPayments } from '@/lib/product-payment'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,6 +54,11 @@ export async function GET(_request, { params }) {
     .order('requested_at', { ascending: false })
     .limit(30)
 
+  // Продукти, платени с комисионната (удръжки от баланса)
+  let commissionProducts = []
+  try { commissionProducts = await commissionProductPayments(id) }
+  catch (err) { console.error(err.message) }
+
   const pendingProductCount = (productReqs || []).filter(r => r.status === 'pending').length
   const pendingPayoutCount  = (payoutReqs || []).length
 
@@ -61,6 +67,7 @@ export async function GET(_request, { params }) {
     payoutRequests:  payoutReqs  || [],
     productHistory:  productHistory || [],
     payoutHistory:   payoutHistory  || [],
+    commissionProducts,
     pendingProductCount,
     pendingPayoutCount,
   })
