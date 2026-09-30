@@ -303,11 +303,29 @@ function RequestModal({ product, qty, setQty, shipping, setShipping, onClose, on
             paddingTop: 6, marginTop: 6, borderTop: '1px solid var(--border)',
             fontSize: 14, fontWeight: 700,
           }}>
-            <span>Общо за плащане</span>
+            <span>{payFromCommission ? 'Общо' : 'Общо за плащане'}</span>
             <span style={{ color: paidTotal > 0 ? 'var(--accent-dk)' : 'var(--muted)' }}>
               {paidTotal.toFixed(2)} €
             </span>
           </div>
+          {payFromCommission && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, color: '#166534' }}>
+                <span>💳 От комисионната</span>
+                <span style={{ fontWeight: 600 }}>−{fromCommission.toFixed(2)} €</span>
+              </div>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between',
+                paddingTop: 6, marginTop: 6, borderTop: '1px solid var(--border)',
+                fontSize: 14, fontWeight: 700,
+              }}>
+                <span>Доплащаш при получаване</span>
+                <span style={{ color: toPayOnDelivery > 0 ? 'var(--accent-dk)' : 'var(--muted)' }}>
+                  {toPayOnDelivery.toFixed(2)} €
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Начин на плащане — само ако има платена част */}
