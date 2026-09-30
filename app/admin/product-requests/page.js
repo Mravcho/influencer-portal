@@ -196,6 +196,16 @@ export default function ProductRequestsPage() {
       .reduce((sum, r) => sum + overrideUnit(r) * r.paid_quantity, 0)
     + (merge?.extras || []).reduce((sum, e) =>
         sum + Math.max(0, Number(e.price) || 0) * Math.max(1, parseInt(e.quantity, 10) || 1), 0)
+  // Частта от комисионната: колкото е удържано при заявката, но не повече от новата сума
+  const commissionOf = (r) => {
+    if (r.payment_method !== 'commission') return 0
+    const reserved = r.paid_from_commission != null ? Number(r.paid_from_commission) : Number(r.paid_total)
+    return Math.min(reserved, overrideUnit(r) * r.paid_quantity)
+  }
+  const mergeCommission = mergeCandidates
+    .filter(r => merge?.selectedIds.includes(r.id))
+    .reduce((sum, r) => sum + commissionOf(r), 0)
+  const mergeToCollect = Math.max(0, mergeTotal - mergeCommission)
 
   return (
     <AdminShell>
@@ -481,6 +491,9 @@ export default function ProductRequestsPage() {
                         />
                         <span style={{ fontSize: 12, color: 'var(--muted)' }}>
                           € · общо {(unit * r.paid_quantity).toFixed(2)} €
+                          {commissionOf(r) > 0 && (
+                            <span style={{ color: '#166534', fontWeight: 600 }}> · 💳 {commissionOf(r).toFixed(2)} € от комисионната</span>
+                          )}
                         </span>
                         <button
                           type="button"
@@ -621,7 +634,14 @@ export default function ProductRequestsPage() {
                 Заявки: <strong>{merge.selectedIds.length}</strong>
                 {merge.extras.length > 0 ? ` · доп.: ${merge.extras.length}` : ''}
               </span>
-              <span>Сума за плащане: <strong>{mergeTotal.toFixed(2)} €</strong></span>
+              {mergeCommission > 0 ? (
+                <span style={{ textAlign: 'right' }}>
+                  Общо {mergeTotal.toFixed(2)} € · <span style={{ color: '#166534' }}>💳 −{mergeCommission.toFixed(2)} € комисионна</span><br />
+                  За събиране (наложен платеж): <strong>{mergeToCollect.toFixed(2)} €</strong>
+                </span>
+              ) : (
+                <span>Сума за плащане: <strong>{mergeTotal.toFixed(2)} €</strong></span>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
