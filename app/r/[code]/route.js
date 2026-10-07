@@ -72,7 +72,18 @@ export async function GET(request, { params }) {
   const clientInfo = extractClientInfo(request)
   if (!isBot(clientInfo.user_agent) && influencerId) {
     try {
-      await supabaseAdmin.from('link_clicks').insert({
+      // Повторно отваряне от същия адрес до 30 мин не е нов клик (иначе статистиката
+      // и гейтът за безплатен продукт се „надуват“ с презареждане)
+      let duplicate = false
+      if (clientInfo.ip_address) {
+        const { count } = await supabaseAdmin.from('link_clicks')
+          .select('id', { count: 'exact', head: true })
+          .eq('influencer_id', influencerId)
+          .eq('ip_address', clientInfo.ip_address)
+          .gte('clicked_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+        duplicate = (count || 0) > 0
+      }
+      if (!duplicate) await supabaseAdmin.from('link_clicks').insert({
         link_id:       link?.id || null,
         influencer_id: influencerId,
         ...clientInfo,

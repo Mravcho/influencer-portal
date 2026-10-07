@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { createExpenseFromInvoiceUrl } from '@/lib/erp'
 import { calcAvailable } from '@/lib/payout-balance'
+import { isOwnInvoiceUrl } from '@/lib/invoice-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,6 +107,9 @@ export async function POST(request) {
   if (!invoice_url) {
     return NextResponse.json({ error: 'Прикачи фактурата — без финансов документ не се записва изплащане.' }, { status: 400 })
   }
+  if (!isOwnInvoiceUrl(invoice_url, influencer_id)) {
+    return NextResponse.json({ error: 'Фактурата трябва да е качена през портала. Прикачи я отново.' }, { status: 400 })
+  }
 
   const { data: inf } = await supabaseAdmin
     .from('influencers').select('id, name').eq('id', influencer_id).maybeSingle()
@@ -137,6 +141,13 @@ export async function POST(request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Защита от двойно харчене: две едновременни заявки виждат един и същ баланс.
+  // След записа проверяваме отново — ако сме на минус, отменяме тази заявка.
+  if ((await calcAvailable(influencer_id)).available < -0.005) {
+    await supabaseAdmin.from('payout_requests').delete().eq('id', data.id)
+    return NextResponse.json({ error: 'Балансът се промени междувременно (друга заявка). Опитай отново.' }, { status: 409 })
+  }
 
   return NextResponse.json(await syncErp(data), { status: 201 })
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendPayoutRequestEmail } from '@/lib/email'
+import { isOwnInvoiceUrl } from '@/lib/invoice-url'
 import { calcAvailable, MIN_PAYOUT } from '@/lib/payout-balance'
 import { commissionProductPayments } from '@/lib/product-payment'
 import { getAdminNotifyEmails } from '@/lib/notify-emails'
@@ -52,6 +53,9 @@ export async function POST(request) {
       error: 'Прикачи фактура — без финансов документ не се правят изплащания.',
     }, { status: 400 })
   }
+  if (!isOwnInvoiceUrl(invoice_url, influencerId)) {
+    return NextResponse.json({ error: 'Фактурата трябва да е качена през портала. Прикачи я отново.' }, { status: 400 })
+  }
 
   const balance = await calcAvailable(influencerId)
   if (amt > balance.available) {
@@ -75,6 +79,13 @@ export async function POST(request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Защита от двойно харчене: две едновременни заявки виждат един и същ баланс.
+  // След записа проверяваме отново — ако сме на минус, отменяме тази заявка.
+  if ((await calcAvailable(influencerId)).available < -0.005) {
+    await supabaseAdmin.from('payout_requests').delete().eq('id', data.id)
+    return NextResponse.json({ error: 'Балансът се промени междувременно (друга заявка). Опитай отново.' }, { status: 409 })
+  }
 
   // Уведомяваме admin за нова заявка
   try {

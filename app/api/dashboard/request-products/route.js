@@ -5,6 +5,7 @@ import { getAdminNotifyEmails } from '@/lib/notify-emails'
 import { productPaymentSupported, partialPaymentSupported, influencerDiscountPct } from '@/lib/product-payment'
 import { calcAvailable } from '@/lib/payout-balance'
 import { buildMiddlewareShipping } from '@/lib/courier-offices'
+import { fetchAllRows } from '@/lib/order-status'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,10 +32,19 @@ async function computeFreeGate(influencerId) {
     return { eligible: true, isFirst: true, ordersCount: 0, clicksCount: 0, threshold: CLICK_THRESHOLD }
   }
 
-  const [ordersRes, clicksRes] = await Promise.all([
-    supabaseAdmin.from('orders').select('id', { count: 'exact', head: true }).eq('influencer_id', influencerId),
-    supabaseAdmin.from('link_clicks').select('id', { count: 'exact', head: true }).eq('influencer_id', influencerId),
+  // Поръчки: само реални (без анулирани/върнати). Кликове: уникални посетители —
+  // един IP се брои веднъж на ден, иначе гейтът се отключва с 200 презареждания.
+  const [ordersRes, clickRows] = await Promise.all([
+    supabaseAdmin.from('orders').select('id', { count: 'exact', head: true })
+      .eq('influencer_id', influencerId)
+      .not('financial_status', 'in', '(voided,refunded)'),
+    fetchAllRows((from, to) => supabaseAdmin.from('link_clicks')
+      .select('ip_address, clicked_at')
+      .eq('influencer_id', influencerId)
+      .not('ip_address', 'is', null)
+      .range(from, to)),
   ])
+  const clicksRes = { count: new Set(clickRows.map(c => `${c.ip_address}|${String(c.clicked_at).slice(0, 10)}`)).size }
   const ordersCount = ordersRes.count || 0
   const clicksCount = clicksRes.count || 0
   const eligible = ordersCount >= 1 || clicksCount >= CLICK_THRESHOLD
@@ -296,6 +306,13 @@ export async function POST(request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Защита от двойно харчене: две едновременни заявки виждат един и същ баланс.
+  // След записа проверяваме отново — ако сме на минус, отменяме тази заявка.
+  if (payWithCommission && (await calcAvailable(influencerId)).available < -0.005) {
+    await supabaseAdmin.from('product_requests').delete().eq('id', data.id)
+    return NextResponse.json({ error: 'Балансът се промени междувременно (друга заявка). Опитай отново.' }, { status: 409 })
+  }
 
   // Запазваме последно използваните стойности на инфлуенсъра за pre-fill следващия път
   await supabaseAdmin

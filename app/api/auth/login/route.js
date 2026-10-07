@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { signToken, COOKIE_NAME } from '@/lib/auth'
 
@@ -56,6 +57,34 @@ async function logAttempt({ influencerId, attemptedUsername, success, failureRea
   return null
 }
 
+// --- Защита от налучкване на пароли ---
+// Броим неуспешните опити от последните 15 мин (записват се в login_sessions):
+// до 8 за едно потребителско име/имейл и до 25 от един IP адрес.
+const LOCK_WINDOW_MS   = 15 * 60 * 1000
+const MAX_PER_USERNAME = 8
+const MAX_PER_IP       = 25
+
+async function isLockedOut(ident, ip) {
+  const since = new Date(Date.now() - LOCK_WINDOW_MS).toISOString()
+  const byUser = supabaseAdmin.from('login_sessions')
+    .select('id', { count: 'exact', head: true })
+    .eq('success', false).gte('login_at', since).ilike('attempted_username', ident)
+  const byIp = ip
+    ? supabaseAdmin.from('login_sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('success', false).gte('login_at', since).eq('ip_address', ip)
+    : Promise.resolve({ count: 0 })
+  const [u, i] = await Promise.all([byUser, byIp])
+  return (u.count || 0) >= MAX_PER_USERNAME || (i.count || 0) >= MAX_PER_IP
+}
+
+// Сравнение без изтичане на информация по времето за отговор
+function safeEqual(a, b) {
+  const ha = crypto.createHash('sha256').update(String(a ?? '')).digest()
+  const hb = crypto.createHash('sha256').update(String(b ?? '')).digest()
+  return crypto.timingSafeEqual(ha, hb)
+}
+
 export async function POST(request) {
   const { username, password } = await request.json()
   const clientInfo = extractClientInfo(request)
@@ -64,11 +93,19 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Липсват данни' }, { status: 400 })
   }
 
-  // Admin (без session tracking)
+  // Временно заключване след много грешни опити (за акаунта или от този IP)
+  if (await isLockedOut(String(username).toLowerCase().trim(), clientInfo.ip_address)) {
+    return NextResponse.json({ error: 'Твърде много неуспешни опити. Опитай отново след 15 минути или ползвай „Забравена парола“.' }, { status: 429 })
+  }
+
+  // Admin
   if (
-    username === process.env.ADMIN_USERNAME &&
-    password === process.env.ADMIN_PASSWORD
+    process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD &&
+    safeEqual(username, process.env.ADMIN_USERNAME) &&
+    safeEqual(password, process.env.ADMIN_PASSWORD)
   ) {
+    // Успешният админ вход също се записва (за проследимост в „Сесии“)
+    await logAttempt({ influencerId: null, attemptedUsername: username, success: true, failureReason: 'admin', clientInfo })
     const token = await signToken({ role: 'admin', username: 'admin' })
     const response = NextResponse.json({ role: 'admin', redirect: '/admin' })
     response.cookies.set(COOKIE_NAME, token, {

@@ -19,6 +19,7 @@ export default function LoginPage() {
     full_name: '', email: '', phone: '',
     instagram_url: '', tiktok_url: '', facebook_url: '', youtube_url: '', other_url: '',
     motivation: '', terms_accepted: false,
+    website: '', // капан за ботове — скрито поле, хората не го попълват
   })
   const setApplyField = (k, v) => setApplyForm(f => ({ ...f, [k]: v }))
 
@@ -226,6 +227,13 @@ export default function LoginPage() {
 
                   {error && <div className="alert alert-error" style={{ marginBottom: 0 }}>{error}</div>}
 
+                  {/* Капан за ботове: невидимо поле, попълнено → заявката се игнорира */}
+                  <input
+                    type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true"
+                    value={applyForm.website}
+                    onChange={e => setApplyField('website', e.target.value)}
+                    style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
+                  />
                   <input
                     type="text" placeholder="Име и фамилия *" required
                     value={applyForm.full_name}
