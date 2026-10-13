@@ -667,6 +667,9 @@ export default function Dashboard() {
   const [data, setData]         = useState(null)
   // Класацията се показва само ако админът не я е изключил (идва с данните)
   const showLeaderboard = data?.leaderboardEnabled === true
+  // Активните в момента кампании (от CampaignCard) — поръчките от кампания се
+  // показват само докато има активна кампания
+  const [activeCampaignIds, setActiveCampaignIds] = useState([])
   const [loading, setLoading]   = useState(true)
   const [userInfo, setUserInfo] = useState({ name: '', promoCode: '', commission: 0, active: true })
   const [branding, setBranding] = useState({ logo_url: null })
@@ -820,7 +823,7 @@ export default function Dashboard() {
   )
 
   const { orders = [], stats = {}, topProducts = [], bannerUrl = null, avatarUrl = null, currentMonth = {} } = data || {}
-  const campaignOrders = orders.filter(o => o.campaign_id)
+  const campaignOrders = orders.filter(o => o.campaign_id && activeCampaignIds.includes(o.campaign_id))
   const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
   const monthLabel = format(new Date(), 'LLLL', { locale: bg })
 
@@ -949,7 +952,7 @@ export default function Dashboard() {
           <main id="top" className="main-container">
             {/* Активна кампания — най-отгоре, за да се вижда сигурно + котва за менюто */}
             <div id="campaign" style={{ scrollMarginTop: 80 }}>
-              <CampaignCard />
+              <CampaignCard onLoad={list => setActiveCampaignIds(list.filter(c => c.active).map(c => c.id))} />
               {campaignOrders.length > 0 && (
                 <div className="card table-cards" style={{ marginBottom: '1rem' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>

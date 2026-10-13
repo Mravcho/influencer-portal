@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 
-export default function CampaignCard({ viewId = null }) {
+export default function CampaignCard({ viewId = null, onLoad = null }) {
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading]     = useState(true)
   const [copied, setCopied]       = useState('')
@@ -10,7 +10,7 @@ export default function CampaignCard({ viewId = null }) {
     const url = viewId ? `/api/dashboard/campaign?viewId=${viewId}` : '/api/dashboard/campaign'
     fetch(url, { cache: 'no-store' })
       .then(r => r.ok ? r.json() : { campaigns: [] })
-      .then(d => setCampaigns(d.campaigns || []))
+      .then(d => { setCampaigns(d.campaigns || []); onLoad?.(d.campaigns || []) })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [viewId])
