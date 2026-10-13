@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react'
 // „До офис speedy[877]: СОФИЯ - БОРОВО …“.
 const LABEL_RE = /^(?:До офис|До автомат)\s+[a-z]+(?:-locker)?\[[^\]]+\]:\s*/
 
+const METHOD_NAMES = { speedy_office: 'Спиди', econt_office: 'Еконт', boxnow: 'BoxNow' }
+
 export function isOfficeLabel(value) {
   return LABEL_RE.test(String(value || ''))
 }
@@ -13,6 +15,7 @@ export function isOfficeLabel(value) {
 export default function OfficePicker({ method, value, onChange, placeholder = 'Търси по град, квартал или адрес…', initialQuery = '' }) {
   const [query, setQuery]     = useState(isOfficeLabel(value) ? '' : (initialQuery || value || ''))
   const [results, setResults] = useState([])
+  const [elsewhere, setElsewhere] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
   const [editing, setEditing] = useState(!isOfficeLabel(value))
@@ -37,6 +40,7 @@ export default function OfficePicker({ method, value, onChange, placeholder = '�
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Грешка')
         setResults(data.offices || [])
+        setElsewhere(data.elsewhere || [])
       } catch (err) {
         setError(err.message); setResults([])
       } finally {
@@ -80,7 +84,14 @@ export default function OfficePicker({ method, value, onChange, placeholder = '�
           {loading && <div style={{ padding: 8, fontSize: 12, color: 'var(--muted)' }}>Търся…</div>}
           {error && <div style={{ padding: 8, fontSize: 12, color: '#991b1b' }}>{error}</div>}
           {!loading && !error && results.length === 0 && query.trim().length >= 2 && (
-            <div style={{ padding: 8, fontSize: 12, color: 'var(--muted)' }}>Няма намерени офиси — опитай с града или квартала.</div>
+            <div style={{ padding: 8, fontSize: 12, color: 'var(--muted)' }}>
+              Няма намерени офиси — опитай с града или квартала.
+              {elsewhere.length > 0 && (
+                <div style={{ marginTop: 6, color: 'var(--text)' }}>
+                  Има при: {elsewhere.map(e => `${METHOD_NAMES[e.method] || e.method} (${e.example})`).join('; ')} — смени начина на доставка.
+                </div>
+              )}
+            </div>
           )}
           {results.map(o => (
             <button
