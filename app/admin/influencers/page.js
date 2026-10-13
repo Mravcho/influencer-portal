@@ -46,6 +46,8 @@ export default function AdminPage() {
   const [codeCheckState, setCodeCheckState] = useState('idle') // idle | checking | done | error
   const [codeModal, setCodeModal] = useState(null)             // { inf, percentage, collection_id }
   const [creatingCode, setCreatingCode] = useState(false)
+  // Преминаване към нови кодове ИМЕ10: { pct, loading, rows, selected:Set, running, results, error, migrated }
+  const [upgrade, setUpgrade] = useState(null)
   const [pendingPayouts, setPendingPayouts]      = useState(0)
   const [pendingApplications, setPendingApplications] = useState(0)
   const [pendingProductRequests, setPendingProductRequests] = useState(0)
@@ -131,8 +133,42 @@ export default function AdminPage() {
     }
   }
 
+  const loadUpgrade = async (pct = 10) => {
+    setUpgrade({ pct, loading: true, rows: [], selected: new Set() })
+    try {
+      const res = await fetch(`/api/admin/influencers/upgrade-codes?pct=${pct}`, { cache: 'no-store' })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || String(res.status))
+      setUpgrade({
+        pct, loading: false, rows: d.rows, migrated: d.migrated,
+        selected: new Set(d.rows.filter(r => r.status === 'ready').map(r => r.id)),
+      })
+    } catch (err) {
+      setUpgrade({ pct, loading: false, rows: [], selected: new Set(), error: err.message })
+    }
+  }
+
+  const runUpgrade = async () => {
+    if (!upgrade || upgrade.running || !upgrade.selected.size) return
+    setUpgrade(u => ({ ...u, running: true, error: '' }))
+    try {
+      const res = await fetch('/api/admin/influencers/upgrade-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pct: upgrade.pct, ids: [...upgrade.selected] }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(d.error || `Грешка (${res.status})`)
+      setUpgrade(u => ({ ...u, running: false, results: d.results }))
+      load()
+      checkCodes()
+    } catch (err) {
+      setUpgrade(u => ({ ...u, running: false, error: err.message }))
+    }
+  }
+
   const openCodeModal = (inf) => {
-    setCodeModal({ inf, percentage: '5', collection_id: '' })
+    setCodeModal({ inf, percentage: '10', collection_id: '' })
     if (!collections.length) {
       fetch('/api/admin/collections')
         .then(r => r.ok ? r.json() : { collections: [] })
@@ -576,6 +612,12 @@ export default function AdminPage() {
             title="Проверява дали всеки промокод реално съществува в Shopify"
             style={{ whiteSpace: 'nowrap' }}
           >{codeCheckState === 'checking' ? '⟳ Проверявам…' : '🏷 Провери промокодовете'}</button>
+          <button
+            className="btn btn-sm"
+            onClick={() => loadUpgrade(10)}
+            title="Нов код ИМЕ10 с 10% отстъпка за всеки инфлуенсър; старият продължава да се засича"
+            style={{ whiteSpace: 'nowrap', marginLeft: 6 }}
+          >🔟 Нови кодове ИМЕ10</button>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
             {codeCheckState === 'checking' && 'проверявам в Shopify…'}
             {codeCheckState === 'error'    && 'проверката не мина — опитай пак'}
@@ -662,6 +704,11 @@ export default function AdminPage() {
                             background: 'var(--bg)', padding: '0 5px', borderRadius: 3,
                             fontSize: 10, marginTop: 2, display: 'inline-block',
                           }}>{inf.promo_code}</code>
+                          {inf.old_codes?.length > 0 && (
+                            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }} title="Предишни кодове — поръчките по тях също се засичат">
+                              и: {inf.old_codes.join(', ')}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -1263,8 +1310,121 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      {upgrade && (
+        <div
+          role="dialog" aria-modal="true"
+          onClick={e => { if (e.target === e.currentTarget && !upgrade.running) setUpgrade(null) }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div className="card" style={{ width: '100%', maxWidth: 640, maxHeight: '88vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
+              Нови кодове с {upgrade.pct}% отстъпка
+            </h2>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12, lineHeight: 1.5 }}>
+              За всеки избран инфлуенсър се създава нов код в Shopify (напр. REALNETI5 → REALNETI{upgrade.pct}) — за
+              същите продукти/колекции и със същите условия като стария, само с {upgrade.pct}% отстъпка.
+              Новият код става основен в портала и в кратките линкове. <strong>Старият остава активен</strong> и
+              поръчките по него продължават да се засичат към същия инфлуенсър. Комисионната не се променя.
+            </p>
+
+            {upgrade.migrated === false && (
+              <div style={{ fontSize: 12, padding: 10, borderRadius: 8, background: '#fef3c7', color: '#92400e', marginBottom: 12 }}>
+                Първо пусни <code>supabase/migration_old_codes.sql</code> в Supabase (SQL Editor) — иначе поръчките по
+                старите кодове няма да се засичат.
+              </div>
+            )}
+            {upgrade.error && (
+              <div style={{ fontSize: 12, padding: 10, borderRadius: 8, background: '#fee2e2', color: '#991b1b', marginBottom: 12 }}>
+                {upgrade.error}
+              </div>
+            )}
+
+            {upgrade.loading ? (
+              <div style={{ fontSize: 13, color: 'var(--muted)', padding: '20px 0' }}>⟳ Проверявам кодовете в Shopify…</div>
+            ) : upgrade.results ? (
+              <table style={{ fontSize: 12, width: '100%' }}>
+                <tbody>
+                  {upgrade.results.map(r => (
+                    <tr key={r.id}>
+                      <td style={{ padding: '4px 6px' }}>{r.name}</td>
+                      <td style={{ padding: '4px 6px' }}><code>{r.code}</code></td>
+                      <td style={{ padding: '4px 6px', fontWeight: 600, color: r.status === 'done' ? '#166534' : '#991b1b' }}>
+                        {r.status === 'done' ? `✓ ${r.next}` : `✗ ${UPGRADE_LABEL[r.status] || r.status}${r.reason ? ` — ${r.reason}` : ''}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <table style={{ fontSize: 12, width: '100%' }}>
+                <thead><tr>
+                  <th style={{ width: 24 }}>
+                    <input
+                      type="checkbox"
+                      checked={upgrade.rows.some(r => r.status === 'ready') && upgrade.rows.filter(r => r.status === 'ready').every(r => upgrade.selected.has(r.id))}
+                      onChange={e => setUpgrade(u => ({ ...u, selected: new Set(e.target.checked ? u.rows.filter(r => r.status === 'ready').map(r => r.id) : []) }))}
+                    />
+                  </th>
+                  <th>Инфлуенсър</th><th>Сега</th><th>Нов код</th><th>Бележка</th>
+                </tr></thead>
+                <tbody>
+                  {upgrade.rows.map(r => (
+                    <tr key={r.id} style={{ opacity: r.status === 'ready' ? 1 : 0.55 }}>
+                      <td style={{ padding: '4px 6px' }}>
+                        <input
+                          type="checkbox"
+                          disabled={r.status !== 'ready'}
+                          checked={upgrade.selected.has(r.id)}
+                          onChange={e => setUpgrade(u => {
+                            const sel = new Set(u.selected)
+                            e.target.checked ? sel.add(r.id) : sel.delete(r.id)
+                            return { ...u, selected: sel }
+                          })}
+                        />
+                      </td>
+                      <td style={{ padding: '4px 6px' }}>{r.name}</td>
+                      <td style={{ padding: '4px 6px' }}><code>{r.code}</code>{r.oldPct != null && <span style={{ color: 'var(--muted)' }}> · {r.oldPct}%</span>}</td>
+                      <td style={{ padding: '4px 6px' }}>{r.next ? <code>{r.next}</code> : '—'}</td>
+                      <td style={{ padding: '4px 6px', color: 'var(--muted)' }}>
+                        {r.status === 'ready' ? '' : (UPGRADE_LABEL[r.status] || r.status)}{r.reason ? ` — ${r.reason}` : ''}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+              {!upgrade.results && (
+                <button
+                  className="btn btn-primary"
+                  onClick={runUpgrade}
+                  disabled={upgrade.loading || upgrade.running || !upgrade.selected.size || upgrade.migrated === false}
+                >
+                  {upgrade.running ? 'Създавам…' : `Създай ${upgrade.selected.size} нови кода`}
+                </button>
+              )}
+              <button className="btn" onClick={() => setUpgrade(null)} disabled={upgrade.running}>
+                {upgrade.results ? 'Затвори' : 'Отказ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminShell>
   )
+}
+
+const UPGRADE_LABEL = {
+  already:     'вече е на този код',
+  taken:       'новият код вече съществува в Shopify',
+  missing:     'текущият код го няма в Shopify',
+  unsupported: 'не може автоматично',
+  no_code:     'няма промокод',
+  error:       'грешка',
 }
 
 const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 5 }

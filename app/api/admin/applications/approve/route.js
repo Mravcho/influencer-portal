@@ -20,7 +20,7 @@ export async function POST(request) {
   const {
     application_id,
     promo_code,
-    customer_discount = 5,
+    customer_discount = 10,
     commission        = 10,
     platform          = 'Instagram',
     collection_id,

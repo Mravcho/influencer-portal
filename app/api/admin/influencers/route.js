@@ -8,6 +8,7 @@ import { sendWelcomeEmail } from '@/lib/email'
 import { orderCommission } from '@/lib/commission'
 import { ensureDefaultLink } from '@/lib/share-links'
 import { productDiscountSupported } from '@/lib/product-payment'
+import { oldCodesSupported } from '@/lib/influencer-codes'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +29,7 @@ function normPct(v) {
 export async function GET() {
   const { data: influencers, error } = await supabaseAdmin
     .from('influencers')
-    .select(`id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, can_request_products, category, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes, share_link_target, contract_url, contract_filename, contract_uploaded_at, terms_accepted_at${await productDiscountSupported() ? ', product_discount_pct' : ''}`)
+    .select(`id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, can_request_products, category, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes, share_link_target, contract_url, contract_filename, contract_uploaded_at, terms_accepted_at${await productDiscountSupported() ? ', product_discount_pct' : ''}${await oldCodesSupported() ? ', old_codes' : ''}`)
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -243,6 +244,16 @@ export async function PATCH(request) {
   }
   if (rest.username) updates.username = rest.username.toLowerCase()
   if (rest.promo_code) updates.promo_code = rest.promo_code.toUpperCase()
+  delete updates.old_codes
+  // Смяна на кода → предишният отива в old_codes, за да продължат да се засичат
+  // поръчките по него (вече споделен в постове и сторита)
+  if (updates.promo_code && await oldCodesSupported()) {
+    const { data: prev } = await supabaseAdmin.from('influencers').select('promo_code, old_codes').eq('id', id).maybeSingle()
+    const prevCode = prev?.promo_code?.toUpperCase()
+    if (prevCode && prevCode !== updates.promo_code) {
+      updates.old_codes = [...new Set([...(prev.old_codes || []), prevCode])].filter(c => c !== updates.promo_code)
+    }
+  }
   if (typeof rest.email === 'string') updates.email = rest.email ? rest.email.toLowerCase().trim() : null
   if (password) updates.password_hash = await bcrypt.hash(password, 10)
 

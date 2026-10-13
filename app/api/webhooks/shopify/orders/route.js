@@ -8,6 +8,7 @@ import { normalizeFinancialStatus } from '@/lib/order-flags'
 import { ordersHaveCancelledAt } from '@/lib/order-status'
 import { recordUtmOrder, loadKnownAliases } from '@/lib/utm-orders'
 import { findActiveCampaignByCodes, resolveCampaignInfluencer } from '@/lib/campaign-sync'
+import { findInfluencersByCodes } from '@/lib/influencer-codes'
 
 // Verifies Shopify HMAC-SHA256 signature
 async function verifyShopifyWebhook(request) {
@@ -237,12 +238,14 @@ export async function POST(request) {
     return NextResponse.json({ ok: true, campaign: campaign.name, influencer: influencer.name, action: isNewOrder ? 'created' : 'updated', emailed })
   }
 
-  // Намираме активен инфлуенсър с matching промо код (нормален поток)
-  const { data: influencers } = await supabaseAdmin
-    .from('influencers')
-    .select('id, name, promo_code, commission, email, email_notifications')
-    .eq('active', true)
-    .in('promo_code', discountCodes)
+  // Намираме активен инфлуенсър с matching промо код (нормален поток) — текущ или
+  // предишен (old_codes), напр. поръчка с REALNETI5 след преминаване към REALNETI10
+  let influencers
+  try {
+    influencers = await findInfluencersByCodes(discountCodes, 'id, name, promo_code, commission, email, email_notifications')
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
 
   if (!influencers || influencers.length === 0) {
     return NextResponse.json({ ok: true, skipped: 'no matching influencer' })
@@ -251,7 +254,7 @@ export async function POST(request) {
   const results = []
 
   for (const influencer of influencers) {
-    const sanitized = sanitizeWebhookOrder(order, influencer.promo_code, productImages)
+    const sanitized = sanitizeWebhookOrder(order, influencer.matchedCode, productImages)
 
     // Проверка дали поръчката вече съществува – ако да, ще е update (без имейл)
     const { data: existing } = await supabaseAdmin

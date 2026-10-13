@@ -24,7 +24,7 @@ function detectPlatform(app) {
 function suggestCode(name) {
   if (!name) return ''
   const first = name.trim().split(/\s+/)[0] || ''
-  return first.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) + '5'
+  return first.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) + '10'
 }
 
 export default function AdminApplications() {
@@ -38,7 +38,7 @@ export default function AdminApplications() {
   const [collections, setCollections] = useState([])
   const [approveForm, setApproveForm] = useState({
     promo_code:        '',
-    customer_discount: 5,
+    customer_discount: 10,
     commission:        10,
     platform:          'Instagram',
     collection_id:     '',
@@ -73,7 +73,7 @@ export default function AdminApplications() {
     setApproveApp(a)
     setApproveForm({
       promo_code:        suggestCode(a.full_name),
-      customer_discount: 5,
+      customer_discount: 10,
       commission:        10,
       platform:          detectPlatform(a),
       collection_id:     '',
