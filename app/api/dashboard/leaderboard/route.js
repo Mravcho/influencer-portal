@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { isLeaderboardEnabled } from '@/lib/portal-settings'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -10,6 +11,10 @@ const VOIDED_STATUSES = new Set(['voided', 'refunded'])
 // БЕЗ комисионни, БЕЗ приходи. Това е версията за инфлуенсърите.
 export async function GET(request) {
   const userRole = request.headers.get('x-user-role')
+  // Изключена от Админ → Настройки → инфлуенсърите не я виждат (админът — да)
+  if (userRole !== 'admin' && !(await isLeaderboardEnabled())) {
+    return NextResponse.json({ disabled: true })
+  }
   const { searchParams } = new URL(request.url)
   const monthParam = searchParams.get('month')
   const viewId     = searchParams.get('viewId') // admin преглежда конкретен инфлуенсър

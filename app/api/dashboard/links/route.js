@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { buildShopifyDiscountUrl, ensureDefaultLink } from '@/lib/share-links'
+import { oldCodesSupported } from '@/lib/influencer-codes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -24,7 +25,7 @@ export async function GET(request) {
 
   const { data: inf } = await supabaseAdmin
     .from('influencers')
-    .select('id, promo_code, platform')
+    .select(`id, promo_code, platform${await oldCodesSupported() ? ', old_codes' : ''}`)
     .eq('id', influencerId)
     .single()
 
@@ -67,7 +68,14 @@ export async function GET(request) {
       .eq('influencer_id', influencerId),
   ])
 
-  const links         = linksResult.data || []
+  // Линковете със старите кодове (/r/realpavel5 след преминаване към REALPAVEL10)
+  // продължават да работят, но не ги показваме отделно — кликовете им се броят
+  // към основния линк.
+  const oldShort = new Set((inf?.old_codes || []).map(c => String(c).toLowerCase()))
+  const allLinks      = linksResult.data || []
+  const hiddenIds     = new Set(allLinks.filter(l => !l.is_default && oldShort.has(String(l.short_code).toLowerCase())).map(l => l.id))
+  const links         = allLinks.filter(l => !hiddenIds.has(l.id))
+  const defaultLinkId = links.find(l => l.is_default)?.id
   const clickList     = clicksResult.data || []
   const total         = clicksResult.count ?? clickList.length
   const lifetimeTotal = lifetimeResult.count ?? 0
@@ -76,7 +84,8 @@ export async function GET(request) {
   const clicksByLink = {}
   clickList.forEach(c => {
     if (!c.link_id) return
-    clicksByLink[c.link_id] = (clicksByLink[c.link_id] || 0) + 1
+    const id = hiddenIds.has(c.link_id) && defaultLinkId ? defaultLinkId : c.link_id
+    clicksByLink[id] = (clicksByLink[id] || 0) + 1
   })
 
   // Дневна разбивка между rangeFrom и rangeTo (включително)

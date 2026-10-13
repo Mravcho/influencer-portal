@@ -38,6 +38,9 @@ export default function InfluencerLeaderboard({ viewId = null }) {
       .catch(() => setLoading(false))
   }, [month, viewId])
 
+  // Изключена от админа
+  if (data?.disabled) return null
+
   if (loading && !data) return null
 
   const top10 = data?.top10 || []

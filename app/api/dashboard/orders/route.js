@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { isLeaderboardEnabled } from '@/lib/portal-settings'
 import { orderCommission } from '@/lib/commission'
 import { isVoidedOrder } from '@/lib/order-flags'
 
@@ -154,6 +155,7 @@ export async function GET(request) {
     name:      profile?.name || null,
     platform:  profile?.platform || null,
     promoCode: profile?.promo_code || null,
+    leaderboardEnabled: await isLeaderboardEnabled(),
     currentMonth: {
       orders:     monthOrders.length,
       commission: Math.round(monthCommission * 100) / 100,

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { notifyEmailsColumnExists, getSavedNotifyEmails, normalizeEmails, ENV_EMAILS } from '@/lib/notify-emails'
+import { leaderboardColumnExists, isLeaderboardEnabled } from '@/lib/portal-settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +27,8 @@ export async function GET() {
     notify_emails:           saved || [],
     notify_emails_supported: notifySupported,
     notify_emails_fallback:  ENV_EMAILS,
+    leaderboard_enabled:     await isLeaderboardEnabled(),
+    leaderboard_supported:   await leaderboardColumnExists(),
   })
 }
 

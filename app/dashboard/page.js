@@ -190,7 +190,7 @@ function SidebarNavItem({ item, active, onClick, t }) {
   )
 }
 
-function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme }) {
+function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme, nav = NAV }) {
   const firstName = (userInfo.name || '').trim().split(/\s+/)[0]
   const t = TOKENS[theme] || TOKENS.dark
   return (
@@ -231,7 +231,7 @@ function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme })
       </div>
 
       <nav style={{ padding: '8px 10px', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 2 }} aria-label="Главна навигация">
-        {NAV.map(item => (
+        {nav.map(item => (
           <SidebarNavItem key={item.id} item={item} active={active} onClick={() => item.id === 'chat' ? window.dispatchEvent(new Event('rf-open-chat')) : scrollToAnchor(item.id)} t={t} />
         ))}
       </nav>
@@ -305,7 +305,7 @@ function Sidebar({ active, userInfo, branding, onLogout, theme, onToggleTheme })
   )
 }
 
-function MobileTabBar({ active, theme }) {
+function MobileTabBar({ active, theme, nav = MOBILE_NAV }) {
   const t = TOKENS[theme] || TOKENS.dark
   return (
     <nav
@@ -322,12 +322,12 @@ function MobileTabBar({ active, theme }) {
         WebkitBackdropFilter: 'blur(20px)',
         borderTop: `1px solid ${t.sidebarBorder}`,
         display: 'grid',
-        gridTemplateColumns: 'repeat(5, 1fr)',
+        gridTemplateColumns: `repeat(${nav.length}, 1fr)`,
         paddingBottom: 'env(safe-area-inset-bottom)',
         paddingTop: 6,
       }}
     >
-      {MOBILE_NAV.map(item => {
+      {nav.map(item => {
         const isActive = active === item.id
         return (
           <button
@@ -665,6 +665,8 @@ function EarningsChart({ orders, commissionRate, theme }) {
 export default function Dashboard() {
   const router = useRouter()
   const [data, setData]         = useState(null)
+  // Класацията се показва само ако админът не я е изключил (идва с данните)
+  const showLeaderboard = data?.leaderboardEnabled === true
   const [loading, setLoading]   = useState(true)
   const [userInfo, setUserInfo] = useState({ name: '', promoCode: '', commission: 0, active: true })
   const [branding, setBranding] = useState({ logo_url: null })
@@ -893,6 +895,7 @@ export default function Dashboard() {
           onLogout={logout}
           theme={theme}
           onToggleTheme={toggleTheme}
+          nav={showLeaderboard ? NAV : NAV.filter(n => n.id !== 'leaderboard')}
         />
 
         <div className="flex-1 min-w-0">
@@ -1157,7 +1160,7 @@ export default function Dashboard() {
         <MyProductRequestsWidget />
 
         {/* Leaderboard */}
-        <div id="leaderboard"><InfluencerLeaderboard /></div>
+        {showLeaderboard && <div id="leaderboard"><InfluencerLeaderboard /></div>}
 
         {/* Top products with images */}
         <div className="card" style={{ marginBottom: '1rem' }}>
@@ -1318,7 +1321,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <MobileTabBar active="top" theme={theme} />
+      <MobileTabBar active="top" theme={theme} nav={showLeaderboard ? MOBILE_NAV : MOBILE_NAV.filter(n => n.id !== 'leaderboard')} />
       <FloatingChat />
     </div>
   )

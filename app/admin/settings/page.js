@@ -9,6 +9,8 @@ export default function AdminSettings() {
   // Имейли за админ известия (кандидатури, изплащания, заявки за продукти, чат)
   const [notifyEmails, setNotifyEmails]     = useState([])
   const [notifyInfo, setNotifyInfo]         = useState({ supported: true, fallback: [] })
+  // Класация за инфлуенсърите: { enabled, supported, saving, error }
+  const [board, setBoard]                   = useState({ enabled: true, supported: true, saving: false, error: '' })
   const [newEmail, setNewEmail]             = useState('')
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
@@ -31,12 +33,31 @@ export default function AdminSettings() {
         if (d) {
           setNotifyEmails(d.notify_emails || [])
           setNotifyInfo({ supported: d.notify_emails_supported !== false, fallback: d.notify_emails_fallback || [] })
+          setBoard(b => ({ ...b, enabled: d.leaderboard_enabled !== false, supported: d.leaderboard_supported !== false }))
         }
       })
       .finally(() => setLoading(false))
   }, [router])
 
   const setField = (k, v) => setBranding(b => ({ ...b, [k]: v }))
+
+  // Записва се веднага (без бутона „Запази“)
+  const toggleBoard = async () => {
+    const enabled = !board.enabled
+    setBoard(b => ({ ...b, saving: true, error: '' }))
+    try {
+      const res = await fetch('/api/admin/settings/leaderboard', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(d.error || `Грешка (${res.status})`)
+      setBoard(b => ({ ...b, enabled, saving: false }))
+    } catch (err) {
+      setBoard(b => ({ ...b, saving: false, error: err.message }))
+    }
+  }
 
   const uploadFile = async (file, kind) => {
     const stateKey = kind === 'logo' ? 'logo' : kind === 'banner' ? 'banner' : kind === 'terms' ? 'terms' : 'bg'
@@ -265,6 +286,36 @@ export default function AdminSettings() {
           <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
             Препоръчителни размери: 1600×500 px. Макс 5 MB.
           </p>
+        </div>
+
+        {/* Класация за инфлуенсърите */}
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>🏆 Класация за инфлуенсърите</h2>
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>
+                {board.enabled
+                  ? 'Включена — инфлуенсърите виждат месечната класация в профила си.'
+                  : 'Изключена — инфлуенсърите не виждат класацията. В админ панела тя остава.'}
+              </p>
+            </div>
+            <button
+              className={`btn btn-sm ${board.enabled ? '' : 'btn-primary'}`}
+              onClick={toggleBoard}
+              disabled={board.saving || !board.supported}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {board.saving ? 'Записвам…' : board.enabled ? 'Изключи класацията' : 'Включи класацията'}
+            </button>
+          </div>
+          {!board.supported && (
+            <div className="alert alert-error" style={{ marginTop: 12 }}>
+              Пусни в Supabase → SQL Editor:{' '}
+              <code>ALTER TABLE branding ADD COLUMN IF NOT EXISTS leaderboard_enabled BOOLEAN NOT NULL DEFAULT true;</code>
+              {' '}и презареди страницата.
+            </div>
+          )}
+          {board.error && <div className="alert alert-error" style={{ marginTop: 12 }}>{board.error}</div>}
         </div>
 
         {/* Имейли за известия */}
