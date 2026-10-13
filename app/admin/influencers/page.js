@@ -48,6 +48,8 @@ export default function AdminPage() {
   const [creatingCode, setCreatingCode] = useState(false)
   // Преминаване към нови кодове ИМЕ10: { pct, loading, rows, selected:Set, running, results, error, migrated }
   const [upgrade, setUpgrade] = useState(null)
+  // 10% период: { supported, active, busy, confirm, results, error }
+  const [boost, setBoost] = useState({ supported: true, active: false })
   const [pendingPayouts, setPendingPayouts]      = useState(0)
   const [pendingApplications, setPendingApplications] = useState(0)
   const [pendingProductRequests, setPendingProductRequests] = useState(0)
@@ -77,6 +79,31 @@ export default function AdminPage() {
   }, [])
 
   useEffect(() => { checkCodes() }, [checkCodes])
+
+  const loadBoost = useCallback(() => {
+    fetch('/api/admin/influencers/boost', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setBoost(b => ({ ...b, supported: d.supported, active: d.active })))
+      .catch(() => {})
+  }, [])
+  useEffect(() => { loadBoost() }, [loadBoost])
+
+  const switchBoost = async () => {
+    const active = !boost.active
+    setBoost(b => ({ ...b, busy: true, error: '', results: null }))
+    try {
+      const res = await fetch('/api/admin/influencers/boost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(d.error || `Грешка (${res.status})`)
+      setBoost(b => ({ ...b, busy: false, active, results: d.results }))
+    } catch (err) {
+      setBoost(b => ({ ...b, busy: false, error: err.message }))
+    }
+  }
 
   // Колекциите от Shopify — нужни само за създаване на нов промо код
   useEffect(() => {
@@ -141,6 +168,7 @@ export default function AdminPage() {
       if (!res.ok) throw new Error(d.error || String(res.status))
       setUpgrade({
         pct, loading: false, rows: d.rows, migrated: d.migrated,
+        boostActive: d.boostActive,
         selected: new Set(d.rows.filter(r => r.status === 'ready').map(r => r.id)),
       })
     } catch (err) {
@@ -615,9 +643,16 @@ export default function AdminPage() {
           <button
             className="btn btn-sm"
             onClick={() => loadUpgrade(10)}
-            title="Нов код ИМЕ10 с 10% отстъпка за всеки инфлуенсър; старият продължава да се засича"
+            title="Създава 10% код ИМЕ10 до основния код на всеки инфлуенсър"
             style={{ whiteSpace: 'nowrap', marginLeft: 6 }}
-          >🔟 Нови кодове ИМЕ10</button>
+          >＋ Създай 10% кодове</button>
+          <button
+            className={`btn btn-sm ${boost.active ? 'btn-primary' : ''}`}
+            onClick={() => setBoost(b => ({ ...b, confirm: true, results: null, error: '' }))}
+            disabled={!boost.supported}
+            title={boost.supported ? 'Кой код получават клиентите в момента' : 'Пусни supabase/migration_boost_code.sql'}
+            style={{ whiteSpace: 'nowrap', marginLeft: 6 }}
+          >{boost.active ? '🔟 Активен: 10% код' : '5️⃣ Активен: 5% код'}</button>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
             {codeCheckState === 'checking' && 'проверявам в Shopify…'}
             {codeCheckState === 'error'    && 'проверката не мина — опитай пак'}
@@ -704,6 +739,14 @@ export default function AdminPage() {
                             background: 'var(--bg)', padding: '0 5px', borderRadius: 3,
                             fontSize: 10, marginTop: 2, display: 'inline-block',
                           }}>{inf.promo_code}</code>
+                          {inf.boost_code && (
+                            <code style={{
+                              background: boost.active ? 'var(--accent-lt)' : 'var(--bg)', padding: '0 5px', borderRadius: 3,
+                              fontSize: 10, marginTop: 2, marginLeft: 4, display: 'inline-block',
+                              color: boost.active ? 'var(--accent-dk)' : 'var(--muted)',
+                              textDecoration: boost.active ? 'none' : 'line-through',
+                            }} title={boost.active ? '10% кодът е активен' : '10% кодът е изключен'}>{inf.boost_code}</code>
+                          )}
                           {inf.old_codes?.length > 0 && (
                             <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }} title="Предишни кодове — поръчките по тях също се засичат">
                               и: {inf.old_codes.join(', ')}
@@ -1310,6 +1353,53 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      {boost.confirm && (
+        <div
+          role="dialog" aria-modal="true"
+          onClick={e => { if (e.target === e.currentTarget && !boost.busy) setBoost(b => ({ ...b, confirm: false })) }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div className="card" style={{ width: '100%', maxWidth: 480, maxHeight: '88vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Активен код за клиентите</h2>
+            <div style={{ fontSize: 13, marginBottom: 12 }}>
+              Сега: <strong>{boost.active ? '10% код (ИМЕ10)' : '5% код (основният)'}</strong>
+            </div>
+            {!boost.results && (
+              <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 12 }}>
+                {boost.active
+                  ? 'Изключване: 10% кодовете се изключват в Shopify и вече не работят в количката. Инфлуенсърите и кратките им линкове минават на основния 5% код.'
+                  : 'Включване: 10% кодовете се включват в Shopify. Инфлуенсърите виждат 10% кода в профила си, а кратките им линкове дават 10% кода. Основните 5% кодове продължават да работят.'}
+                {' '}Поръчките и по двата кода се засичат както досега.
+              </p>
+            )}
+            {boost.error && <div className="alert alert-error" style={{ marginBottom: 12 }}>{boost.error}</div>}
+            {boost.results && (
+              <div style={{ fontSize: 12, marginBottom: 12 }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                  ✓ {boost.results.filter(r => r.ok).length} кода {boost.active ? 'включени' : 'изключени'} в Shopify
+                </div>
+                {boost.results.filter(r => !r.ok).map(r => (
+                  <div key={r.code} style={{ color: '#991b1b' }}>✗ {r.name} · {r.code} — {r.error}</div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              {!boost.results && (
+                <button className="btn btn-primary" onClick={switchBoost} disabled={boost.busy}>
+                  {boost.busy ? 'Обновявам Shopify…' : boost.active ? 'Изключи 10% → активен 5%' : 'Включи 10% код'}
+                </button>
+              )}
+              <button className="btn" onClick={() => setBoost(b => ({ ...b, confirm: false, results: null }))} disabled={boost.busy}>
+                {boost.results ? 'Затвори' : 'Отказ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {upgrade && (
         <div
           role="dialog" aria-modal="true"
@@ -1321,19 +1411,19 @@ export default function AdminPage() {
         >
           <div className="card" style={{ width: '100%', maxWidth: 640, maxHeight: '88vh', overflowY: 'auto' }}>
             <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
-              Нови кодове с {upgrade.pct}% отстъпка
+              {upgrade.pct}% кодове
             </h2>
             <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12, lineHeight: 1.5 }}>
-              За всеки избран инфлуенсър се създава нов код в Shopify (напр. REALNETI5 → REALNETI{upgrade.pct}) — за
-              същите продукти/колекции и със същите условия като стария, само с {upgrade.pct}% отстъпка.
-              Новият код става основен в портала и в кратките линкове. <strong>Старият остава активен</strong> и
-              поръчките по него продължават да се засичат към същия инфлуенсър. Комисионната не се променя.
+              За всеки избран инфлуенсър се създава втори код в Shopify (напр. REALNETI5 → REALNETI{upgrade.pct}) — за
+              същите продукти/колекции и със същите условия като основния, само с {upgrade.pct}% отстъпка.
+              Основният код си остава и винаги е активен. {upgrade.pct}% кодът работи само докато е включен
+              с бутона „Активен код“{upgrade.boostActive ? ' (сега е включен)' : ' — сега е изключен, затова новите кодове ще се създадат изключени'}.
+              Поръчките и по двата кода се засичат към инфлуенсъра. Комисионната не се променя.
             </p>
 
             {upgrade.migrated === false && (
               <div style={{ fontSize: 12, padding: 10, borderRadius: 8, background: '#fef3c7', color: '#92400e', marginBottom: 12 }}>
-                Първо пусни <code>supabase/migration_old_codes.sql</code> в Supabase (SQL Editor) — иначе поръчките по
-                старите кодове няма да се засичат.
+                Първо пусни <code>supabase/migration_boost_code.sql</code> в Supabase (SQL Editor).
               </div>
             )}
             {upgrade.error && (
@@ -1419,9 +1509,9 @@ export default function AdminPage() {
 }
 
 const UPGRADE_LABEL = {
-  already:     'вече е на този код',
+  already:     'вече има този код',
   taken:       'новият код вече съществува в Shopify',
-  missing:     'текущият код го няма в Shopify',
+  missing:     'основният код го няма в Shopify',
   unsupported: 'не може автоматично',
   no_code:     'няма промокод',
   error:       'грешка',

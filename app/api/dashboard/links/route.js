@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { buildShopifyDiscountUrl, ensureDefaultLink } from '@/lib/share-links'
-import { oldCodesSupported } from '@/lib/influencer-codes'
+import { codeColumns, activeCodeOf, isBoostActive } from '@/lib/influencer-codes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -25,7 +25,7 @@ export async function GET(request) {
 
   const { data: inf } = await supabaseAdmin
     .from('influencers')
-    .select(`id, promo_code, platform${await oldCodesSupported() ? ', old_codes' : ''}`)
+    .select(['id, promo_code, platform', ...await codeColumns()].join(', '))
     .eq('id', influencerId)
     .single()
 
@@ -68,14 +68,19 @@ export async function GET(request) {
       .eq('influencer_id', influencerId),
   ])
 
-  // Линковете със старите кодове (/r/realpavel5 след преминаване към REALPAVEL10)
-  // продължават да работят, но не ги показваме отделно — кликовете им се броят
-  // към основния линк.
-  const oldShort = new Set((inf?.old_codes || []).map(c => String(c).toLowerCase()))
-  const allLinks      = linksResult.data || []
-  const hiddenIds     = new Set(allLinks.filter(l => !l.is_default && oldShort.has(String(l.short_code).toLowerCase())).map(l => l.id))
-  const links         = allLinks.filter(l => !hiddenIds.has(l.id))
-  const defaultLinkId = links.find(l => l.is_default)?.id
+  // Показваме един линк с код — този на активния в момента код (/r/realpavel10 по
+  // време на 10% период, иначе /r/realpavel5). Другите линкове с кодовете на
+  // инфлуенсъра продължават да работят (водят към активния код), но не се показват
+  // отделно — кликовете им се броят към показания.
+  const activeCode = inf ? activeCodeOf(inf, await isBoostActive()) : null
+  const ownShort   = new Set([inf?.promo_code, inf?.boost_code, ...(inf?.old_codes || [])].filter(Boolean).map(c => String(c).toLowerCase()))
+  const allLinks   = linksResult.data || []
+  const codeLinks  = allLinks.filter(l => l.is_default || ownShort.has(String(l.short_code).toLowerCase()))
+  const shown      = codeLinks.find(l => String(l.short_code).toLowerCase() === String(activeCode || '').toLowerCase())
+                  || codeLinks.find(l => l.is_default) || null
+  const hiddenIds  = new Set(codeLinks.filter(l => l !== shown).map(l => l.id))
+  const links      = allLinks.filter(l => !hiddenIds.has(l.id))
+  const defaultLinkId = shown?.id
   const clickList     = clicksResult.data || []
   const total         = clicksResult.count ?? clickList.length
   const lifetimeTotal = lifetimeResult.count ?? 0
@@ -117,8 +122,10 @@ export async function GET(request) {
 
   const enriched = links.map(l => ({
     ...l,
+    // Показаният линк с код е основният за инфлуенсъра
+    is_default:     shown ? l.id === shown.id : l.is_default,
     clicks:         clicksByLink[l.id] || 0,
-    target_preview: inf ? buildShopifyDiscountUrl(inf.promo_code, inf.platform) : null,
+    target_preview: activeCode ? buildShopifyDiscountUrl(activeCode, inf.platform) : null,
   }))
 
   return NextResponse.json({

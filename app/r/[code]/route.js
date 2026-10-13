@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { buildShopifyDiscountUrl, buildNonPromoTargetUrl, isBot, SHOP_BASE_URL } from '@/lib/share-links'
+import { activeCodeOf, isBoostActive, boostSupported } from '@/lib/influencer-codes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -36,11 +37,12 @@ export async function GET(request, { params }) {
 
   let influencerId = link?.influencer_id || null
   let influencer   = null
+  const INF_COLS = `id, promo_code, platform, share_link_target, username${await boostSupported() ? ', boost_code' : ''}`
 
   if (influencerId) {
     const { data: inf } = await supabaseAdmin
       .from('influencers')
-      .select('id, promo_code, platform, share_link_target, username')
+      .select(INF_COLS)
       .eq('id', influencerId)
       .single()
     influencer = inf
@@ -48,7 +50,7 @@ export async function GET(request, { params }) {
     // Fallback: ако няма share_link, търсим по промо код директно
     const { data: inf } = await supabaseAdmin
       .from('influencers')
-      .select('id, promo_code, platform, share_link_target, username')
+      .select(INF_COLS)
       .ilike('promo_code', code)
       .maybeSingle()
     influencer = inf
@@ -60,8 +62,10 @@ export async function GET(request, { params }) {
 
   // Изграждаме target dynamically — UTM-те винаги отразяват текущата платформа/промо код.
   // Ако няма промокод, изграждаме no-promo URL (share_link_target или дефолтна страница).
-  const targetUrl = influencer.promo_code
-    ? buildShopifyDiscountUrl(influencer.promo_code, influencer.platform)
+  // Кодът, който е активен в момента: 10% по време на 10% период, иначе основният
+  const activeCode = activeCodeOf(influencer, await isBoostActive())
+  const targetUrl = activeCode
+    ? buildShopifyDiscountUrl(activeCode, influencer.platform)
     : buildNonPromoTargetUrl({
         shareLinkTarget: influencer.share_link_target,
         platform:        influencer.platform,

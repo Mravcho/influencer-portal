@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
+import { activeCodeOf, isBoostActive, boostSupported } from '@/lib/influencer-codes'
 
 export async function GET() {
   const cookieStore = cookies()
@@ -36,11 +37,12 @@ export async function GET() {
   let termsRequired = false
   let termsUrl = null
   let termsAcceptedAt = null
+  let promoCode = payload.promoCode || ''
   if (payload.role === 'influencer' && payload.id) {
     const [{ data: inf }, { data: branding }] = await Promise.all([
       supabaseAdmin
         .from('influencers')
-        .select('active, commission, terms_accepted_at')
+        .select(`active, commission, terms_accepted_at, promo_code${await boostSupported() ? ', boost_code' : ''}`)
         .eq('id', payload.id)
         .maybeSingle(),
       supabaseAdmin
@@ -53,6 +55,8 @@ export async function GET() {
       active     = inf.active !== false
       commission = parseFloat(inf.commission || 0)
       termsAcceptedAt = inf.terms_accepted_at || null
+      // Активният в момента код (10% по време на 10% период)
+      promoCode = activeCodeOf(inf, await isBoostActive()) || promoCode
     }
 
     // Изисква приемане, ако има качен файл и инфлуенсърът не го е приел
@@ -68,7 +72,7 @@ export async function GET() {
   return NextResponse.json({
     name:       payload.name || '',
     username:   payload.username || '',
-    promoCode:  payload.promoCode || '',
+    promoCode,
     commission,
     role:       payload.role,
     active,

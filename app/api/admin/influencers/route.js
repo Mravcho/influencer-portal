@@ -8,7 +8,7 @@ import { sendWelcomeEmail } from '@/lib/email'
 import { orderCommission } from '@/lib/commission'
 import { ensureDefaultLink } from '@/lib/share-links'
 import { productDiscountSupported } from '@/lib/product-payment'
-import { oldCodesSupported } from '@/lib/influencer-codes'
+import { oldCodesSupported, codeColumns } from '@/lib/influencer-codes'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +29,7 @@ function normPct(v) {
 export async function GET() {
   const { data: influencers, error } = await supabaseAdmin
     .from('influencers')
-    .select(`id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, can_request_products, category, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes, share_link_target, contract_url, contract_filename, contract_uploaded_at, terms_accepted_at${await productDiscountSupported() ? ', product_discount_pct' : ''}${await oldCodesSupported() ? ', old_codes' : ''}`)
+    .select(`id, name, username, promo_code, commission, platform, active, exclude_from_leaderboard, can_request_products, category, created_at, profile_url, avatar_url, banner_url, email, email_notifications, notes, share_link_target, contract_url, contract_filename, contract_uploaded_at, terms_accepted_at${await productDiscountSupported() ? ', product_discount_pct' : ''}${(await codeColumns()).map(c => `, ${c}`).join('')}`)
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -245,6 +245,7 @@ export async function PATCH(request) {
   if (rest.username) updates.username = rest.username.toLowerCase()
   if (rest.promo_code) updates.promo_code = rest.promo_code.toUpperCase()
   delete updates.old_codes
+  delete updates.boost_code
   // Смяна на кода → предишният отива в old_codes, за да продължат да се засичат
   // поръчките по него (вече споделен в постове и сторита)
   if (updates.promo_code && await oldCodesSupported()) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { isLeaderboardEnabled } from '@/lib/portal-settings'
+import { activeCodeOf, isBoostActive, boostSupported } from '@/lib/influencer-codes'
 import { orderCommission } from '@/lib/commission'
 import { isVoidedOrder } from '@/lib/order-flags'
 
@@ -61,7 +62,7 @@ export async function GET(request) {
   const [{ data: profile }, { data: brandingRow }] = await Promise.all([
     supabaseAdmin
       .from('influencers')
-      .select('name, banner_url, avatar_url, platform, promo_code, commission')
+      .select(`name, banner_url, avatar_url, platform, promo_code, commission${await boostSupported() ? ', boost_code' : ''}`)
       .eq('id', influencerId)
       .single(),
     supabaseAdmin
@@ -154,7 +155,7 @@ export async function GET(request) {
     avatarUrl: profile?.avatar_url || null,
     name:      profile?.name || null,
     platform:  profile?.platform || null,
-    promoCode: profile?.promo_code || null,
+    promoCode: profile ? activeCodeOf(profile, await isBoostActive()) : null,
     leaderboardEnabled: await isLeaderboardEnabled(),
     currentMonth: {
       orders:     monthOrders.length,
