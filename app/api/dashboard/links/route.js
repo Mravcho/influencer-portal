@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { buildShopifyDiscountUrl, ensureDefaultLink } from '@/lib/share-links'
 import { codeColumns, activeCodeOf, isBoostActive } from '@/lib/influencer-codes'
+import { fetchAllRows } from '@/lib/order-status'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -53,14 +54,17 @@ export async function GET(request) {
       .order('is_default', { ascending: false })
       .order('created_at', { ascending: false }),
 
-    supabaseAdmin
+    // Supabase връща най-много 1000 реда на заявка → теглим на страници, иначе
+    // кликовете по линк и графиката спират на 1000
+    fetchAllRows((from, to) => supabaseAdmin
       .from('link_clicks')
-      .select('id, link_id, clicked_at, referrer', { count: 'exact' })
+      .select('id, link_id, clicked_at, referrer')
       .eq('influencer_id', influencerId)
       .gte('clicked_at', rangeFrom.toISOString())
       .lte('clicked_at', rangeTo.toISOString())
       .order('clicked_at', { ascending: false })
-      .limit(5000),
+      .order('id', { ascending: true })
+      .range(from, to), { max: 50000 }).then(data => ({ data }), () => ({ data: [] })),
 
     supabaseAdmin
       .from('link_clicks')
@@ -68,21 +72,29 @@ export async function GET(request) {
       .eq('influencer_id', influencerId),
   ])
 
-  // Показваме един линк с код — този на активния в момента код (/r/realpavel10 по
-  // време на 10% период, иначе /r/realpavel5). Другите линкове с кодовете на
-  // инфлуенсъра продължават да работят (водят към активния код), но не се показват
-  // отделно — кликовете им се броят към показания.
+  // Линковете с кодове: един за основния код (5%) и един за 10% кода, всеки със
+  // своите кликове. Този на неактивния в момента код се показва като неактивен
+  // (и води към активния код). Линковете със стари кодове не се показват отделно —
+  // кликовете им се броят към линка на основния код.
+  const low        = c => String(c || '').toLowerCase()
   const activeCode = inf ? activeCodeOf(inf, await isBoostActive()) : null
-  const ownShort   = new Set([inf?.promo_code, inf?.boost_code, ...(inf?.old_codes || [])].filter(Boolean).map(c => String(c).toLowerCase()))
+  const ownShort   = new Set([inf?.promo_code, inf?.boost_code, ...(inf?.old_codes || [])].filter(Boolean).map(low))
   const allLinks   = linksResult.data || []
-  const codeLinks  = allLinks.filter(l => l.is_default || ownShort.has(String(l.short_code).toLowerCase()))
-  const shown      = codeLinks.find(l => String(l.short_code).toLowerCase() === String(activeCode || '').toLowerCase())
-                  || codeLinks.find(l => l.is_default) || null
-  const hiddenIds  = new Set(codeLinks.filter(l => l !== shown).map(l => l.id))
-  const links      = allLinks.filter(l => !hiddenIds.has(l.id))
-  const defaultLinkId = shown?.id
+  const codeLinks  = allLinks.filter(l => l.is_default || ownShort.has(low(l.short_code)))
+  const boostLink  = inf?.boost_code ? codeLinks.find(l => low(l.short_code) === low(inf.boost_code)) || null : null
+  const promoLink  = codeLinks.find(l => low(l.short_code) === low(inf?.promo_code))
+                  || codeLinks.find(l => l.is_default && l !== boostLink) || null
+  const codeOfLink = new Map()
+  if (promoLink) codeOfLink.set(promoLink.id, String(inf.promo_code || '').toUpperCase())
+  if (boostLink) codeOfLink.set(boostLink.id, String(inf.boost_code).toUpperCase())
+  const hiddenIds  = new Set(codeLinks.filter(l => !codeOfLink.has(l.id)).map(l => l.id))
+  const links      = allLinks
+    .filter(l => !hiddenIds.has(l.id))
+    // Активният код най-отгоре
+    .sort((a, b) => (codeOfLink.get(b.id) === activeCode) - (codeOfLink.get(a.id) === activeCode))
+  const defaultLinkId = promoLink?.id
   const clickList     = clicksResult.data || []
-  const total         = clicksResult.count ?? clickList.length
+  const total         = clickList.length
   const lifetimeTotal = lifetimeResult.count ?? 0
 
   // Per-link брояч (от същия dataset)
@@ -122,8 +134,11 @@ export async function GET(request) {
 
   const enriched = links.map(l => ({
     ...l,
-    // Показаният линк с код е основният за инфлуенсъра
-    is_default:     shown ? l.id === shown.id : l.is_default,
+    is_default:     codeOfLink.has(l.id) || l.is_default,
+    code:           codeOfLink.get(l.id) || null,
+    // Линк с код, който в момента не е активен (напр. 10% извън 10% период)
+    inactive:       codeOfLink.has(l.id) && codeOfLink.get(l.id) !== activeCode,
+    active_code:    activeCode,
     clicks:         clicksByLink[l.id] || 0,
     target_preview: activeCode ? buildShopifyDiscountUrl(activeCode, inf.platform) : null,
   }))

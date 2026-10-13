@@ -232,13 +232,22 @@ export default function ShareLinksWidget({ viewId = null, baseUrl }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {links.map(l => (
           <div key={l.id} style={{
-            padding: 12, background: 'var(--accent-lt)',
-            border: '1px solid var(--accent)', borderRadius: 10,
+            padding: 12,
+            background: l.inactive ? 'var(--bg)' : 'var(--accent-lt)',
+            border: `1px solid ${l.inactive ? 'var(--border)' : 'var(--accent)'}`, borderRadius: 10,
+            opacity: l.inactive ? 0.65 : 1,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               <div style={{ fontWeight: 600, fontSize: 13 }}>
                 {l.is_default ? 'Кратък линк за споделяне в соц. мрежи' : (l.label || 'Промо линк')}
+                {l.code && <span style={{ fontWeight: 500, color: 'var(--muted)' }}> · код {l.code}</span>}
               </div>
+              {l.code && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                  background: l.inactive ? 'var(--border)' : 'var(--accent)', color: l.inactive ? 'var(--muted)' : '#fff',
+                }}>{l.inactive ? 'Неактивен' : 'Активен'}</span>
+              )}
               <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--muted)' }}>
                 <strong style={{ color: 'var(--text)' }}>{l.clicks}</strong> {l.clicks === 1 ? 'клик' : 'клика'}
               </div>
@@ -253,8 +262,9 @@ export default function ShareLinksWidget({ viewId = null, baseUrl }) {
                 textOverflow: 'ellipsis',
               }}>{fullUrl(l.short_code)}</code>
               <button
-                className="btn btn-primary"
+                className={`btn ${l.inactive ? '' : 'btn-primary'}`}
                 onClick={() => copy(l.short_code, l.id)}
+                disabled={l.inactive}
                 style={{ minWidth: 100 }}
               >
                 {copiedId === l.id ? '✓ Копирано' : '📋 Копирай'}
@@ -262,7 +272,9 @@ export default function ShareLinksWidget({ viewId = null, baseUrl }) {
             </div>
 
             <p style={{ fontSize: 10, color: 'var(--muted)', marginTop: 6, lineHeight: 1.4 }}>
-              Споделяй този линк в социалните мрежи. След клик клиентът получава твоя промо код автоматично.
+              {l.inactive
+                ? `Кодът ${l.code} в момента не е активен — който кликне този линк, получава ${l.active_code}.`
+                : 'Споделяй този линк в социалните мрежи. След клик клиентът получава твоя промо код автоматично.'}
             </p>
           </div>
         ))}
