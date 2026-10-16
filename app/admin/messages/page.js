@@ -60,6 +60,10 @@ export default function AdminMessagesPage() {
     const res = await fetch(`/api/admin/messages?influencerId=${conv.influencer_id}`, { cache: 'no-store' })
     const d = await res.json()
     setMessages(d.messages || [])
+    // На телефон нишката е под списъка — превъртаме до нея
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      document.getElementById('chat-thread')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
     // нулираме unread локално + опресняваме списъка
     setConversations(cs => cs.map(c => c.influencer_id === conv.influencer_id ? { ...c, unread: 0 } : c))
   }
@@ -136,7 +140,7 @@ export default function AdminMessagesPage() {
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 320px) 1fr', gap: 16, alignItems: 'start' }}>
+        <div className="messages-grid">
           {/* Разговори */}
           <div className="card" style={{ padding: 0, overflow: 'hidden', maxHeight: '75vh', overflowY: 'auto' }}>
             {loadingList && <div style={{ padding: 16, color: 'var(--muted)', fontSize: 13 }}>Зареждане…</div>}
@@ -173,7 +177,7 @@ export default function AdminMessagesPage() {
           </div>
 
           {/* Нишка */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', minHeight: 400, maxHeight: '75vh' }}>
+          <div id="chat-thread" className="card" style={{ scrollMarginTop: 80,  display: 'flex', flexDirection: 'column', minHeight: 400, maxHeight: '75vh' }}>
             {composing ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
                 <div style={{ fontWeight: 700, fontSize: 15, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>

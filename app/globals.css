@@ -939,3 +939,17 @@ tbody tr:hover td { background: var(--bg); }
     min-width: 0;
   }
 }
+
+/* Мобилните ленти (горна и долна с табове) имат inline display: flex/grid, който
+   надделява над Tailwind класа lg:hidden — без това се показваха и на компютър и
+   закриваха долната част на страницата. */
+@media (min-width: 1024px) {
+  .lg\:hidden { display: none !important; }
+}
+
+/* Админ → Съобщения: разговори вляво, нишка вдясно; на телефон — едно под друго */
+.messages-grid { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 767px) {
+  .messages-grid { grid-template-columns: 1fr; }
+  .messages-grid > .card:first-child { max-height: 45vh !important; }
+}
