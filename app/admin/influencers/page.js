@@ -183,7 +183,7 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/influencers/upgrade-codes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pct: upgrade.pct, ids: [...upgrade.selected] }),
+        body: JSON.stringify({ pct: upgrade.pct, ids: [...upgrade.selected], codes: upgrade.custom || {} }),
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(d.error || `Грешка (${res.status})`)
@@ -1462,11 +1462,11 @@ export default function AdminPage() {
                 </tr></thead>
                 <tbody>
                   {upgrade.rows.map(r => (
-                    <tr key={r.id} style={{ opacity: r.status === 'ready' ? 1 : 0.55 }}>
+                    <tr key={r.id} style={{ opacity: r.status === 'ready' || r.status === 'taken' ? 1 : 0.55 }}>
                       <td style={{ padding: '4px 6px' }}>
                         <input
                           type="checkbox"
-                          disabled={r.status !== 'ready'}
+                          disabled={!(r.status === 'ready' || (r.status === 'taken' && upgrade.custom?.[r.id]))}
                           checked={upgrade.selected.has(r.id)}
                           onChange={e => setUpgrade(u => {
                             const sel = new Set(u.selected)
@@ -1477,7 +1477,24 @@ export default function AdminPage() {
                       </td>
                       <td style={{ padding: '4px 6px' }}>{r.name}</td>
                       <td style={{ padding: '4px 6px' }}><code>{r.code}</code>{r.oldPct != null && <span style={{ color: 'var(--muted)' }}> · {r.oldPct}%</span>}</td>
-                      <td style={{ padding: '4px 6px' }}>{r.next ? <code>{r.next}</code> : '—'}</td>
+                      <td style={{ padding: '4px 6px' }}>
+                        {r.status === 'taken' ? (
+                          // ИМЕ10 е зает → друго име по избор (напр. REALHAPPY10)
+                          <input
+                            value={upgrade.custom?.[r.id] || ''}
+                            placeholder={`не ${r.next}`}
+                            onChange={e => {
+                              const v = e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '')
+                              setUpgrade(u => {
+                                const sel = new Set(u.selected)
+                                v ? sel.add(r.id) : sel.delete(r.id)
+                                return { ...u, custom: { ...(u.custom || {}), [r.id]: v }, selected: sel }
+                              })
+                            }}
+                            style={{ width: 130, padding: '3px 6px', fontSize: 12, fontFamily: 'monospace' }}
+                          />
+                        ) : r.next ? <code>{r.next}</code> : '—'}
+                      </td>
                       <td style={{ padding: '4px 6px', color: 'var(--muted)' }}>
                         {r.status === 'ready' ? '' : (UPGRADE_LABEL[r.status] || r.status)}{r.reason ? ` — ${r.reason}` : ''}
                       </td>
@@ -1510,7 +1527,7 @@ export default function AdminPage() {
 
 const UPGRADE_LABEL = {
   already:     'вече има този код',
-  taken:       'новият код вече съществува в Shopify',
+  taken:       'този код вече съществува в Shopify — въведи друго име',
   missing:     'основният код го няма в Shopify',
   unsupported: 'не може автоматично',
   no_code:     'няма промокод',

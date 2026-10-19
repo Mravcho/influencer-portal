@@ -47,11 +47,13 @@ export async function GET(request) {
   }
 }
 
-// POST { pct, ids: [] } → създава новите кодове за избраните инфлуенсъри
+// POST { pct, ids: [], codes: { [id]: 'REALHAPPY10' } } → създава новите кодове за
+// избраните инфлуенсъри; codes — име по избор, когато ИМЕ10 е зает
 export async function POST(request) {
   const body = await request.json().catch(() => ({}))
   const pct = parsePct(body.pct)
   const ids = Array.isArray(body.ids) ? body.ids.filter(Boolean).slice(0, 200) : []
+  const codes = body.codes && typeof body.codes === 'object' ? body.codes : {}
   if (!pct) return NextResponse.json({ error: 'Невалиден процент' }, { status: 400 })
   if (!ids.length) return NextResponse.json({ error: 'Не са избрани инфлуенсъри' }, { status: 400 })
   if (!(await boostSupported())) {
@@ -61,7 +63,7 @@ export async function POST(request) {
   const results = []
   for (const inf of await activeWithCodes(ids)) {
     try {
-      results.push({ id: inf.id, name: inf.name, code: inf.promo_code, ...await upgradeInfluencerCode(inf, pct) })
+      results.push({ id: inf.id, name: inf.name, code: inf.promo_code, ...await upgradeInfluencerCode(inf, pct, { code: codes[inf.id] || null }) })
     } catch (err) {
       results.push({ id: inf.id, name: inf.name, code: inf.promo_code, status: 'error', reason: err.message })
     }
