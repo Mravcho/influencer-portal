@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminShell from '../components/AdminShell'
+import InfluencerActivity from '../components/InfluencerActivity'
 
 const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Facebook', 'Друга']
 
@@ -675,6 +676,7 @@ export default function AdminPage() {
               const n = influencers.filter(i => (i.category || 'influencers') === c.value).length
               return [c.value, `${c.label}${n ? ` (${n})` : ''}`]
             }),
+            ['activity', '📊 Активност'],
             ['form', editId ? 'Редактиране' : '＋ Добави нов'],
           ].map(([id, label]) => (
             <button
@@ -691,7 +693,9 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {tab !== 'form' && (
+        {tab === 'activity' && <InfluencerActivity />}
+
+        {tab !== 'form' && tab !== 'activity' && (
           <div className="card table-wrap">
             <table style={{ fontSize: 12 }}>
               <thead><tr>
