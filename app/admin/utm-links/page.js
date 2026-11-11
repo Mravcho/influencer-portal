@@ -14,6 +14,9 @@ const TOKENS = {
 }
 
 const PERIODS = [{ k: '7', d: 7 }, { k: '30', d: 30 }, { k: '90', d: 90 }]
+// Периодът, с който графиката на всяка карта се отваря — зарежда се с една
+// заявка за всички линкове наведнъж.
+const DEFAULT_DAYS = '30'
 
 function useTheme() {
   const [theme, setTheme] = useState('light')
@@ -234,19 +237,23 @@ function AttributionExplainer({ t, lastClickSupported }) {
 }
 
 /* ---------- one link row (readable) ---------- */
-function LinkCard({ link, t, onDelete, onCopy, copiedId, lastClickSupported }) {
-  const [days, setDays] = useState('30')
-  const [daily, setDaily] = useState(null)
-  const [open, setOpen] = useState(false)
+// defaultDaily: кликовете по дни за DEFAULT_DAYS, заредени от страницата за
+// всички линкове наведнъж (undefined = още се зареждат). Графиката е винаги
+// видима; друг период се тегли само за този линк.
+function LinkCard({ link, t, onDelete, onCopy, copiedId, lastClickSupported, defaultDaily }) {
+  const [days, setDays] = useState(DEFAULT_DAYS)
+  const [custom, setCustom] = useState(null)
 
   useEffect(() => {
-    if (!open) return
+    setCustom(null)
+    if (days === DEFAULT_DAYS) return
     let alive = true
     fetch(`/api/admin/utm-links/daily?alias=${encodeURIComponent(link.alias)}&days=${days}`)
-      .then((r) => r.json()).then((d) => { if (alive) setDaily(d.data || []) }).catch(() => {})
+      .then((r) => r.json()).then((d) => { if (alive) setCustom(d.data || []) }).catch(() => { if (alive) setCustom([]) })
     return () => { alive = false }
-  }, [open, days, link.alias])
+  }, [days, link.alias])
 
+  const daily = days === DEFAULT_DAYS ? defaultDaily : custom
   const periodClicks = useMemo(() => (daily || []).reduce((s, d) => s + d.count, 0), [daily])
 
   return (
@@ -282,23 +289,25 @@ function LinkCard({ link, t, onDelete, onCopy, copiedId, lastClickSupported }) {
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', flex: '1 1 440px', maxWidth: 560, marginLeft: 'auto' }}>
           <ClicksTile link={link} t={t} />
           <OrdersTile link={link} t={t} lastClickSupported={lastClickSupported} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <button onClick={() => setOpen((v) => !v)} title="Графика на кликовете по дни" style={iconBtn(t, open)}><TrendingUp size={15} /></button>
+          <div>
             <button onClick={onDelete} title="Изтрий" style={{ ...iconBtn(t, false), color: '#dc2626' }}><Trash2 size={15} /></button>
           </div>
         </div>
       </div>
-      {open && (
-        <div style={{ marginTop: 14, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 12 }}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 10, alignItems: 'center' }}>
+      {/* кликове по дни — винаги видими */}
+      <div style={{ marginTop: 14, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 12 }}>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <TrendingUp size={14} color={t.muted} />
+          <span style={{ fontSize: 12, fontWeight: 600 }}>Кликове по дни</span>
+          {daily && <span style={{ fontSize: 12, color: t.muted }}>· <b style={{ color: t.text }}>{periodClicks}</b> за {days} дни</span>}
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
             {PERIODS.map((p) => <button key={p.k} onClick={() => setDays(String(p.d))} style={chipToggle(t, days === String(p.d))}>{p.d} дни</button>)}
-            <span style={{ marginLeft: 'auto', fontSize: 12, color: t.muted }}><b style={{ color: t.text }}>{periodClicks}</b> за периода</span>
-          </div>
-          {daily === null ? <div style={{ fontSize: 12, color: t.muted }}>Зареждане…</div>
-            : daily.every((d) => d.count === 0) ? <div style={{ fontSize: 12, color: t.muted }}>Няма кликове за периода.</div>
-            : <MiniBars daily={daily} color={t.accent} empty={t.barEmpty} />}
+          </span>
         </div>
-      )}
+        {!daily ? <div style={{ fontSize: 12, color: t.muted }}>Зареждане…</div>
+          : daily.every((d) => d.count === 0) ? <div style={{ fontSize: 12, color: t.muted }}>Няма кликове за периода.</div>
+          : <MiniBars daily={daily} color={t.accent} empty={t.barEmpty} />}
+      </div>
     </div>
   )
 }
@@ -509,10 +518,18 @@ export default function AdminUtmLinks() {
   const [copiedId, setCopiedId] = useState(null)
   const [q, setQ] = useState('')
 
+  // Кликове по дни за всички линкове — една заявка вместо по една на карта.
+  const [dailyByAlias, setDailyByAlias] = useState(null)
+
   const load = useCallback(() => {
     setLoading(true)
     fetch('/api/admin/utm-links').then((r) => r.json()).then((d) => { setLinks(d.links || []); setStats(d.stats || null); setLoading(false) }).catch(() => setLoading(false))
+    fetch(`/api/admin/utm-links/daily?days=${DEFAULT_DAYS}`).then((r) => r.json())
+      .then((d) => setDailyByAlias(Object.fromEntries((d.allData || []).map((x) => [x.alias, x.data]))))
+      .catch(() => setDailyByAlias({}))
   }, [])
+  // undefined = още се зарежда; [] = линкът няма кликове за периода.
+  const dailyFor = (alias) => (dailyByAlias ? (dailyByAlias[alias] || []) : undefined)
   useEffect(() => { load() }, [load])
 
   const copy = useCallback((text, id) => { navigator.clipboard.writeText(text).then(() => { setCopiedId(id); setTimeout(() => setCopiedId(null), 1800) }) }, [])
@@ -622,7 +639,7 @@ export default function AdminUtmLinks() {
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Търси по име, alias, source, кампания…" style={{ ...field(t), paddingLeft: 34 }} />
               </div>
               <div style={{ fontSize: 12, color: t.muted }}>{filteredRegular.length} от {regularLinks.length} линка</div>
-              {filteredRegular.map((l) => <LinkCard key={l.id} link={l} t={t} onDelete={() => remove(l)} onCopy={copy} copiedId={copiedId} lastClickSupported={lastClickSupported} />)}
+              {filteredRegular.map((l) => <LinkCard key={l.id} link={l} t={t} onDelete={() => remove(l)} onCopy={copy} copiedId={copiedId} lastClickSupported={lastClickSupported} defaultDaily={dailyFor(l.alias)} />)}
             </div>
         )}
 
@@ -639,7 +656,7 @@ export default function AdminUtmLinks() {
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Търси по инфлуенсър, alias, кампания…" style={{ ...field(t), paddingLeft: 34 }} />
               </div>
               <div style={{ fontSize: 12, color: t.muted }}>{filteredCampaign.length} от {campaignLinks.length} линка</div>
-              {filteredCampaign.map((l) => <LinkCard key={l.id} link={l} t={t} onDelete={() => remove(l)} onCopy={copy} copiedId={copiedId} lastClickSupported={lastClickSupported} />)}
+              {filteredCampaign.map((l) => <LinkCard key={l.id} link={l} t={t} onDelete={() => remove(l)} onCopy={copy} copiedId={copiedId} lastClickSupported={lastClickSupported} defaultDaily={dailyFor(l.alias)} />)}
             </div>
         )}
 
