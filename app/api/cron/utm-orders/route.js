@@ -5,18 +5,21 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const maxDuration = 300
 
-// Ежедневен cron: досверява поръчките, дошли през UTM линк. Webhook-ът ги
-// хваща в момента; тук се подсигуряваме за пропуснати доставки.
+// Почасов cron: досверява поръчките, дошли през UTM линк. Webhook-ът ги
+// хваща в момента, но „последният клик“ (Customer Journey) става готов в
+// Shopify чак 10–20 мин след поръчката — затова на всеки час минаваме
+// последните 2 дни, а веднъж на денонощие (02 ч. UTC) — последните 30.
 // Пътят е извън /api/admin, защото Vercel cron праща GET без cookie.
 async function run(request) {
   const auth = request.headers.get('authorization')
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  const defaultDays = new Date().getUTCHours() === 2 ? 30 : 2
   const daysRaw = new URL(request.url).searchParams.get('days')
-  const days = daysRaw != null ? parseInt(daysRaw, 10) : 30
+  const days = daysRaw != null ? parseInt(daysRaw, 10) : defaultDays
 
-  const result = await scanUtmOrders({ days: Number.isFinite(days) ? days : 30 })
+  const result = await scanUtmOrders({ days: Number.isFinite(days) ? days : defaultDays })
   if (result.error) return NextResponse.json(result, { status: 500 })
   return NextResponse.json({ ok: true, ...result, ranAt: new Date().toISOString() })
 }

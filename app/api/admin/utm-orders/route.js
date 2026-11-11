@@ -6,7 +6,8 @@ export const revalidate = 0
 export const maxDuration = 300
 
 // POST /api/admin/utm-orders?days=N — обхожда поръчките в Shopify и записва
-// онези, чийто landing URL носи наш alias. days=0 → от началото (по-бавно).
+// онези, дошли през наш UTM линк — по първо влизане (landing URL) и по
+// последен клик (Customer Journey). days=0 → от началото (по-бавно).
 export async function POST(request) {
   if (request.headers.get('x-user-role') !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
