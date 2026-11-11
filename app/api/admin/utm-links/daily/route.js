@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { fetchAllRows } from '@/lib/order-status'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,15 +38,25 @@ export async function GET(request) {
   const dates = from && to ? rangeDates(from, to) : lastNDates(days)
   if (!dates || !dates.length) return NextResponse.json({ error: 'Невалиден период' }, { status: 400 })
 
-  let query = supabaseAdmin
-    .from('utm_daily_clicks')
-    .select('alias, date, count')
-    .gte('date', dates[0])
-    .lte('date', dates[dates.length - 1])
-  if (alias) query = query.eq('alias', alias)
-
-  const { data: rows, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // Четем на страници: при много линкове редовете за периода надхвърлят
+  // лимита от 1000 на PostgREST и графиките биха излезли непълни.
+  let rows
+  try {
+    rows = await fetchAllRows((rangeFrom, rangeTo) => {
+      let query = supabaseAdmin
+        .from('utm_daily_clicks')
+        .select('alias, date, count')
+        .gte('date', dates[0])
+        .lte('date', dates[dates.length - 1])
+        .order('date')
+        .order('alias')
+        .range(rangeFrom, rangeTo)
+      if (alias) query = query.eq('alias', alias)
+      return query
+    }, { max: 200000 })
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
 
   if (alias) {
     const map = new Map((rows || []).map((r) => [r.date, r.count]))
