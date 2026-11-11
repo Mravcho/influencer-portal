@@ -4,12 +4,13 @@ import { format, parseISO } from 'date-fns'
 import { bg } from 'date-fns/locale'
 import {
   Link2, Plus, Copy, Check, Trash2, ExternalLink, Search, TrendingUp, MousePointerClick,
+  ChevronDown, ChevronUp, Info, AlertTriangle,
 } from 'lucide-react'
 import AdminShell from '../components/AdminShell'
 
 const TOKENS = {
-  light: { cardBg: '#FFFFFF', cardBorder: '#E5E5EA', text: '#1D1D1F', muted: '#6E6E73', inputBg: '#FFFFFF', inputBorder: '#D2D2D7', chipBg: '#EFEFF1', accent: '#0F6E56', barEmpty: '#ECECEC', subtleBg: '#F5F5F7' },
-  dark:  { cardBg: '#14171F', cardBorder: 'rgba(255,255,255,0.06)', text: '#F5F7FA', muted: '#A1A8B8', inputBg: '#0E1118', inputBorder: 'rgba(255,255,255,0.12)', chipBg: 'rgba(255,255,255,0.06)', accent: '#A3E635', barEmpty: 'rgba(255,255,255,0.06)', subtleBg: 'rgba(255,255,255,0.03)' },
+  light: { cardBg: '#FFFFFF', cardBorder: '#E5E5EA', text: '#1D1D1F', muted: '#6E6E73', inputBg: '#FFFFFF', inputBorder: '#D2D2D7', chipBg: '#EFEFF1', accent: '#0F6E56', accent2: '#2563EB', warn: '#B45309', barEmpty: '#ECECEC', subtleBg: '#F5F5F7' },
+  dark:  { cardBg: '#14171F', cardBorder: 'rgba(255,255,255,0.06)', text: '#F5F7FA', muted: '#A1A8B8', inputBg: '#0E1118', inputBorder: 'rgba(255,255,255,0.12)', chipBg: 'rgba(255,255,255,0.06)', accent: '#A3E635', accent2: '#60A5FA', warn: '#FBBF24', barEmpty: 'rgba(255,255,255,0.06)', subtleBg: 'rgba(255,255,255,0.03)' },
 }
 
 const PERIODS = [{ k: '7', d: 7 }, { k: '30', d: 30 }, { k: '90', d: 90 }]
@@ -70,8 +71,131 @@ function chipToggle(t, on) {
   return { fontSize: 12, padding: '4px 11px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${on ? t.accent : t.cardBorder}`, background: on ? t.chipBg : 'transparent', color: on ? t.accent : t.muted, fontFamily: 'inherit' }
 }
 
+/* ---------- orders: two ways of counting ---------- */
+// Всяка поръчка се брои по два начина (виж lib/utm-attribution.js). Цветът на
+// числото съвпада с цвета на колоната в обяснението най-горе.
+function OrderStat({ value, label, color, revenue, conversion, voided, t }) {
+  const has = typeof value === 'number'
+  return (
+    <div style={{ textAlign: 'right' }}>
+      <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: has && value > 0 ? color : t.muted }}>
+        {has ? value : '—'}
+      </div>
+      <div style={{ fontSize: 11, color: t.muted, marginTop: 3, whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 4, background: color, marginRight: 5 }} />
+        {label}
+      </div>
+      {has && value > 0 && (
+        <div style={{ fontSize: 11, color: t.muted, marginTop: 6, whiteSpace: 'nowrap' }}>
+          {Number(revenue || 0).toFixed(2)} €
+          {conversion != null && <> · {conversion}%</>}
+        </div>
+      )}
+      {voided > 0 && <div style={{ fontSize: 10, color: t.muted, marginTop: 2 }}>+{voided} анулирани</div>}
+    </div>
+  )
+}
+
+function LinkOrders({ link, t, lastClickSupported }) {
+  const first = link.orders ?? 0
+  const last = link.ordersLastClick ?? 0
+  const both = link.ordersBoth ?? 0
+  const parts = []
+  if (lastClickSupported && (first > 0 || last > 0)) {
+    parts.push(`${both} и в двете`)
+    if (first - both > 0) parts.push(`${first - both} само първо влизане`)
+    if (last - both > 0) parts.push(`${last - both} само последен клик`)
+  }
+  return (
+    <div style={{ minWidth: 210 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: t.muted, textAlign: 'right', marginBottom: 6 }}>Поръчки</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+        <OrderStat t={t} value={first} label="първо влизане" color={t.accent}
+          revenue={link.ordersRevenue} conversion={link.conversion} voided={link.ordersVoided} />
+        <OrderStat t={t} value={lastClickSupported ? last : null} label="последен клик" color={t.accent2}
+          revenue={link.ordersLastClickRevenue} conversion={link.conversionLastClick} voided={link.ordersLastClickVoided} />
+      </div>
+      {parts.length > 0 && (
+        <div style={{ fontSize: 11, color: t.muted, marginTop: 8, textAlign: 'right' }}>{parts.join(' · ')}</div>
+      )}
+      {lastClickSupported && link.sharedUtmWith > 0 && (
+        <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end', fontSize: 10, color: t.warn, marginTop: 6, maxWidth: 260, marginLeft: 'auto', textAlign: 'right', lineHeight: 1.35 }}>
+          <AlertTriangle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>
+            Още {link.sharedUtmWith} {link.sharedUtmWith === 1 ? 'линк е' : 'линка са'} със същите UTM параметри. Shopify не ги
+            различава, затова последен клик се брои само когато и първото влизане е през този линк.
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ExplainColumn({ t, color, title, source, counts, misses }) {
+  const row = { fontSize: 12, lineHeight: 1.45, color: t.text, marginTop: 8 }
+  const tag = { display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: t.muted, marginBottom: 1 }
+  return (
+    <div style={{ borderRadius: 12, background: t.subtleBg, padding: 14, borderTop: `3px solid ${color}` }}>
+      <div style={{ fontSize: 14, fontWeight: 700 }}>{title}</div>
+      <div style={row}><span style={tag}>Какво брои</span>{counts}</div>
+      <div style={row}><span style={tag}>Откъде идва</span>{source}</div>
+      <div style={row}><span style={tag}>Какво изпуска</span>{misses}</div>
+    </div>
+  )
+}
+
+function AttributionExplainer({ t, lastClickSupported }) {
+  const [open, setOpen] = useState(true)
+  useEffect(() => { try { if (localStorage.getItem('rf-utm-explainer') === 'closed') setOpen(false) } catch {} }, [])
+  const toggle = () => setOpen((v) => {
+    try { localStorage.setItem('rf-utm-explainer', v ? 'closed' : 'open') } catch {}
+    return !v
+  })
+  return (
+    <div style={{ borderRadius: 14, background: t.cardBg, border: `1px solid ${t.cardBorder}`, padding: 16 }}>
+      <button onClick={toggle} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: 0, border: 'none', background: 'transparent', color: t.text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+        <Info size={16} color={t.muted} style={{ flexShrink: 0 }} />
+        <span style={{ fontSize: 14, fontWeight: 700 }}>Защо всеки линк има две числа за поръчки?</span>
+        <span style={{ marginLeft: 'auto', color: t.muted, display: 'inline-flex' }}>{open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
+      </button>
+      {open && (
+        <>
+          <div style={{ fontSize: 12, color: t.muted, marginTop: 8, lineHeight: 1.5 }}>
+            Една и съща поръчка може да се припише на линк по два начина. И двата са верни, но отговарят на
+            различен въпрос — затова числата рядко съвпадат.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12, marginTop: 12 }}>
+            <ExplainColumn t={t} color={t.accent} title="Първо влизане"
+              counts="Поръчки на клиенти, които са влезли в сайта за пръв път именно през този линк."
+              source="От полето „landing site“ на поръчката в Shopify — първата страница, на която е кацнал клиентът. Shopify я помни около 2 седмици, а нашият линк оставя в нея своя код (_ref)."
+              misses="Клиент, който вече е идвал наскоро — от имейл, реклама или директно — и чак после е кликнал линка. За Shopify първото му влизане е онова, по-старото." />
+            <ExplainColumn t={t} color={t.accent2} title="Последен клик (както в Shopify)"
+              counts="Поръчки, при които последното посещение преди покупката е било през този линк."
+              source="От „Conversion summary“ на поръчката в Shopify — по UTM параметрите на линка (source, medium, campaign, content, term). Това е числото, което показват и отчетите на Shopify по UTM."
+              misses="Клиент, който е кликнал линка, но после се е върнал директно в сайта и тогава е поръчал. Последното му посещение е без UTM." />
+          </div>
+          <div style={{ fontSize: 12, color: t.muted, marginTop: 12, lineHeight: 1.5 }}>
+            Под числата на всеки линк пише колко поръчки се броят <b style={{ color: t.text }}>и в двете</b> и колко само в едното.
+            Последният клик излиза 10–20 минути след поръчката (толкова му трябва на Shopify) и се обновява на всеки час;
+            „Обнови поръчките“ го прави веднага.
+          </div>
+          {!lastClickSupported && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, padding: 10, borderRadius: 10, background: 'rgba(245,158,11,0.12)', color: t.warn, fontSize: 12, lineHeight: 1.45 }}>
+              <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>
+                Числото „последен клик“ още не е включено. Пусни <b>supabase/migration_utm_orders_last_click.sql</b> в
+                Supabase (SQL Editor) и натисни „Обнови поръчките“.
+              </span>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 /* ---------- one link row (readable) ---------- */
-function LinkCard({ link, t, onDelete, onCopy, copiedId }) {
+function LinkCard({ link, t, onDelete, onCopy, copiedId, lastClickSupported }) {
   const [days, setDays] = useState('30')
   const [daily, setDaily] = useState(null)
   const [open, setOpen] = useState(false)
@@ -115,32 +239,14 @@ function LinkCard({ link, t, onDelete, onCopy, copiedId }) {
           </div>
         </div>
         {/* right: clicks + orders + actions */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', justifyContent: 'flex-end', marginLeft: 'auto' }}>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 26, fontWeight: 800, color: t.text, lineHeight: 1 }}>{link.clicks}</div>
             <div style={{ fontSize: 11, color: t.muted, marginTop: 3 }}>кликове общо</div>
             <div style={{ fontSize: 11, color: t.muted, marginTop: 6 }}>{fmtDate(link.created_at)}</div>
           </div>
-          {/* поръчки през този линк */}
-          <div style={{ textAlign: 'right', minWidth: 96 }}>
-            <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: link.orders > 0 ? t.accent : t.muted }}>
-              {link.orders ?? 0}
-            </div>
-            <div style={{ fontSize: 11, color: t.muted, marginTop: 3 }}>
-              {(link.orders ?? 0) === 1 ? 'поръчка' : 'поръчки'}
-            </div>
-            {link.orders > 0 && (
-              <div style={{ fontSize: 11, color: t.muted, marginTop: 6 }}>
-                {Number(link.ordersRevenue || 0).toFixed(2)} €
-                {link.conversion != null && <> · {link.conversion}%</>}
-              </div>
-            )}
-            {link.ordersVoided > 0 && (
-              <div style={{ fontSize: 10, color: t.muted, marginTop: 2 }}>
-                +{link.ordersVoided} анулирани
-              </div>
-            )}
-          </div>
+          {/* поръчки през този линк — по първо влизане и по последен клик */}
+          <LinkOrders link={link} t={t} lastClickSupported={lastClickSupported} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <button onClick={() => setOpen((v) => !v)} title="Графика по дни" style={iconBtn(t, open)}><TrendingUp size={15} /></button>
             <button onClick={onDelete} title="Изтрий" style={{ ...iconBtn(t, false), color: '#dc2626' }}><Trash2 size={15} /></button>
@@ -217,16 +323,26 @@ function StatsTab({ stats, t }) {
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+      <AttributionExplainer t={t} lastClickSupported={!!stats.lastClickSupported} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
         <StatCard t={t} label="Линкове" value={stats.totalLinks} sub={`${activeLinks} активни за ${days} дни`} />
         <StatCard t={t} label="Кликове (общо)" value={stats.totalClicks} sub={`${periodClicks} за ${days} дни`} />
         <StatCard
           t={t}
-          label="Поръчки през линковете"
+          color={t.accent}
+          label="Поръчки · първо влизане"
           value={stats.totalOrders ?? 0}
-          sub={stats.totalClicks > 0 ? `${Math.round(((stats.totalOrders || 0) / stats.totalClicks) * 1000) / 10}% от кликовете` : null}
+          sub={`${Number(stats.totalRevenue || 0).toFixed(2)} € без анулирани${stats.totalClicks > 0 ? ` · ${Math.round(((stats.totalOrders || 0) / stats.totalClicks) * 1000) / 10}% от кликовете` : ''}`}
         />
-        <StatCard t={t} label="Приход" value={`${Number(stats.totalRevenue || 0).toFixed(2)} €`} sub="без анулирани" />
+        <StatCard
+          t={t}
+          color={t.accent2}
+          label="Поръчки · последен клик"
+          value={stats.lastClickSupported ? (stats.totalOrdersLastClick ?? 0) : '—'}
+          sub={stats.lastClickSupported
+            ? `${Number(stats.totalRevenueLastClick || 0).toFixed(2)} € без анулирани · както в Shopify`
+            : 'чака миграция в Supabase'}
+        />
       </div>
 
       <div style={{ borderRadius: 14, background: t.cardBg, border: `1px solid ${t.cardBorder}`, padding: 16 }}>
@@ -267,11 +383,14 @@ function StatsTab({ stats, t }) {
   )
 }
 
-function StatCard({ label, value, sub, t }) {
+function StatCard({ label, value, sub, t, color }) {
   return (
     <div style={{ borderRadius: 14, background: t.cardBg, border: `1px solid ${t.cardBorder}`, padding: 16 }}>
       <div style={{ fontSize: 26, fontWeight: 800, color: t.text }}>{value}</div>
-      <div style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 3 }}>{label}</div>
+      <div style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 3 }}>
+        {color && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 4, background: color, marginRight: 6 }} />}
+        {label}
+      </div>
       {sub && <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>{sub}</div>}
     </div>
   )
@@ -347,6 +466,7 @@ export default function AdminUtmLinks() {
   const [tab, setTab] = useState('links')
   const [links, setLinks] = useState([])
   const [stats, setStats] = useState(null)
+  const lastClickSupported = !!stats?.lastClickSupported
   const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState(null)
   const [q, setQ] = useState('')
@@ -360,7 +480,8 @@ export default function AdminUtmLinks() {
   const copy = useCallback((text, id) => { navigator.clipboard.writeText(text).then(() => { setCopiedId(id); setTimeout(() => setCopiedId(null), 1800) }) }, [])
 
   // Сверява поръчките с Shopify: обхожда поръчките в магазина и записва онези,
-  // чийто landing URL носи наш alias. Дневният cron прави същото за 30 дни.
+  // дошли през наш линк — по първо влизане и по последен клик. Cron-ът прави
+  // същото на всеки час за последните 2 дни и веднъж дневно за 30.
   const [scanning, setScanning] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
   const scanOrders = async (days) => {
@@ -369,7 +490,14 @@ export default function AdminUtmLinks() {
       const res = await fetch(`/api/admin/utm-orders?days=${days}`, { method: 'POST' })
       const d = await res.json().catch(() => ({}))
       setScanMsg(res.ok
-        ? `Проверени ${d.scanned} поръчки · с UTM линк ${d.matched}`
+        ? [
+            `Проверени ${d.scanned} поръчки`,
+            `първо влизане: ${d.matched}`,
+            d.lastClickSupported ? `последен клик: ${d.lastClickMatched}` : null,
+            d.lastClickPending ? `${d.lastClickPending} още се обработват в Shopify` : null,
+            d.lastClickTruncated ? 'последният клик не стигна до най-старите — пусни пак' : null,
+            d.lastClickError ? `последен клик — грешка: ${d.lastClickError}` : null,
+          ].filter(Boolean).join(' · ')
         : `Грешка: ${d.error || res.status}`)
       if (res.ok) load()
     } catch (e) {
@@ -450,12 +578,13 @@ export default function AdminUtmLinks() {
           loading ? <div style={{ color: t.muted }}>Зареждане…</div>
           : regularLinks.length === 0 ? <div style={{ color: t.muted }}>Още няма маркетинг UTM линкове. Създай от „Нов линк".</div>
           : <div style={{ display: 'grid', gap: 12 }}>
+              <AttributionExplainer t={t} lastClickSupported={lastClickSupported} />
               <div style={{ position: 'relative', maxWidth: 360 }}>
                 <Search size={15} style={{ position: 'absolute', left: 11, top: 11, color: t.muted }} />
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Търси по име, alias, source, кампания…" style={{ ...field(t), paddingLeft: 34 }} />
               </div>
               <div style={{ fontSize: 12, color: t.muted }}>{filteredRegular.length} от {regularLinks.length} линка</div>
-              {filteredRegular.map((l) => <LinkCard key={l.id} link={l} t={t} onDelete={() => remove(l)} onCopy={copy} copiedId={copiedId} />)}
+              {filteredRegular.map((l) => <LinkCard key={l.id} link={l} t={t} onDelete={() => remove(l)} onCopy={copy} copiedId={copiedId} lastClickSupported={lastClickSupported} />)}
             </div>
         )}
 
@@ -466,12 +595,13 @@ export default function AdminUtmLinks() {
               <div style={{ fontSize: 12, color: t.muted }}>
                 Личните линкове на инфлуенсърите от кампании. Управляват се от раздел „Кампании".
               </div>
+              <AttributionExplainer t={t} lastClickSupported={lastClickSupported} />
               <div style={{ position: 'relative', maxWidth: 360 }}>
                 <Search size={15} style={{ position: 'absolute', left: 11, top: 11, color: t.muted }} />
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Търси по инфлуенсър, alias, кампания…" style={{ ...field(t), paddingLeft: 34 }} />
               </div>
               <div style={{ fontSize: 12, color: t.muted }}>{filteredCampaign.length} от {campaignLinks.length} линка</div>
-              {filteredCampaign.map((l) => <LinkCard key={l.id} link={l} t={t} onDelete={() => remove(l)} onCopy={copy} copiedId={copiedId} />)}
+              {filteredCampaign.map((l) => <LinkCard key={l.id} link={l} t={t} onDelete={() => remove(l)} onCopy={copy} copiedId={copiedId} lastClickSupported={lastClickSupported} />)}
             </div>
         )}
 

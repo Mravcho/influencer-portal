@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { buildUtmUrl, buildShortUrl, generateAlias, sanitizeAlias } from '@/lib/utm'
-import { utmOrderStatsByAlias } from '@/lib/utm-orders'
+import { utmOrderStatsByAlias, utmOrdersHaveLastClick } from '@/lib/utm-orders'
+import { buildLinkIndex, sharedUtmCount } from '@/lib/utm-attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,20 +17,44 @@ export async function GET() {
   const list = links || []
 
   // Поръчки, дошли през всеки линк (utm_orders се пълни от webhook-а и от
-  // сканирането на магазина — виж lib/utm-orders.js).
-  const orderStats = await utmOrderStatsByAlias()
+  // сканирането на магазина — виж lib/utm-orders.js). Всяка поръчка се брои
+  // по два начина и показваме и двата:
+  //   orders          — първо влизане: landing URL-ът на поръчката носи alias-а
+  //   ordersLastClick — последен клик: UTM параметрите на последното посещение
+  //                     съвпадат с тези на линка (така смята Shopify)
+  const [orderStats, lastClickSupported] = await Promise.all([
+    utmOrderStatsByAlias(),
+    utmOrdersHaveLastClick(),
+  ])
+  const index = buildLinkIndex(list)
+  const pct = (orders, clicks) => (clicks > 0 ? Math.round((orders / clicks) * 1000) / 10 : null)
 
   const withShort = list.map((l) => {
-    const s = orderStats[l.alias] || { orders: 0, revenue: 0, voided: 0, lastOrderAt: null }
+    const s = orderStats[l.alias] || {}
+    const orders = s.orders || 0
+    const ordersLastClick = s.lastClickOrders || 0
+    const ordersBoth = s.both || 0
     return {
       ...l,
       shortUrl:      buildShortUrl(l.alias),
-      orders:        s.orders,
-      ordersVoided:  s.voided,
-      ordersRevenue: s.revenue,
-      lastOrderAt:   s.lastOrderAt,
+      // първо влизане
+      orders,
+      ordersVoided:  s.voided || 0,
+      ordersRevenue: s.revenue || 0,
       // Процент поръчки спрямо кликове — само когато има кликове.
-      conversion:    l.clicks > 0 ? Math.round((s.orders / l.clicks) * 1000) / 10 : null,
+      conversion:    pct(orders, l.clicks),
+      // последен клик (както в Shopify)
+      ordersLastClick,
+      ordersLastClickVoided:  s.lastClickVoided || 0,
+      ordersLastClickRevenue: s.lastClickRevenue || 0,
+      conversionLastClick:    pct(ordersLastClick, l.clicks),
+      // сечение и разлика между двете
+      ordersBoth,
+      ordersOnlyFirstVisit: orders - ordersBoth,
+      ordersOnlyLastClick:  ordersLastClick - ordersBoth,
+      // Други линкове със същите UTM параметри — Shopify не може да ги различи.
+      sharedUtmWith: sharedUtmCount(l, index),
+      lastOrderAt:   s.lastOrderAt || null,
     }
   })
 
@@ -40,8 +65,11 @@ export async function GET() {
     if (l.utm_campaign) byCampaign[l.utm_campaign] = (byCampaign[l.utm_campaign] || 0) + l.clicks
   }
 
-  const totalOrders  = withShort.reduce((s, l) => s + l.orders, 0)
-  const totalRevenue = Math.round(withShort.reduce((s, l) => s + l.ordersRevenue, 0) * 100) / 100
+  const sum = (key) => withShort.reduce((s, l) => s + (l[key] || 0), 0)
+  const totalOrders  = sum('orders')
+  const totalRevenue = Math.round(sum('ordersRevenue') * 100) / 100
+  const totalOrdersLastClick  = sum('ordersLastClick')
+  const totalRevenueLastClick = Math.round(sum('ordersLastClickRevenue') * 100) / 100
 
   return NextResponse.json({
     links: withShort,
@@ -50,6 +78,9 @@ export async function GET() {
       totalClicks: list.reduce((s, l) => s + (l.clicks || 0), 0),
       totalOrders,
       totalRevenue,
+      totalOrdersLastClick,
+      totalRevenueLastClick,
+      lastClickSupported,
       bySource, byMedium, byCampaign,
       topLinks: [...withShort].sort((a, b) => b.clicks - a.clicks).slice(0, 10),
       topByOrders: [...withShort].filter((l) => l.orders > 0).sort((a, b) => b.orders - a.orders).slice(0, 10),

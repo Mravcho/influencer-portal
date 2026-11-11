@@ -166,3 +166,12 @@ CREATE TABLE IF NOT EXISTS utm_orders (
 );
 CREATE INDEX IF NOT EXISTS utm_orders_alias_idx   ON utm_orders (alias);
 CREATE INDEX IF NOT EXISTS utm_orders_created_idx ON utm_orders (created_at DESC);
+
+-- ===== UTM ПОРЪЧКИ: ПОСЛЕДЕН КЛИК =====
+-- alias = първо влизане (landing_site), last_click_alias = последен клик
+-- (Customer Journey), както го смята Shopify. Поръчка може да има само едното.
+ALTER TABLE utm_orders
+  ADD COLUMN IF NOT EXISTS last_click_alias TEXT;
+ALTER TABLE utm_orders
+  ALTER COLUMN alias DROP NOT NULL;
+CREATE INDEX IF NOT EXISTS utm_orders_last_click_idx ON utm_orders (last_click_alias);

@@ -6,7 +6,7 @@ import { fetchProductImages } from '@/lib/shopify'
 import { markDeliveredFromWebhook } from '@/lib/request-deliveries'
 import { normalizeFinancialStatus } from '@/lib/order-flags'
 import { ordersHaveCancelledAt } from '@/lib/order-status'
-import { recordUtmOrder, loadKnownAliases } from '@/lib/utm-orders'
+import { recordUtmOrder, loadLinkIndex } from '@/lib/utm-orders'
 import { findActiveCampaignByCodes, resolveCampaignInfluencer } from '@/lib/campaign-sync'
 import { findInfluencersByCodes } from '@/lib/influencer-codes'
 
@@ -129,10 +129,12 @@ export async function POST(request) {
   }
 
   // --- UTM статистика ---
-  // Всяка поръчка, чийто landing URL носи наш alias, се записва в utm_orders —
+  // Всяка поръчка, дошла през наш UTM линк, се записва в utm_orders —
   // включително поръчки БЕЗ промокод. Затова е преди проверката за промокод.
+  // Приписва се по два начина: първо влизане (landing URL с наш alias) и
+  // последен клик (Customer Journey) — виж lib/utm-attribution.js.
   try {
-    await recordUtmOrder(order, await loadKnownAliases())
+    await recordUtmOrder(order, await loadLinkIndex())
   } catch (err) {
     console.error('UTM order record failed:', err.message)
   }
