@@ -4,7 +4,7 @@ import { format, parseISO } from 'date-fns'
 import { bg } from 'date-fns/locale'
 import {
   Link2, Plus, Copy, Check, Trash2, ExternalLink, Search, TrendingUp, MousePointerClick,
-  ChevronDown, ChevronUp, Info, AlertTriangle,
+  ChevronDown, ChevronUp, Info, AlertTriangle, ShoppingBag,
 } from 'lucide-react'
 import AdminShell from '../components/AdminShell'
 
@@ -74,60 +74,98 @@ function chipToggle(t, on) {
 /* ---------- orders: two ways of counting ---------- */
 // Всяка поръчка се брои по два начина (виж lib/utm-attribution.js). Цветът на
 // числото съвпада с цвета на колоната в обяснението най-горе.
-function OrderStat({ value, label, color, revenue, conversion, voided, t }) {
-  const has = typeof value === 'number'
+// Кутия с надпис и икона отгоре — за да личи от пръв поглед кое число е
+// кликове и кое поръчки.
+function StatTile({ t, icon, title, children, style }) {
   return (
-    <div style={{ textAlign: 'right' }}>
-      <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: has && value > 0 ? color : t.muted }}>
-        {has ? value : '—'}
+    <div style={{ borderRadius: 12, background: t.subtleBg, border: `1px solid ${t.cardBorder}`, padding: '10px 14px 12px', ...style }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: t.text, marginBottom: 10 }}>
+        {icon}{title}
       </div>
-      <div style={{ fontSize: 11, color: t.muted, marginTop: 3, whiteSpace: 'nowrap' }}>
-        <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 4, background: color, marginRight: 5 }} />
-        {label}
-      </div>
-      {has && value > 0 && (
-        <div style={{ fontSize: 11, color: t.muted, marginTop: 6, whiteSpace: 'nowrap' }}>
-          {Number(revenue || 0).toFixed(2)} €
-          {conversion != null && <> · {conversion}%</>}
-        </div>
-      )}
-      {voided > 0 && <div style={{ fontSize: 10, color: t.muted, marginTop: 2 }}>+{voided} анулирани</div>}
+      {children}
     </div>
   )
 }
 
-function LinkOrders({ link, t, lastClickSupported }) {
-  const first = link.orders ?? 0
-  const last = link.ordersLastClick ?? 0
-  const both = link.ordersBoth ?? 0
-  const parts = []
-  if (lastClickSupported && (first > 0 || last > 0)) {
-    parts.push(`${both} и в двете`)
-    if (first - both > 0) parts.push(`${first - both} само първо влизане`)
-    if (last - both > 0) parts.push(`${last - both} само последен клик`)
-  }
+function ClicksTile({ link, t }) {
   return (
-    <div style={{ minWidth: 210 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: t.muted, textAlign: 'right', marginBottom: 6 }}>Поръчки</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-        <OrderStat t={t} value={first} label="първо влизане" color={t.accent}
-          revenue={link.ordersRevenue} conversion={link.conversion} voided={link.ordersVoided} />
-        <OrderStat t={t} value={lastClickSupported ? last : null} label="последен клик" color={t.accent2}
-          revenue={link.ordersLastClickRevenue} conversion={link.conversionLastClick} voided={link.ordersLastClickVoided} />
+    <StatTile t={t} title="Кликове" icon={<MousePointerClick size={14} color={t.muted} />} style={{ flex: '1 1 118px' }}>
+      <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: t.text }}>{link.clicks}</div>
+      <div style={{ fontSize: 11, color: t.muted, marginTop: 5 }}>общо върху линка</div>
+    </StatTile>
+  )
+}
+
+// Поръчките на линка: едно водещо число „общо“ (последен клик — същото,
+// което показва Shopify) и под него колко са от първо влизане през линка.
+// Двете се броят по различен начин (виж lib/utm-attribution.js), затова под
+// второто пише колко от тях влизат в общото и колко остават извън него.
+function OrdersTile({ link, t, lastClickSupported }) {
+  const first = link.orders ?? 0
+  const total = link.ordersLastClick ?? 0
+  const both = link.ordersBoth ?? 0
+  const onlyFirst = first - both
+  const money = (v) => `${Number(v || 0).toFixed(2)} €`
+  const voided = (n) => (n > 0 ? `+${n} ${n === 1 ? 'анулирана' : 'анулирани'}` : null)
+  const totalLine = [
+    total > 0 ? `${money(link.ordersLastClickRevenue)} приход` : 'няма поръчки',
+    total > 0 && link.conversionLastClick != null ? `${link.conversionLastClick}% от кликовете` : null,
+    voided(link.ordersLastClickVoided),
+  ].filter(Boolean).join(' · ')
+  const firstLine = [
+    first > 0 ? `${money(link.ordersRevenue)} приход` : null,
+    voided(link.ordersVoided),
+  ].filter(Boolean).join(' · ')
+  const sub = { fontSize: 11, color: t.muted, lineHeight: 1.45, marginTop: 5 }
+  const row = { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }
+  const section = { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${t.cardBorder}` }
+
+  let firstNote = null
+  if (lastClickSupported && first > 0) {
+    firstNote = onlyFirst === 0
+      ? `всички влизат в общите ${total}`
+      : `${both} влизат в общите ${total} · ${onlyFirst === 1 ? 'останалата 1' : `останалите ${onlyFirst}`} Shopify води към друг източник`
+  }
+
+  return (
+    <StatTile t={t} title="Поръчки" icon={<ShoppingBag size={14} color={t.muted} />} style={{ flex: '1 1 300px', maxWidth: 380 }}>
+      {/* общо — както в Shopify */}
+      <div style={row}>
+        <span style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: lastClickSupported && total > 0 ? t.accent : t.muted }}>
+          {lastClickSupported ? total : '—'}
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>общо</span>
+        <span style={{ fontSize: 11, color: t.muted }}>както в Shopify</span>
       </div>
-      {parts.length > 0 && (
-        <div style={{ fontSize: 11, color: t.muted, marginTop: 8, textAlign: 'right' }}>{parts.join(' · ')}</div>
-      )}
+      <div style={sub}>
+        {lastClickSupported ? totalLine : 'чака миграция в Supabase'}
+      </div>
+
+      {/* от първо влизане */}
+      <div style={section}>
+        <div style={row}>
+          <span style={{ fontSize: 20, fontWeight: 800, lineHeight: 1, color: first > 0 ? t.accent2 : t.muted }}>{first}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>от първо влизане през линка</span>
+        </div>
+        {(firstLine || firstNote) && (
+          <div style={sub}>
+            {firstLine}
+            {firstLine && firstNote && <br />}
+            {firstNote}
+          </div>
+        )}
+      </div>
+
       {lastClickSupported && link.sharedUtmWith > 0 && (
-        <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end', fontSize: 10, color: t.warn, marginTop: 6, maxWidth: 260, marginLeft: 'auto', textAlign: 'right', lineHeight: 1.35 }}>
-          <AlertTriangle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
+        <div style={{ ...section, display: 'flex', gap: 6, fontSize: 11, lineHeight: 1.4, color: t.warn }}>
+          <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
           <span>
             Още {link.sharedUtmWith} {link.sharedUtmWith === 1 ? 'линк е' : 'линка са'} със същите UTM параметри. Shopify не ги
-            различава, затова последен клик се брои само когато и първото влизане е през този линк.
+            различава, затова в общото влизат само поръчките, при които и първото влизане е през този линк.
           </span>
         </div>
       )}
-    </div>
+    </StatTile>
   )
 }
 
@@ -155,35 +193,36 @@ function AttributionExplainer({ t, lastClickSupported }) {
     <div style={{ borderRadius: 14, background: t.cardBg, border: `1px solid ${t.cardBorder}`, padding: 16 }}>
       <button onClick={toggle} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: 0, border: 'none', background: 'transparent', color: t.text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
         <Info size={16} color={t.muted} style={{ flexShrink: 0 }} />
-        <span style={{ fontSize: 14, fontWeight: 700 }}>Защо всеки линк има две числа за поръчки?</span>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>Как се броят поръчките на всеки линк?</span>
         <span style={{ marginLeft: 'auto', color: t.muted, display: 'inline-flex' }}>{open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
       </button>
       {open && (
         <>
           <div style={{ fontSize: 12, color: t.muted, marginTop: 8, lineHeight: 1.5 }}>
-            Една и съща поръчка може да се припише на линк по два начина. И двата са верни, но отговарят на
-            различен въпрос — затова числата рядко съвпадат.
+            Голямото число е <b style={{ color: t.text }}>общият брой поръчки</b> — същият, който показва Shopify. Под него е колко
+            поръчки са на клиенти, влезли <b style={{ color: t.text }}>за пръв път</b> през линка. Двете се броят по различен начин,
+            затова второто не е точна част от първото.
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12, marginTop: 12 }}>
-            <ExplainColumn t={t} color={t.accent} title="Първо влизане"
+            <ExplainColumn t={t} color={t.accent} title="Общо (както в Shopify)"
+              counts="Поръчки, при които последното посещение преди покупката е било през този линк."
+              source="От „Conversion summary“ на поръчката в Shopify — по UTM параметрите на линка (source, medium, campaign, content, term). Това е числото, което показват и отчетите на Shopify по UTM."
+              misses="Клиент, който е кликнал линка, но е поръчал при по-късно посещение — директно или от друг източник." />
+            <ExplainColumn t={t} color={t.accent2} title="От първо влизане през линка"
               counts="Поръчки на клиенти, които са влезли в сайта за пръв път именно през този линк."
               source="От полето „landing site“ на поръчката в Shopify — първата страница, на която е кацнал клиентът. Shopify я помни около 2 седмици, а нашият линк оставя в нея своя код (_ref)."
               misses="Клиент, който вече е идвал наскоро — от имейл, реклама или директно — и чак после е кликнал линка. За Shopify първото му влизане е онова, по-старото." />
-            <ExplainColumn t={t} color={t.accent2} title="Последен клик (както в Shopify)"
-              counts="Поръчки, при които последното посещение преди покупката е било през този линк."
-              source="От „Conversion summary“ на поръчката в Shopify — по UTM параметрите на линка (source, medium, campaign, content, term). Това е числото, което показват и отчетите на Shopify по UTM."
-              misses="Клиент, който е кликнал линка, но после се е върнал директно в сайта и тогава е поръчал. Последното му посещение е без UTM." />
           </div>
           <div style={{ fontSize: 12, color: t.muted, marginTop: 12, lineHeight: 1.5 }}>
-            Под числата на всеки линк пише колко поръчки се броят <b style={{ color: t.text }}>и в двете</b> и колко само в едното.
-            Последният клик излиза 10–20 минути след поръчката (толкова му трябва на Shopify) и се обновява на всеки час;
-            „Обнови поръчките“ го прави веднага.
+            Под второто число пише колко от тези поръчки <b style={{ color: t.text }}>влизат в общото</b>. Останалите са на клиенти,
+            които са влезли през линка, но Shopify ги води към друг източник. Общото излиза 10–20 минути след поръчката
+            (толкова му трябва на Shopify) и се обновява на всеки час; „Обнови поръчките“ го прави веднага.
           </div>
           {!lastClickSupported && (
             <div style={{ display: 'flex', gap: 8, marginTop: 12, padding: 10, borderRadius: 10, background: 'rgba(245,158,11,0.12)', color: t.warn, fontSize: 12, lineHeight: 1.45 }}>
               <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
               <span>
-                Числото „последен клик“ още не е включено. Пусни <b>supabase/migration_utm_orders_last_click.sql</b> в
+                Общият брой (както в Shopify) още не е включен. Пусни <b>supabase/migration_utm_orders_last_click.sql</b> в
                 Supabase (SQL Editor) и натисни „Обнови поръчките“.
               </span>
             </div>
@@ -237,18 +276,14 @@ function LinkCard({ link, t, onDelete, onCopy, copiedId, lastClickSupported }) {
             <span style={{ wordBreak: 'break-all' }}>{prettyDest(link.dest_url)}</span>
             <CopyBtn text={link.full_url} id={`u-${link.id}`} copiedId={copiedId} onCopy={onCopy} t={t} title="Копирай пълен UTM линк"><Copy size={12} /></CopyBtn>
           </div>
+          <div style={{ fontSize: 11, color: t.muted, marginTop: 8 }}>създаден на {fmtDate(link.created_at)}</div>
         </div>
-        {/* right: clicks + orders + actions */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', justifyContent: 'flex-end', marginLeft: 'auto' }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 26, fontWeight: 800, color: t.text, lineHeight: 1 }}>{link.clicks}</div>
-            <div style={{ fontSize: 11, color: t.muted, marginTop: 3 }}>кликове общо</div>
-            <div style={{ fontSize: 11, color: t.muted, marginTop: 6 }}>{fmtDate(link.created_at)}</div>
-          </div>
-          {/* поръчки през този линк — по първо влизане и по последен клик */}
-          <LinkOrders link={link} t={t} lastClickSupported={lastClickSupported} />
+        {/* right: кликове | поръчки (по двата начина) | действия */}
+        <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', flex: '1 1 440px', maxWidth: 560, marginLeft: 'auto' }}>
+          <ClicksTile link={link} t={t} />
+          <OrdersTile link={link} t={t} lastClickSupported={lastClickSupported} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <button onClick={() => setOpen((v) => !v)} title="Графика по дни" style={iconBtn(t, open)}><TrendingUp size={15} /></button>
+            <button onClick={() => setOpen((v) => !v)} title="Графика на кликовете по дни" style={iconBtn(t, open)}><TrendingUp size={15} /></button>
             <button onClick={onDelete} title="Изтрий" style={{ ...iconBtn(t, false), color: '#dc2626' }}><Trash2 size={15} /></button>
           </div>
         </div>
@@ -325,23 +360,25 @@ function StatsTab({ stats, t }) {
     <div style={{ display: 'grid', gap: 16 }}>
       <AttributionExplainer t={t} lastClickSupported={!!stats.lastClickSupported} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-        <StatCard t={t} label="Линкове" value={stats.totalLinks} sub={`${activeLinks} активни за ${days} дни`} />
-        <StatCard t={t} label="Кликове (общо)" value={stats.totalClicks} sub={`${periodClicks} за ${days} дни`} />
+        <StatCard t={t} icon={<Link2 size={14} />} label="Линкове" value={stats.totalLinks} sub={`${activeLinks} активни за ${days} дни`} />
+        <StatCard t={t} icon={<MousePointerClick size={14} />} label="Кликове" value={stats.totalClicks} sub={`общо · ${periodClicks} за ${days} дни`} />
         <StatCard
           t={t}
           color={t.accent}
-          label="Поръчки · първо влизане"
-          value={stats.totalOrders ?? 0}
-          sub={`${Number(stats.totalRevenue || 0).toFixed(2)} € без анулирани${stats.totalClicks > 0 ? ` · ${Math.round(((stats.totalOrders || 0) / stats.totalClicks) * 1000) / 10}% от кликовете` : ''}`}
+          icon={<ShoppingBag size={14} />}
+          label="Поръчки общо"
+          value={stats.lastClickSupported ? (stats.totalOrdersLastClick ?? 0) : '—'}
+          sub={stats.lastClickSupported
+            ? `както в Shopify · ${Number(stats.totalRevenueLastClick || 0).toFixed(2)} € без анулирани${stats.totalClicks > 0 ? ` · ${Math.round(((stats.totalOrdersLastClick || 0) / stats.totalClicks) * 1000) / 10}% от кликовете` : ''}`
+            : 'чака миграция в Supabase'}
         />
         <StatCard
           t={t}
           color={t.accent2}
-          label="Поръчки · последен клик"
-          value={stats.lastClickSupported ? (stats.totalOrdersLastClick ?? 0) : '—'}
-          sub={stats.lastClickSupported
-            ? `${Number(stats.totalRevenueLastClick || 0).toFixed(2)} € без анулирани · както в Shopify`
-            : 'чака миграция в Supabase'}
+          icon={<ShoppingBag size={14} />}
+          label="Поръчки от първо влизане"
+          value={stats.totalOrders ?? 0}
+          sub={`през линковете · ${Number(stats.totalRevenue || 0).toFixed(2)} € без анулирани`}
         />
       </div>
 
@@ -383,15 +420,16 @@ function StatsTab({ stats, t }) {
   )
 }
 
-function StatCard({ label, value, sub, t, color }) {
+function StatCard({ label, value, sub, t, color, icon }) {
   return (
     <div style={{ borderRadius: 14, background: t.cardBg, border: `1px solid ${t.cardBorder}`, padding: 16 }}>
-      <div style={{ fontSize: 26, fontWeight: 800, color: t.text }}>{value}</div>
-      <div style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 3 }}>
-        {color && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 4, background: color, marginRight: 6 }} />}
-        {label}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: t.muted, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
+        {icon}
+        {color && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: color, flexShrink: 0 }} />}
+        <span>{label}</span>
       </div>
-      {sub && <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>{sub}</div>}
+      <div style={{ fontSize: 26, fontWeight: 800, color: t.text, lineHeight: 1.1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: t.muted, marginTop: 6 }}>{sub}</div>}
     </div>
   )
 }
@@ -492,11 +530,11 @@ export default function AdminUtmLinks() {
       setScanMsg(res.ok
         ? [
             `Проверени ${d.scanned} поръчки`,
-            `първо влизане: ${d.matched}`,
-            d.lastClickSupported ? `последен клик: ${d.lastClickMatched}` : null,
+            d.lastClickSupported ? `общо (както в Shopify): ${d.lastClickMatched}` : null,
+            `от първо влизане: ${d.matched}`,
             d.lastClickPending ? `${d.lastClickPending} още се обработват в Shopify` : null,
-            d.lastClickTruncated ? 'последният клик не стигна до най-старите — пусни пак' : null,
-            d.lastClickError ? `последен клик — грешка: ${d.lastClickError}` : null,
+            d.lastClickTruncated ? 'общият брой не стигна до най-старите — пусни пак' : null,
+            d.lastClickError ? `общ брой — грешка: ${d.lastClickError}` : null,
           ].filter(Boolean).join(' · ')
         : `Грешка: ${d.error || res.status}`)
       if (res.ok) load()
