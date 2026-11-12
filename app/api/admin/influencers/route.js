@@ -56,7 +56,7 @@ export async function GET() {
     const [ordersRes, clickRes] = await Promise.all([
       supabaseAdmin
         .from('orders')
-        .select('total_price, commissionable_revenue, line_items, financial_status, commission_pct')
+        .select('total_price, commissionable_revenue, line_items, financial_status, commission_pct, created_at_shopify')
         .eq('influencer_id', inf.id),
       supabaseAdmin
         .from('link_clicks')
@@ -71,6 +71,12 @@ export async function GET() {
     )
 
     const totalRevenue = activeOrders.reduce((s, o) => s + parseFloat(o.total_price || 0), 0)
+
+    // Поръчки в същия 90-дневен прозорец като кликовете — за подредбата
+    // „Най-ефективни“ (кой продава сега, а не кой е продавал някога).
+    const recentOrderCount = activeOrders.filter(
+      o => o.created_at_shopify && new Date(o.created_at_shopify) >= clickWindow
+    ).length
 
     // Комисионната се изчислява от пълната цена на продуктите с отстъпка
     // commissionable за поръчка (stored или fallback от line_items)
@@ -94,6 +100,7 @@ export async function GET() {
       // true → приел е, но след това е качена нова версия на общите условия
       terms_outdated:  !!(acceptedAt && termsUpdatedAt && acceptedAt < termsUpdatedAt),
       orderCount:      activeOrders.length,
+      recentOrderCount,
       totalRevenue:    Math.round(totalRevenue * 100) / 100,
       totalCommission: Math.round(totalCommission * 100) / 100,
       clickCount:      clickRes.count || 0,
