@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminShell from '../components/AdminShell'
 import InfluencerActivity from '../components/InfluencerActivity'
+import { INFLUENCER_SORTS, DEFAULT_INFLUENCER_SORT, sortInfluencers, hasActivity } from '@/lib/influencer-sort'
 
 const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Facebook', 'Друга']
 
@@ -31,6 +32,18 @@ export default function AdminPage() {
   const router = useRouter()
   const [influencers, setInfluencers] = useState([])
   const [tab, setTab]     = useState('influencers') // 'influencers'|'partners'|'cosmetics'|'form'
+  // Подредба на списъка — помни се в браузъра, за да е същата и следващия път.
+  const [sortBy, setSortBy] = useState(DEFAULT_INFLUENCER_SORT)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('rf-inf-sort')
+      if (INFLUENCER_SORTS.some(o => o.value === saved)) setSortBy(saved)
+    } catch {}
+  }, [])
+  const changeSort = (value) => {
+    setSortBy(value)
+    try { localStorage.setItem('rf-inf-sort', value) } catch {}
+  }
   const [form, setForm]   = useState(emptyForm)
   const [editId, setEditId] = useState(null)
   const [originalEmail, setOriginalEmail] = useState('')
@@ -696,6 +709,25 @@ export default function AdminPage() {
         {tab === 'activity' && <InfluencerActivity />}
 
         {tab !== 'form' && tab !== 'activity' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+            <label htmlFor="inf-sort" style={{ fontSize: 12, color: 'var(--muted)' }}>Подредба:</label>
+            <select
+              id="inf-sort"
+              value={sortBy}
+              onChange={e => changeSort(e.target.value)}
+              style={{ width: 'auto', flex: '0 0 auto', fontSize: 13, fontWeight: 600, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface, #fff)', color: 'inherit', fontFamily: 'inherit', cursor: 'pointer' }}
+            >
+              {INFLUENCER_SORTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            {sortBy === 'effective' && (
+              <span style={{ fontSize: 11, color: 'var(--muted)', flex: '1 1 260px' }}>
+                най-отгоре са тези с най-много поръчки за последните 90 дни, после по кликове за 90 дни, после по всички поръчки; деактивираните са най-долу
+              </span>
+            )}
+          </div>
+        )}
+
+        {tab !== 'form' && tab !== 'activity' && (
           <div className="card table-wrap">
             <table style={{ fontSize: 12 }}>
               <thead><tr>
@@ -706,11 +738,17 @@ export default function AdminPage() {
                 <th>Действия</th>
               </tr></thead>
               <tbody>
-                {influencers.filter(inf => (inf.category || 'influencers') === tab).map(inf => (
+                {sortInfluencers(influencers.filter(inf => (inf.category || 'influencers') === tab), sortBy).map((inf, idx) => (
                   <tr key={inf.id} style={{ verticalAlign: 'top' }}>
                     {/* Инфлуенсър: avatar + name + username · platform + промокод + мейл icon */}
                     <td style={{ padding: '8px 6px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {/* място в подредбата „Най-ефективни“ — само за профили с активност */}
+                        {sortBy === 'effective' && (
+                          <span style={{ width: 20, flexShrink: 0, textAlign: 'right', fontSize: 11, fontWeight: 700, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
+                            {hasActivity(inf) && inf.active !== false ? idx + 1 : ''}
+                          </span>
+                        )}
                         {inf.avatar_url ? (
                           <img
                             src={inf.avatar_url}
@@ -766,11 +804,16 @@ export default function AdminPage() {
                         <span style={{ color: inf.clickCount > 0 ? 'var(--accent)' : 'var(--muted)', fontWeight: 600 }}>
                           {inf.clickCount || 0}
                         </span>
-                        <span style={{ color: 'var(--muted)', fontSize: 10 }}> кликa 90д</span>
+                        <span style={{ color: 'var(--muted)', fontSize: 10 }}> клика 90д</span>
                       </div>
                       <div>
-                        <span style={{ fontWeight: 600 }}>{inf.orderCount || 0}</span>
-                        <span style={{ color: 'var(--muted)', fontSize: 10 }}> поръчки</span>
+                        <span style={{ color: inf.recentOrderCount > 0 ? 'var(--accent)' : 'var(--muted)', fontWeight: 600 }}>
+                          {inf.recentOrderCount || 0}
+                        </span>
+                        <span style={{ color: 'var(--muted)', fontSize: 10 }}> поръчки 90д</span>
+                      </div>
+                      <div style={{ color: 'var(--muted)', fontSize: 10 }}>
+                        общо <span style={{ fontWeight: 600, color: 'var(--text, inherit)' }}>{inf.orderCount || 0}</span> поръчки
                       </div>
                     </td>
 
